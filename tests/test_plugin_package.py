@@ -35,6 +35,30 @@ class PluginPackageTests(unittest.TestCase):
         self.assertEqual(overlay["hooks"], "./hooks/hooks.json")
         self.assertTrue((CODEX_PACKAGE / overlay["hooks"]).is_file())
 
+    def test_codex_and_claude_mcp_descriptors_start_the_same_bundled_server(self):
+        codex = json.loads((CODEX_PACKAGE / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
+        claude = json.loads((PLUGIN / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
+        self.assertEqual(codex["command"], "./scripts/launch-jev")
+        self.assertEqual(codex["cwd"], ".")
+        self.assertEqual(claude["command"], "${CLAUDE_PLUGIN_ROOT}/scripts/launch-jev")
+        self.assertEqual(
+            hashlib.sha256((CODEX_PACKAGE / "scripts/launch-jev").read_bytes()).digest(),
+            hashlib.sha256((PLUGIN / "scripts/launch-jev").read_bytes()).digest(),
+        )
+
+    def test_codex_mcp_descriptor_launches_and_answers_offline_initialize(self):
+        config = json.loads((CODEX_PACKAGE / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
+        request = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                   "params": {"protocolVersion": "2025-06-18"}}
+        result = subprocess.run(
+            [config["command"], *config["args"]], input=json.dumps(request) + "\n",
+            capture_output=True, text=True, cwd=CODEX_PACKAGE / config["cwd"], timeout=15,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout.splitlines()[0])["result"]["serverInfo"]["name"],
+                         "qualixar-jev-decision-layer")
+
     def test_readme_relative_links_and_release_images_exist(self):
         readme = (ROOT / "README.md").read_text()
         self.assertIn('src="docs/assets/jev-mark.svg"', readme)
