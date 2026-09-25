@@ -9,3 +9,14 @@ On the review screen, read the full folder path, provider, data scope, budgets, 
 After saving, let Codex present any native hook-trust prompt. Inspect and trust only the exact current Qualixar hook definition if you want automatic guidance; installing a plugin does not trust its hooks. In a fresh task, ask for `jev_auto_status` on the workspace; that readiness check makes no model request. To check the actual provider, ask for one synthetic decision and confirm the returned provider/model and receipt. An offline `jev_run_fixture` result is labeled simulated and does not verify provider access. Do not create an `.env` file as a workaround for the Keychain wizard; `.env.example` is a developer reference, not the ordinary setup path.
 
 If setup fails, keep normal Codex work going. Do not paste a key into a bug report. The private local policy can be revoked and the plugin removed without deleting the project. An older Jev installation is not silently imported: the new plugin keeps a separate local state and asks you to review its workspace scope once.
+
+## Update an existing GitHub marketplace installation
+
+For a maintenance change to the repository's `main` branch, refresh the marketplace and installed plugin, then start a fresh Codex task so the changed skill text loads:
+
+```sh
+codex plugin marketplace upgrade qualixar-jev-layer
+codex plugin add qualixar-jev-decision-layer@qualixar-jev-layer
+```
+
+This does not re-enter a saved TypeSafe key or widen an enrolled workspace's consent. Codex may require a fresh review if a future update changes a hook definition; do not bypass that native review. This browser-skill maintenance change kept the existing hook definitions unchanged.
