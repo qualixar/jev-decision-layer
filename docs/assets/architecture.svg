@@ -26,7 +26,7 @@
 
   <rect x="55" y="190" width="220" height="165" rx="14" fill="#12283a" stroke="#4d91aa" stroke-width="2"/>
   <text x="76" y="226" font-family="ui-sans-serif,system-ui,sans-serif" font-size="21" font-weight="700" fill="#e8f7ff">Coding agent</text>
-  <text x="76" y="256" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#b6d1dc">Codex Desktop</text>
+  <text x="76" y="256" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#b6d1dc">Any of five hosts</text>
   <text x="76" y="282" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#9ab6c5">Skills · MCP · hooks</text>
   <text x="76" y="324" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#80d9bd">Executes and verifies</text>
 
