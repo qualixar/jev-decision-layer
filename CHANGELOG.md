@@ -4,6 +4,24 @@ All notable changes to this project are recorded here. This project follows [Sem
 
 No release states measured token, cost or time savings, because none has been measured.
 
+## [1.0.3] — 2026-09-26
+
+### Added
+
+**Verification and reranking now ship inside the product.** Both existed only in a private lab, which meant nobody but their author could install them. They are the two capabilities the layer was missing, and they are the two a host most often answers expensively in its own context.
+
+- **`jev_verify`** — check a structured extraction against the source it claims to come from. One Noul per field in a single call, returning a per-field probability that the field is **wrong**. A populated field is asked whether the source contradicts it; an empty one whether the source actually states a value. Those are deliberately different questions: measured against jev-1.13, a single phrasing scored a correctly-empty field at p_wrong 0.98, because "absent from the source" is trivially true of an empty value.
+- **`jev_rerank`** — score retrieved passages on an absolute scale and answer the question a retriever cannot: does this set contain the answer at all? A retrieval score ranks within a set, so the best of five irrelevant passages still ranks first. When `should_abstain` is true, the honest answer is "I do not have this", not the top hit.
+
+**Absence of evidence is never a pass.** In both tools an unmeasured result is explicit. A field the model did not answer is `unknown`, never `ok`, and always blocks `trustworthy` — so a provider outage cannot look like a clean record. A passage with no score is not usable, and a set whose answer could not be measured abstains. Callers branch on `trustworthy` and `should_abstain`, never on an empty suspect list, which is also empty when nothing could be measured.
+
+Both route through the same broker as every other tool: workspace consent, secret screening, daily budget, and a local receipt.
+
+### Changed
+
+- The catalog is now **20 tools**.
+- The standalone lab MCP server is retired. One install, one server, everything included.
+
 ## [1.0.2] — 2026-09-26
 
 ### Fixed

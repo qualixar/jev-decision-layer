@@ -1,5 +1,5 @@
 name: qualixar-jev-decision-layer
-version: 1.0.2
+version: 1.0.3
 description: "Bounded Jev decisions and optional local Laya for enrolled Hermes workspaces."
 author: "Qualixar / Varun Pratap Bhardwaj"
 manifest_version: 1

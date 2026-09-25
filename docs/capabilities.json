@@ -2,7 +2,7 @@
   "$schema": "./capabilities.schema.json",
   "schema_version": 2,
   "name": "Qualixar Jev Decision Layer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "MIT",
   "publisher": "Qualixar / Varun Pratap Bhardwaj",
   "primary_decision_model": "TypeSafe Jev",
@@ -73,6 +73,16 @@
       "id": "selftest",
       "tool": "jev_recipe_selftest",
       "outcome": "offline replay of shipped synthetic fixtures through the local gate"
+    },
+    {
+      "id": "verify",
+      "tool": "jev_verify",
+      "outcome": "per-field probability that an extracted field is wrong, with a trustworthy flag"
+    },
+    {
+      "id": "rerank",
+      "tool": "jev_rerank",
+      "outcome": "absolute passage scores and whether the set answers the question at all"
     }
   ],
   "host_support": [

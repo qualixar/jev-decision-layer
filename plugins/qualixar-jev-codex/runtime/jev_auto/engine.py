@@ -90,6 +90,35 @@ class Engine:
         if len(canonical(output))>8000:
             output['answers']={};output['detail_available']=True
         return output
+    def verify_extraction(self,req):
+        """Check an extraction against its source. One call, one Noul per field."""
+        from .verify import ESCALATE_THRESHOLD, compile_verify, summarise
+
+        extraction=req.get('extraction')
+        state,questions=compile_verify(req.get('source_text'),extraction)
+        threshold=req.get('threshold',ESCALATE_THRESHOLD)
+        if isinstance(threshold,bool) or not isinstance(threshold,(int,float)) or not 0.0<threshold<=1.0:
+            raise AutoError('VERIFY_THRESHOLD_INVALID')
+        enrolled=self.policy()
+        provider=self.effective_policy(enrolled,'generic')['provider']
+        result=self.evaluate_typed(state,questions,provider,req.get('data_classification'))
+        output=summarise(extraction,result.get('answers'),float(threshold))
+        output.update({'provider':result['provider'],'model':result['model'],
+                       'receipt_id':result['receipt_id']})
+        return output
+    def rerank_memories(self,req):
+        """Score passages absolutely and say whether the set answers the question."""
+        from .rerank import compile_rerank, summarise
+
+        memories=req.get('memories')
+        state,questions=compile_rerank(req.get('query'),memories)
+        enrolled=self.policy()
+        provider=self.effective_policy(enrolled,'generic')['provider']
+        result=self.evaluate_typed(state,questions,provider,req.get('data_classification'))
+        output=summarise(memories,result.get('answers'))
+        output.update({'provider':result['provider'],'model':result['model'],
+                       'receipt_id':result['receipt_id']})
+        return output
     def route(self,req):
         from .routing import compile_route
 
@@ -210,6 +239,8 @@ class Engine:
         if op=='evaluate':return self.evaluate_case(req.get('case_id'),req.get('state'))
         if op=='typed_query':return self.evaluate_typed(req.get('state'),req.get('questions'),req.get('provider'),req.get('data_classification'))
         if op=='route':return self.route(req)
+        if op=='verify':return self.verify_extraction(req)
+        if op=='rerank':return self.rerank_memories(req)
         if op=='recipe_try':return self.try_recipe(req)
         if op=='review_diff':return self.review_diff(req)
         if op=='browser':return self.browser(req)

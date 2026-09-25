@@ -389,7 +389,7 @@ class CoreContractTests(unittest.TestCase):
             with self.assertRaises(AutoError):
                 provider.local(policy, "Synthetic duplicate charge", questions)
 
-    def test_mcp_lists_eighteen_tools_without_provider_call(self):
+    def test_mcp_lists_twenty_tools_without_provider_call(self):
         from jev_auto.mcp import definitions
         from jevkit import mcp_server
 
@@ -397,9 +397,10 @@ class CoreContractTests(unittest.TestCase):
             with patch.dict(os.environ, {"XDG_STATE_HOME": directory}):
                 items = definitions(mcp_server)
                 names = {tool["name"] for tool in items}
-        self.assertEqual(len(names), 18)
+        self.assertEqual(len(names), 20)
         self.assertTrue({"jev_setup", "jev_route", "jev_recipe_catalog", "jev_recipe_try",
-                         "jev_review_diff", "jev_recipe_selftest"} <= names)
+                         "jev_review_diff", "jev_recipe_selftest",
+                         "jev_verify", "jev_rerank"} <= names)
         # The self-test must be reachable with no workspace: a host checking whether
         # the gate holds should not have to enrol first.
         selftest = next(item for item in items if item["name"] == "jev_recipe_selftest")

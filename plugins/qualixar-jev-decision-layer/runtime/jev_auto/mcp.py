@@ -87,6 +87,16 @@ def definitions(legacy):
            {'workspace_path':wp,'recipe_id':{'type':'string','minLength':1,'maxLength':128},'input':{'type':'object'},
             'data_classification':{'type':'string','enum':['public','internal-minimized','restricted']}},
            ['workspace_path','recipe_id','input','data_classification']),
+      tool('jev_verify','Check a structured extraction against the source text it claims to come from. Returns a per-field probability that the field is WRONG, and a `trustworthy` flag. Branch on `trustworthy`, never on an empty suspect list: a field the model could not judge is unknown, not clean.',
+           {'workspace_path':wp,'source_text':{'type':'string','minLength':1,'maxLength':20000},
+            'extraction':{'type':'object'},'threshold':{'type':'number'},
+            'data_classification':{'type':'string','enum':['public','internal-minimized','restricted']}},
+           ['workspace_path','source_text','extraction','data_classification']),
+      tool('jev_rerank','Score retrieved passages on an ABSOLUTE scale and decide whether the set answers the question at all. A retrieval score ranks within a set and cannot say "none of these answer it"; this can. If should_abstain is true, say you do not have the answer rather than using the top hit.',
+           {'workspace_path':wp,'query':{'type':'string','minLength':1,'maxLength':2000},
+            'memories':{'type':'array','minItems':1,'maxItems':12,'items':{'type':'object'}},
+            'data_classification':{'type':'string','enum':['public','internal-minimized','restricted']}},
+           ['workspace_path','query','memories','data_classification']),
       tool('jev_review_diff','Triage caller-supplied diff text to suggest review focus and risk. Never approves code or runs Git.',
            {'workspace_path':wp,'goal':{'type':'string','minLength':1,'maxLength':1000},
             'diff':{'type':'string','minLength':1,'maxLength':16000},
@@ -111,7 +121,7 @@ def dispatch(name,args,legacy,caller=None,setup_launcher=None):
         if 'enum' in spec and v not in spec['enum']:raise AutoError('MCP_ARGUMENT_ENUM')
     path=args.get('workspace_path')
     if name=='jev_setup':return (setup_launcher or _open_setup)(workspace(path))
-    auto_names={'jev_auto_status','jev_prepare','jev_reduce','jev_recall','jev_typed_decide','jev_route','jev_recipe_try','jev_review_diff'}
+    auto_names={'jev_auto_status','jev_prepare','jev_reduce','jev_recall','jev_typed_decide','jev_route','jev_recipe_try','jev_review_diff','jev_verify','jev_rerank'}
     if name in auto_names or name=='jev_evaluate':
         if caller is None:
             try:ensure(path)
@@ -129,6 +139,11 @@ def dispatch(name,args,legacy,caller=None,setup_launcher=None):
                                           'candidates':args['candidates'],'data_classification':args['data_classification']})
         if name=='jev_recipe_try':return call({'op':'recipe_try','recipe_id':args['recipe_id'],
                                                'input':args['input'],'data_classification':args['data_classification']})
+        if name=='jev_verify':return call({'op':'verify','source_text':args['source_text'],
+                                           'extraction':args['extraction'],'threshold':args.get('threshold',0.70),
+                                           'data_classification':args['data_classification']})
+        if name=='jev_rerank':return call({'op':'rerank','query':args['query'],'memories':args['memories'],
+                                           'data_classification':args['data_classification']})
         if name=='jev_review_diff':return call({'op':'review_diff','goal':args['goal'],'diff':args['diff'],
                                                 'data_classification':args['data_classification']})
         return call({'op':'evaluate','case_id':args['case_id'],'state':args['state']})
