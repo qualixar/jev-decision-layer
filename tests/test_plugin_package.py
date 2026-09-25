@@ -6,6 +6,7 @@ import hashlib
 import importlib.util
 import json
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -123,6 +124,13 @@ class PluginPackageTests(unittest.TestCase):
         runtime = PLUGIN / "runtime"
         manifest = json.loads((runtime / "RUNTIME_MANIFEST.json").read_text())
         self.assertEqual(manifest["adapter_version"], "1.0.0")
+        prefix = "plugins/qualixar-jev-decision-layer/runtime/"
+        tracked = subprocess.check_output(
+            ["git", "ls-files", "--", prefix], cwd=ROOT, text=True
+        ).splitlines()
+        actual = {name[len(prefix):] for name in tracked if name != prefix + "RUNTIME_MANIFEST.json"}
+        self.assertFalse(any(name.endswith(".pyc") or "__pycache__" in Path(name).parts for name in actual))
+        self.assertEqual(actual, set(manifest["files"]))
         for name, expected in manifest["files"].items():
             with self.subTest(file=name):
                 path = runtime / name

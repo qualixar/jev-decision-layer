@@ -9,9 +9,12 @@ import {homedir, userInfo} from 'node:os';
 import {join, resolve} from 'node:path';
 import net from 'node:net';
 
-const clickRoles=new Set(['button','link','checkBox','checkbox','radio button','radioButton','menu item','menuItem','tab']);
+// This compatibility bridge has no native per-click confirmation channel.
+// Only observed navigation links may be clicked automatically; cart, form,
+// account and payment controls stay with Codex's native browser interface.
+const clickRoles=new Set(['link']);
 const keys=new Set(['Escape','Tab','Shift+Tab','PageUp','PageDown','Home','End']);
-const dangerous=/\b(delete|remove account|purchase|pay|send|publish|upload|transfer|subscribe|submit|confirm order|log out|logout)\b/i;
+const dangerous=/\b(delete|remove|purchase|pay|payment|checkout|order|account|settings|cart|send|publish|upload|transfer|subscribe|submit|confirm|place|proceed|log out|logout)\b/i;
 const navigation=/^(next|previous|back|forward|show more|show less|expand|collapse|open|view|details|results|search|page \d+|load more)(\b|$)/i;
 export function parseState(state) {
   return state.split('\n').map(x=>x.trim()).map(x=>x.match(/^(\d+) (text field|text area|combo box|radio button|menu item|[\w]+)(?: \([^)]*\))? (?:Description: )?(.*)$/)).filter(Boolean).map(m=>({index:Number(m[1]),role:m[2],name:m[3]}));
@@ -24,7 +27,7 @@ export function availableActions(state,controls=[],discover=true) {
   const entries=parseState(state),actions=[];
   for (const c of controls) {
     if(c.op==='click') {
-      if(typeof c.name!=='string'||dangerous.test(c.name)) continue;
+      if(typeof c.name!=='string'||!navigation.test(c.name)||dangerous.test(c.name)) continue;
       const matches=entries.filter(e=>clickRoles.has(e.role)&&(e.name===c.name||e.name.startsWith(c.name+', Value:')));
       if(matches.length===1) actions.push({op:'click',index:matches[0].index,description:'Click '+matches[0].name});
     } else if(c.op==='scroll'&&['up','down'].includes(c.direction)) actions.push({op:'scroll',direction:c.direction,description:'Scroll '+c.direction});
@@ -78,11 +81,13 @@ async function execute(tab,a) {
 export function createSession(tab,config) {
   const history=[];let lastReceipt=null;
   async function run(overrides={}) {
-    const enrolledSteps=config.maxSteps??10;
-    if(overrides.maxSteps!==undefined&&overrides.maxSteps>enrolledSteps)throw new Error('BROWSER_STEP_BUDGET');
-    if(overrides.allowedOrigins!==undefined||overrides.socketPath!==undefined)throw new Error('BROWSER_AUTHORITY_OVERRIDE');
-    const c={controls:[],discover:true,maxSteps:10,maxMs:45000,minConfidence:.55,...config,...overrides};
-    if(typeof c.goal!=='string'||!c.goal||!Array.isArray(c.allowedOrigins)||!c.allowedOrigins.length||!Number.isInteger(c.maxSteps)||c.maxSteps<1||c.maxSteps>30||!Number.isFinite(c.maxMs)||c.maxMs<1||c.maxMs>45000||!Number.isFinite(c.minConfidence)||c.minConfidence<.55||c.minConfidence>1||!Array.isArray(c.controls)||(c.waitMs!==undefined&&(!Number.isFinite(c.waitMs)||c.waitMs<1||c.waitMs>5000)))throw new Error('INVALID_BROWSER_CONTRACT');
+    const enrolled={controls:[],discover:true,maxSteps:10,maxMs:45000,minConfidence:.55,...config};
+    if(overrides.maxSteps!==undefined&&overrides.maxSteps>enrolled.maxSteps)throw new Error('BROWSER_STEP_BUDGET');
+    if(overrides.allowedOrigins!==undefined||overrides.socketPath!==undefined||overrides.controls!==undefined||overrides.goal!==undefined||overrides.decide!==undefined||overrides.discover!==undefined||
+       (overrides.maxMs!==undefined&&overrides.maxMs>enrolled.maxMs)||
+       (overrides.minConfidence!==undefined&&overrides.minConfidence<enrolled.minConfidence))throw new Error('BROWSER_AUTHORITY_OVERRIDE');
+    const c={...enrolled,...overrides};
+    if(typeof c.goal!=='string'||!c.goal||!Array.isArray(c.allowedOrigins)||!c.allowedOrigins.length||typeof c.discover!=='boolean'||!Number.isInteger(c.maxSteps)||c.maxSteps<1||c.maxSteps>30||!Number.isFinite(c.maxMs)||c.maxMs<1||c.maxMs>45000||!Number.isFinite(c.minConfidence)||c.minConfidence<.55||c.minConfidence>1||!Array.isArray(c.controls)||(c.waitMs!==undefined&&(!Number.isFinite(c.waitMs)||c.waitMs<1||c.waitMs>5000)))throw new Error('INVALID_BROWSER_CONTRACT');
     const started=performance.now(),offset=history.length;
     const finish=(status,reason)=>({status,reason,actionsExecuted:history.slice(offset).filter(x=>x.executed).length,
       decisions:history.length-offset,elapsedMs:Math.round(performance.now()-started),receipt_id:lastReceipt,

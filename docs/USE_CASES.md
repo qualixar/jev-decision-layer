@@ -24,6 +24,10 @@ Use `qualixar.claim-verification`, `qualixar.citation-check`, `qualixar.research
 
 Closed routing contracts cover tasks, tools, skills, workers, files, tests and review scopes. Other recipes address incident and failure classification, injection triage, semantic lint, documentation drift, patch review and completion evidence. Use `jev_route` when you already have a concrete candidate list; use `jev_review_diff` for advisory review focus; use `jev_recipe_catalog` to inspect the full catalog. None grants permission to execute a tool or approve a patch.
 
+## For browser tasks
+
+The `jev-browser-choice` skill uses the browser interface already available in Codex. It skips Jev when the next safe control is obvious. When several observed, benign controls plausibly serve the same goal, it can send only their short labels and a concise goal to `jev_route`; for an uncertain operation and target, `jev_typed_decide` can ask both Choice questions in one request. Codex still validates the selected control against the current page, performs the click under its native permissions, and verifies the result. It does not hand Jev a screenshot, hidden fields, selectors, credentials, checkout controls, or authority to purchase. One Jev call may improve a difficult choice; this is not a measured token- or time-savings claim.
+
 ## Try a recipe safely
 
 After workspace setup, ask Codex: “Show the Qualixar Jev recipe catalog, then try the brief-fit recipe on this public synthetic example.” Codex can call `jev_recipe_catalog` and `jev_recipe_try` without you writing JSON. The tool returns a receipt and marks the result `EXPERIMENTAL_ADVISORY`.

@@ -24,7 +24,7 @@ Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent op
 | A coding task | Choose one task, tool, worker, or skill from candidates you supplied | Run the tool, edit code, test, and decide whether to accept the recommendation |
 | A large file or search result | Select relevant context blocks and keep exact omitted text recoverable | Read the original source and verify any conclusion |
 | A proposed patch | Score review attention and suggest the first area to inspect | Perform independent code review and run tests |
-| A browser workflow | Choose among safe controls observed in an already-authorized tab | Grant browser access, execute the action, and inspect the resulting page |
+| A browser workflow | When several safe observed controls are plausible, rank a bounded choice; skip Jev for an obvious click | Grant browser access, execute the action, and inspect the resulting page |
 | A freelance, creator, research, or support job | Try a typed recipe for brief fit, invoice exceptions, lead routing, citation checks, research ranking, and more | Supply evidence, handle uncertainty, and make consequential decisions |
 
 The package has **20 original workflow contracts and 32 additional data-only recipe specifications**. That is a catalog of use cases, not a claim that Jev is accurate on every user's data. Browse [everyday examples and recipe families](docs/USE_CASES.md), or ask the agent for `jev_recipe_catalog`.

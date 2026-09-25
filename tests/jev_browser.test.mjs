@@ -53,10 +53,16 @@ test('WAIT bounded at three observations',async()=>{const t=tab();const result=a
 test('step budget is enforced',async()=>{const t=tab([snapshot(),snapshot(),snapshot('Previous'),snapshot('Previous'),snapshot('Next')]);assert.equal((await run(t,config({maxSteps:1}))).reason,'step_limit');});
 test('zero or excessive step limits rejected',async()=>{for(const maxSteps of [0,31])await assert.rejects(()=>run(tab(),config({maxSteps})));});
 test('run overrides cannot expand enrolled browser authority',async()=>{
- const s=createSession(tab(),config({maxSteps:2}));
+ const s=createSession(tab(),config({maxSteps:2,minConfidence:.8,discover:false,maxMs:500}));
  await assert.rejects(()=>s.run({maxSteps:3}),/BROWSER_STEP_BUDGET/);
  await assert.rejects(()=>s.run({allowedOrigins:['https://other.example']}),/BROWSER_AUTHORITY_OVERRIDE/);
  await assert.rejects(()=>s.run({controls:[{op:'click',name:'Next'}]}),/BROWSER_AUTHORITY_OVERRIDE/);
+ await assert.rejects(()=>s.run({minConfidence:.55}),/BROWSER_AUTHORITY_OVERRIDE/);
+ await assert.rejects(()=>s.run({discover:true}),/BROWSER_AUTHORITY_OVERRIDE/);
+ await assert.rejects(()=>s.run({discover:1}),/BROWSER_AUTHORITY_OVERRIDE/);
+ await assert.rejects(()=>s.run({discover:'yes'}),/BROWSER_AUTHORITY_OVERRIDE/);
+ await assert.rejects(()=>s.run({maxMs:1000}),/BROWSER_AUTHORITY_OVERRIDE/);
+ await assert.rejects(()=>s.run({goal:'Use a different goal'}),/BROWSER_AUTHORITY_OVERRIDE/);
 });
 test('invalid confidence configuration rejected',async()=>{await assert.rejects(()=>run(tab(),config({minConfidence:NaN})));});
 test('action failure returns control',async()=>{const t=tab();t.click=async()=>{throw Error('stale');};assert.equal((await run(t,config())).reason,'action_or_origin_error');});
