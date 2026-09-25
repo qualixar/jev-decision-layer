@@ -1,0 +1,20 @@
+{
+  "fixture_id": "01-skill-routing-adversarial",
+  "case_id": "01-skill-routing",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "request": "The requested skill is a production database migration executor; none of the supplied skills can perform that job.",
+    "skills": {
+      "testing": "unit tests",
+      "docs": "documentation",
+      "browser": "UI inspection"
+    }
+  },
+  "mock_values": {
+    "decision": "none"
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

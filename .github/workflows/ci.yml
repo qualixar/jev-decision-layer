@@ -1,0 +1,28 @@
+name: source-and-package
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Verify sanitized recipe catalog
+        run: python3 tools/build_recipes.py --check
+      - name: Verify Codex compatibility package
+        run: python3 tools/build_codex_package.py --check
+      - name: Verify public package
+        run: python3 -m unittest discover -s tests -q
+      - name: Verify existing-tab browser bridge
+        run: node --test tests/jev_browser.test.mjs

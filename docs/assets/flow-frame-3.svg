@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" role="img" aria-label="Illustrative step three: the agent verifies before acting">
+  <rect width="720" height="400" rx="22" fill="#0b1925"/>
+  <rect x="1" y="1" width="718" height="398" rx="21" fill="none" stroke="#315464"/>
+  <text x="40" y="47" font-family="system-ui,sans-serif" font-size="17" font-weight="700" fill="#8de9bc">ILLUSTRATIVE FLOW · 3 / 3</text>
+  <text x="40" y="103" font-family="system-ui,sans-serif" font-size="34" font-weight="750" fill="#f2fff9">Agent verifies and acts</text>
+  <rect x="40" y="155" width="640" height="128" rx="16" fill="#132b37" stroke="#5cabb0" stroke-width="2"/>
+  <circle cx="86" cy="215" r="25" fill="#1f634f" stroke="#73d9aa" stroke-width="2"/>
+  <path d="M75 214l8 8 15-19" fill="none" stroke="#b8ffdb" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="135" y="203" font-family="system-ui,sans-serif" font-size="23" font-weight="700" fill="#e8fff2">Advisory answer + local receipt</text>
+  <text x="135" y="238" font-family="system-ui,sans-serif" font-size="18" fill="#b6d1d4">Host permissions and tests still decide execution.</text>
+  <text x="40" y="344" font-family="system-ui,sans-serif" font-size="17" fill="#90aeb8">Jev answers the small question. It does not finish the job.</text>
+</svg>

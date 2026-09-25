@@ -1,0 +1,17 @@
+{
+  "fixture_id": "07-claim-verification-nominal",
+  "case_id": "07-claim-verification",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "claim": "The checkout client retries transient errors twice.",
+    "evidence": "Checkout design note: transient errors are retried two times."
+  },
+  "mock_values": {
+    "supported": 0.98,
+    "contradicted": 0.01
+  },
+  "mock_uncertain": false,
+  "expected_status": "CHECKS_PASSED",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

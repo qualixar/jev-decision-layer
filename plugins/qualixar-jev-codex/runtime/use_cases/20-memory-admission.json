@@ -1,0 +1,41 @@
+{
+  "id": "20-memory-admission",
+  "title": "Review a memory admission proposal",
+  "group": "Agent loops",
+  "industry": "Software engineering",
+  "objective": "Recommend retain, skip, conflict review, or human review. No SuperLocalMemory or SLM-Mesh write occurs.",
+  "required_fields": [
+    "candidate",
+    "existing",
+    "retention_policy"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `candidate`, `existing`, and `retention_policy`. What admission recommendation is appropriate?",
+      "criteria": {
+        "retain": "Durable permitted information worth retaining",
+        "skip": "Transient or irrelevant information",
+        "conflict": "New information conflicts with existing information",
+        "human": "Retention authority or sensitivity is uncertain"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "conflict",
+      "human"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

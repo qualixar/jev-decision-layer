@@ -1,0 +1,18 @@
+{
+  "fixture_id": "01-skill-routing-uncertain",
+  "case_id": "01-skill-routing",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "request": "Run and diagnose the checkout regression tests.",
+    "skills": {
+      "testing": "unit and regression tests",
+      "docs": "edit documentation",
+      "browser": "inspect browser UI"
+    }
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

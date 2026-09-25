@@ -1,0 +1,26 @@
+{
+  "fixture_id": "08-completion-gate-adversarial",
+  "case_id": "08-completion-gate",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "requirement": "Expired cached entries must not be returned; test the expiration boundary.",
+    "diff_summary": "Changed the cache comparison.",
+    "evidence": {
+      "test_exit_code": 1,
+      "tests_executed": 3,
+      "lint_exit_code": 0,
+      "source_hash": "demo-revision-b",
+      "tested_source_hash": "demo-revision-a",
+      "age_seconds": 30,
+      "test_summary": "The expiry boundary test failed."
+    }
+  },
+  "mock_values": {
+    "satisfies_requirement": 0.1,
+    "missing_required_test": 0.01
+  },
+  "mock_uncertain": false,
+  "expected_status": "BLOCK",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

@@ -1,0 +1,17 @@
+{
+  "fixture_id": "20-memory-admission-nominal",
+  "case_id": "20-memory-admission",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "candidate": "The demo project requires boundary tests for cache expiration.",
+    "existing": [],
+    "retention_policy": "Retain durable non-personal project conventions."
+  },
+  "mock_values": {
+    "decision": "retain"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

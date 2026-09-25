@@ -1,0 +1,41 @@
+{
+  "id": "09-patch-review",
+  "title": "Review semantic patch risk",
+  "group": "Verification",
+  "industry": "Software engineering",
+  "objective": "Identify revision or specialist-review needs after deterministic tests; never approve a production merge.",
+  "required_fields": [
+    "requirement",
+    "patch"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Evaluate `patch` against `requirement`. What review route is justified?",
+      "criteria": {
+        "ordinary_review": "No obvious mismatch in the supplied patch; ordinary review still applies",
+        "revise": "Patch conflicts with requirement or omits necessary behavior",
+        "security_review": "Patch changes a security boundary",
+        "unknown": "Not enough context"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "revise",
+      "security_review",
+      "unknown"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

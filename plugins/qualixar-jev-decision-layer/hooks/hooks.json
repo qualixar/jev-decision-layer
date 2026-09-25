@@ -1,0 +1,8 @@
+{
+  "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "python3 \"${PLUGIN_ROOT}/hooks/jev_hook.py\"", "timeout": 40}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "python3 \"${PLUGIN_ROOT}/hooks/jev_hook.py\"", "timeout": 40}]}],
+    "SubagentStart": [{"hooks": [{"type": "command", "command": "python3 \"${PLUGIN_ROOT}/hooks/jev_hook.py\"", "timeout": 40}]}],
+    "PostToolUse": [{"hooks": [{"type": "command", "command": "python3 \"${PLUGIN_ROOT}/hooks/jev_hook.py\"", "timeout": 40}], "matcher": "^(Bash|mcp__filesystem__read_file)$"}]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "fixture_id": "11-failure-classification-nominal",
+  "case_id": "11-failure-classification",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "goal": "Inspect the cache implementation.",
+    "observations": "Source file contents are not in the supplied context and no source read has occurred."
+  },
+  "mock_values": {
+    "decision": "CTX"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

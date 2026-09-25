@@ -1,0 +1,24 @@
+{
+  "id": "19-research-ranking",
+  "title": "Rank research evidence candidates",
+  "group": "Industry",
+  "industry": "Research operations",
+  "objective": "Rank supplied synthetic abstracts for relevance; do not infer scientific truth or create citations.",
+  "required_fields": [
+    "query",
+    "items"
+  ],
+  "questions": {},
+  "policy": {
+    "kind": "rank"
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

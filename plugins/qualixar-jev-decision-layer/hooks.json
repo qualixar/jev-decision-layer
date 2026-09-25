@@ -1,0 +1,7 @@
+{
+  "qualixar-jev": {
+    "PreInvocation": [
+      {"type": "command", "command": "./scripts/launch-agy-hook", "timeout": 5}
+    ]
+  }
+}

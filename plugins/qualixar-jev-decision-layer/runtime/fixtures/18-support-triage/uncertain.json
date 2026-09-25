@@ -1,0 +1,13 @@
+{
+  "fixture_id": "18-support-triage-uncertain",
+  "case_id": "18-support-triage",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "message": "The client receives validation errors after changing the request schema."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

@@ -1,0 +1,14 @@
+{
+  "fixture_id": "16-documentation-drift-uncertain",
+  "case_id": "16-documentation-drift",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "documentation": "Entries expire at or after their expiry timestamp.",
+    "implementation": "The get method rejects an entry when now is greater than or equal to expires_at."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

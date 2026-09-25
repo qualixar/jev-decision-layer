@@ -1,0 +1,23 @@
+{
+  "fixture_id": "15-test-selection-uncertain",
+  "case_id": "15-test-selection",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "query": "Changed the cache expiration boundary.",
+    "items": [
+      {
+        "id": "expiry",
+        "text": "Checks expired entries and the exact expiry boundary."
+      },
+      {
+        "id": "colors",
+        "text": "Checks CSS color names."
+      }
+    ]
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

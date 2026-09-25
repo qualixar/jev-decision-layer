@@ -1,0 +1,26 @@
+{
+  "fixture_id": "15-test-selection-nominal",
+  "case_id": "15-test-selection",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "query": "Changed the cache expiration boundary.",
+    "items": [
+      {
+        "id": "expiry",
+        "text": "Checks expired entries and the exact expiry boundary."
+      },
+      {
+        "id": "colors",
+        "text": "Checks CSS color names."
+      }
+    ]
+  },
+  "mock_values": {
+    "item_0": 0.99,
+    "item_1": 0.01
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

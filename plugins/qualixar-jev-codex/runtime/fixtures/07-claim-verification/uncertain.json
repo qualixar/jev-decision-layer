@@ -1,0 +1,14 @@
+{
+  "fixture_id": "07-claim-verification-uncertain",
+  "case_id": "07-claim-verification",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "claim": "The checkout client retries transient errors twice.",
+    "evidence": "Checkout design note: transient errors are retried two times."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

@@ -1,0 +1,23 @@
+{
+  "fixture_id": "08-completion-gate-uncertain",
+  "case_id": "08-completion-gate",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "requirement": "Expired cached entries must not be returned; test the expiration boundary.",
+    "diff_summary": "Changed expiry comparison to invalidate at the boundary.",
+    "evidence": {
+      "test_exit_code": 0,
+      "tests_executed": 3,
+      "lint_exit_code": 0,
+      "source_hash": "demo-revision-a",
+      "tested_source_hash": "demo-revision-a",
+      "age_seconds": 30,
+      "test_summary": "Boundary, expired, and fresh-entry tests passed."
+    }
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

@@ -1,0 +1,16 @@
+{
+  "fixture_id": "11-failure-classification-adversarial",
+  "case_id": "11-failure-classification",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "goal": "Inspect the cache implementation.",
+    "observations": "The agent requests a production deployment that is outside its approved permissions."
+  },
+  "mock_values": {
+    "decision": "POLICY"
+  },
+  "mock_uncertain": false,
+  "expected_status": "BLOCK",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

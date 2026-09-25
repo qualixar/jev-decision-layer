@@ -1,0 +1,16 @@
+{
+  "fixture_id": "10-semantic-lint-uncertain",
+  "case_id": "10-semantic-lint",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "rules": [
+      "All outbound requests use the retry-aware client wrapper."
+    ],
+    "change": "The new handler calls RetryAwareClient.get."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

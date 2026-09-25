@@ -1,0 +1,122 @@
+[
+  {
+    "id": "01-skill-routing",
+    "title": "Select a relevant Codex skill",
+    "group": "Routing",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "02-task-routing",
+    "title": "Route work by reasoning need",
+    "group": "Routing",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "03-tool-selection",
+    "title": "Select the next bounded tool",
+    "group": "Routing",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "04-file-ranking",
+    "title": "Rank repository file candidates",
+    "group": "Context",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "05-context-sieve",
+    "title": "Filter retrieved context",
+    "group": "Context",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "06-injection-triage",
+    "title": "Triage suspicious instructions",
+    "group": "Safety",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "07-claim-verification",
+    "title": "Verify a claim against evidence",
+    "group": "Verification",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "08-completion-gate",
+    "title": "Check a coding completion claim",
+    "group": "Verification",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "09-patch-review",
+    "title": "Review semantic patch risk",
+    "group": "Verification",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "10-semantic-lint",
+    "title": "Check repository conventions",
+    "group": "Verification",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "11-failure-classification",
+    "title": "Classify bounded-loop failures",
+    "group": "Agent loops",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "12-worker-routing",
+    "title": "Recommend the next worker role",
+    "group": "Agent loops",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "13-issue-triage",
+    "title": "Triage an engineering issue",
+    "group": "Operations",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "14-incident-triage",
+    "title": "Triage a service incident",
+    "group": "Operations",
+    "industry": "DevOps and service operations"
+  },
+  {
+    "id": "15-test-selection",
+    "title": "Recommend relevant tests",
+    "group": "Verification",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "16-documentation-drift",
+    "title": "Detect documentation drift",
+    "group": "Verification",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "17-security-review-routing",
+    "title": "Route security-sensitive changes",
+    "group": "Safety",
+    "industry": "Software engineering"
+  },
+  {
+    "id": "18-support-triage",
+    "title": "Route a support request",
+    "group": "Industry",
+    "industry": "Customer support"
+  },
+  {
+    "id": "19-research-ranking",
+    "title": "Rank research evidence candidates",
+    "group": "Industry",
+    "industry": "Research operations"
+  },
+  {
+    "id": "20-memory-admission",
+    "title": "Review a memory admission proposal",
+    "group": "Agent loops",
+    "industry": "Software engineering"
+  }
+]

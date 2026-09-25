@@ -1,0 +1,43 @@
+{
+  "id": "17-security-review-routing",
+  "title": "Route security-sensitive changes",
+  "group": "Safety",
+  "industry": "Software engineering",
+  "objective": "Identify review specialism without asserting vulnerability absence or granting authorization.",
+  "required_fields": [
+    "change",
+    "scope"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `change` and `scope`. What specialist review is indicated?",
+      "criteria": {
+        "authentication": "Identity, login, or session boundary changes",
+        "access_control_review": "Access-control decision changes",
+        "data_handling": "Sensitive-data handling changes",
+        "ordinary": "No security-sensitive change is evident in supplied scope",
+        "unknown": "Insufficient evidence"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "authentication",
+      "access_control_review",
+      "data_handling",
+      "unknown"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

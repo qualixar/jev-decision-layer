@@ -1,0 +1,23 @@
+{
+  "fixture_id": "05-context-sieve-uncertain",
+  "case_id": "05-context-sieve",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "query": "What is the checkout retry policy?",
+    "items": [
+      {
+        "id": "policy",
+        "text": "The approved checkout client retries transient errors twice."
+      },
+      {
+        "id": "unrelated",
+        "text": "The header has a blue background."
+      }
+    ]
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

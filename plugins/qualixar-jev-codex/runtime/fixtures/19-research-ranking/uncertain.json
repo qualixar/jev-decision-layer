@@ -1,0 +1,23 @@
+{
+  "fixture_id": "19-research-ranking-uncertain",
+  "case_id": "19-research-ranking",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "query": "Agent context filtering before code generation.",
+    "items": [
+      {
+        "id": "filtering",
+        "text": "Synthetic abstract: evaluates filtering retrieved context before a code-generation task."
+      },
+      {
+        "id": "botany",
+        "text": "Synthetic abstract: studies leaf growth under different light conditions."
+      }
+    ]
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

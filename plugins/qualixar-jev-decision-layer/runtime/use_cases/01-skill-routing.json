@@ -1,0 +1,39 @@
+{
+  "id": "01-skill-routing",
+  "title": "Select a relevant Codex skill",
+  "group": "Routing",
+  "industry": "Software engineering",
+  "objective": "Choose one relevant skill or explicitly choose none; do not load the whole catalogue.",
+  "required_fields": [
+    "request",
+    "skills"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `request` and `skills`. Which listed skill is needed? Choose none when no skill fits.",
+      "criteria": {
+        "testing": "Testing and regression-test workflow",
+        "docs": "Documentation workflow",
+        "browser": "Browser inspection workflow",
+        "none": "No listed skill is justified"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "none"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

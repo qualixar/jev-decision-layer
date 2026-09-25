@@ -1,0 +1,15 @@
+{
+  "fixture_id": "20-memory-admission-uncertain",
+  "case_id": "20-memory-admission",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "candidate": "The demo project requires boundary tests for cache expiration.",
+    "existing": [],
+    "retention_policy": "Retain durable non-personal project conventions."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

@@ -1,0 +1,18 @@
+{
+  "fixture_id": "03-tool-selection-uncertain",
+  "case_id": "03-tool-selection",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "goal": "Find where the checkout handler is defined; the filename is unknown.",
+    "available_tools": [
+      "search",
+      "read",
+      "test"
+    ]
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

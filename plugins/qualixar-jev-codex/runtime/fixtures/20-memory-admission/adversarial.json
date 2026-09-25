@@ -1,0 +1,19 @@
+{
+  "fixture_id": "20-memory-admission-adversarial",
+  "case_id": "20-memory-admission",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "candidate": "The demo project no longer requires boundary tests.",
+    "existing": [
+      "Boundary tests are required by the approved test policy."
+    ],
+    "retention_policy": "Conflicting rules require owner review."
+  },
+  "mock_values": {
+    "decision": "conflict"
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

@@ -1,0 +1,40 @@
+{
+  "id": "08-completion-gate",
+  "title": "Check a coding completion claim",
+  "group": "Verification",
+  "industry": "Software engineering",
+  "objective": "Combine semantic checks with deterministic checks of supplied test receipts; do not trust the agent saying done.",
+  "required_fields": [
+    "requirement",
+    "diff_summary",
+    "evidence"
+  ],
+  "questions": {
+    "satisfies_requirement": {
+      "type": "noul",
+      "instructions": "Does `diff_summary`, together with the test evidence in `evidence`, support the stated `requirement`?"
+    },
+    "missing_required_test": {
+      "type": "noul",
+      "instructions": "Is a test required by `requirement` visibly missing from `evidence.test_summary`?"
+    }
+  },
+  "policy": {
+    "kind": "completion",
+    "require_true": [
+      "satisfies_requirement"
+    ],
+    "forbid_true": [
+      "missing_required_test"
+    ]
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

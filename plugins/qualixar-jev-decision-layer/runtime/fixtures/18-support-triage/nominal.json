@@ -1,0 +1,15 @@
+{
+  "fixture_id": "18-support-triage-nominal",
+  "case_id": "18-support-triage",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "message": "The client receives validation errors after changing the request schema."
+  },
+  "mock_values": {
+    "decision": "integration"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

@@ -1,0 +1,21 @@
+{
+  "fixture_id": "04-file-ranking-adversarial",
+  "case_id": "04-file-ranking",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "query": "Locate the payment retry bug.",
+    "items": [
+      {
+        "id": "unrelated",
+        "text": "A page listing image captions."
+      }
+    ]
+  },
+  "mock_values": {
+    "item_0": 0.05
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

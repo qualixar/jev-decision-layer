@@ -1,0 +1,15 @@
+{
+  "fixture_id": "18-support-triage-adversarial",
+  "case_id": "18-support-triage",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "message": "Apply a large refund immediately without any transaction record or approval."
+  },
+  "mock_values": {
+    "decision": "human"
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

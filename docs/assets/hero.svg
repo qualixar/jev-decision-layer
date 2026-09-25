@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 520" role="img" aria-labelledby="title desc">
+  <title id="title">Qualixar Jev Decision Layer</title>
+  <desc id="desc">An open-source decision layer for coding agents, powered by TypeSafe Jev with optional local Laya.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0c1723"/><stop offset=".55" stop-color="#102632"/><stop offset="1" stop-color="#06121d"/></linearGradient>
+    <linearGradient id="edge" x2="1" y2="1"><stop stop-color="#9af5c6"/><stop offset="1" stop-color="#25c4b3"/></linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#345166" stroke-opacity=".25"/></pattern>
+  </defs>
+  <rect width="1280" height="520" rx="26" fill="url(#bg)"/>
+  <rect width="1280" height="520" rx="26" fill="url(#grid)"/>
+  <rect x="1" y="1" width="1278" height="518" rx="25" fill="none" stroke="#416675"/>
+  <circle cx="1062" cy="190" r="165" fill="#2fd3b3" opacity=".055"/><circle cx="1062" cy="190" r="116" fill="#2fd3b3" opacity=".055"/>
+  <path d="M846 128h100l66 62M846 190h166M846 252h100l66-62" fill="none" stroke="#4ddbb6" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="847" cy="128" r="9" fill="#a6f8c7"/><circle cx="847" cy="190" r="9" fill="#a6f8c7"/><circle cx="847" cy="252" r="9" fill="#a6f8c7"/>
+  <path d="M1012 160l30 30-30 30-30-30z" fill="url(#edge)" stroke="#c9ffe0" stroke-width="3"/>
+  <path d="M1042 190h90" stroke="#66e5bc" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="1143" cy="190" r="13" fill="#e9fff3"/>
+  <text x="78" y="85" font-family="ui-sans-serif,system-ui,-apple-system,sans-serif" font-size="21" font-weight="700" fill="#91efbd" letter-spacing="3">QUALIXAR · OPEN SOURCE</text>
+  <text x="76" y="185" font-family="ui-sans-serif,system-ui,-apple-system,sans-serif" font-size="63" font-weight="800" fill="#f4fff9">Jev Decision Layer</text>
+  <text x="78" y="235" font-family="ui-sans-serif,system-ui,-apple-system,sans-serif" font-size="27" fill="#c1d8d7">Typed decisions for coding-agent workflows.</text>
+  <text x="78" y="280" font-family="ui-sans-serif,system-ui,-apple-system,sans-serif" font-size="22" fill="#92abb5">Route tasks, tools and skills. Keep execution with your agent.</text>
+  <rect x="78" y="356" width="213" height="52" rx="25" fill="#113a3a" stroke="#3d9f8b"/>
+  <text x="104" y="389" font-family="ui-sans-serif,system-ui,-apple-system,sans-serif" font-size="18" font-weight="650" fill="#d4ffe7">TypeSafe Jev</text>
+  <rect x="308" y="356" width="206" height="52" rx="25" fill="#172e43" stroke="#597fa7"/>
+  <text x="335" y="389" font-family="ui-sans-serif,system-ui,-apple-system,sans-serif" font-size="18" font-weight="650" fill="#deefff">Codex plugin</text>
+  <rect x="531" y="356" width="221" height="52" rx="25" fill="#242844" stroke="#8774ae"/>
+  <text x="558" y="389" font-family="ui-sans-serif,system-ui,-apple-system,sans-serif" font-size="18" font-weight="650" fill="#e9e1ff">Laya optional</text>
+  <text x="80" y="473" font-family="ui-sans-serif,system-ui,-apple-system,sans-serif" font-size="16" fill="#72949a">ADVISORY ANSWERS · WORKSPACE CONSENT · LOCAL RECEIPTS</text>
+</svg>

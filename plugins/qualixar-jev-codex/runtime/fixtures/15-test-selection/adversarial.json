@@ -1,0 +1,21 @@
+{
+  "fixture_id": "15-test-selection-adversarial",
+  "case_id": "15-test-selection",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "query": "Changed checkout tax handling.",
+    "items": [
+      {
+        "id": "colors",
+        "text": "Checks CSS color names."
+      }
+    ]
+  },
+  "mock_values": {
+    "item_0": 0.01
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

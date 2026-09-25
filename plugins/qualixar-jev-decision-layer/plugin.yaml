@@ -1,0 +1,21 @@
+name: qualixar-jev-decision-layer
+version: 1.0.0
+description: "Bounded Jev decisions and optional local Laya for enrolled Hermes workspaces."
+author: "Qualixar / Varun Pratap Bhardwaj"
+manifest_version: 1
+api_version: 1
+license: MIT
+tags: [jev, laya, decisions, agents]
+python_dependencies: []
+provides_tools:
+  - jev_setup
+  - jev_auto_status
+  - jev_prepare
+  - jev_reduce
+  - jev_recall
+  - jev_route
+  - jev_recipe_catalog
+  - jev_recipe_try
+  - jev_review_diff
+provides_hooks:
+  - pre_llm_call

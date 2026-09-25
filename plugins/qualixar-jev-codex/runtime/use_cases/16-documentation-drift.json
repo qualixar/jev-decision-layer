@@ -1,0 +1,40 @@
+{
+  "id": "16-documentation-drift",
+  "title": "Detect documentation drift",
+  "group": "Verification",
+  "industry": "Software engineering",
+  "objective": "Compare supplied documentation with implementation evidence and flag contradictions.",
+  "required_fields": [
+    "documentation",
+    "implementation"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Compare `documentation` with `implementation`. Which status is supported?",
+      "criteria": {
+        "aligned": "The supplied material agrees on the relevant behavior",
+        "drift": "The documentation contradicts the supplied implementation",
+        "unknown": "Insufficient or incomparable evidence"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "unknown"
+    ],
+    "block_labels": [
+      "drift"
+    ]
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

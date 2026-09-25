@@ -1,0 +1,39 @@
+{
+  "id": "03-tool-selection",
+  "title": "Select the next bounded tool",
+  "group": "Routing",
+  "industry": "Software engineering",
+  "objective": "Choose a known tool; an unlisted tool must never be invented or executed.",
+  "required_fields": [
+    "goal",
+    "available_tools"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `goal` and `available_tools`. Select the next available tool that gathers needed evidence.",
+      "criteria": {
+        "search": "Search source text",
+        "read": "Read the known source file",
+        "test": "Run the approved test command",
+        "none": "No available tool meets this goal"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "none"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

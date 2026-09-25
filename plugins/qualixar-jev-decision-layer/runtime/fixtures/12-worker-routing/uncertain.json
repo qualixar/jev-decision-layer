@@ -1,0 +1,20 @@
+{
+  "fixture_id": "12-worker-routing-uncertain",
+  "case_id": "12-worker-routing",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "task": "Independently review a patch after the implementer completes it.",
+    "available_roles": [
+      "planner",
+      "implementer",
+      "critic",
+      "visual",
+      "long_context"
+    ]
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

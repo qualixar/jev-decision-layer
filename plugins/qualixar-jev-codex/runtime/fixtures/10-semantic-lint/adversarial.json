@@ -1,0 +1,18 @@
+{
+  "fixture_id": "10-semantic-lint-adversarial",
+  "case_id": "10-semantic-lint",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "rules": [
+      "All outbound requests use the retry-aware client wrapper."
+    ],
+    "change": "The new handler bypasses the client wrapper and performs a raw request."
+  },
+  "mock_values": {
+    "decision": "violates"
+  },
+  "mock_uncertain": false,
+  "expected_status": "BLOCK",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

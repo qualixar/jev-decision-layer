@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+case "$0" in
+  */*) JEV_SCRIPT_DIR=${0%/*} ;;
+  *) exit 2 ;;
+esac
+JEV_PLUGIN_ROOT=$(CDPATH= cd -- "$JEV_SCRIPT_DIR/.." && pwd -P)
+for JEV_PYTHON in "$JEV_PLUGIN_ROOT/runtime/python/bin/python3" /opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/python3; do
+  if [ -x "$JEV_PYTHON" ] && "$JEV_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 3)'; then
+    exec "$JEV_PYTHON" -I -S -B -c 'import runpy,sys; sys.path.insert(0,sys.argv[1]); runpy.run_module("jev_auto.hermes_tool",run_name="__main__")' "$JEV_PLUGIN_ROOT/runtime"
+  fi
+done
+exit 3

@@ -1,0 +1,41 @@
+{
+  "id": "13-issue-triage",
+  "title": "Triage an engineering issue",
+  "group": "Operations",
+  "industry": "Software engineering",
+  "objective": "Classify a synthetic issue for routing without modifying GitHub or Jira.",
+  "required_fields": [
+    "title",
+    "description"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read the issue `title` and `description`. Which category should receive review?",
+      "criteria": {
+        "bug": "Existing behavior appears broken",
+        "feature": "New behavior requested",
+        "security": "A possible access or data-exposure defect",
+        "question": "Usage question",
+        "unknown": "Insufficient detail"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "security",
+      "unknown"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

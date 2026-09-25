@@ -1,0 +1,40 @@
+{
+  "id": "10-semantic-lint",
+  "title": "Check repository conventions",
+  "group": "Verification",
+  "industry": "Software engineering",
+  "objective": "Check qualitative conventions against explicit rules, alongside rather than instead of existing linters.",
+  "required_fields": [
+    "rules",
+    "change"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `rules` and `change`. Does the change follow the stated conventions?",
+      "criteria": {
+        "conforms": "Supplied change follows the stated rule",
+        "violates": "Supplied change violates a stated rule",
+        "unclear": "Rules or change are insufficient"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "unclear"
+    ],
+    "block_labels": [
+      "violates"
+    ]
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

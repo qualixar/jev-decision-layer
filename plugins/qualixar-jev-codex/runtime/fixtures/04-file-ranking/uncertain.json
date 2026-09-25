@@ -1,0 +1,23 @@
+{
+  "fixture_id": "04-file-ranking-uncertain",
+  "case_id": "04-file-ranking",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "query": "Find the retry policy for checkout requests.",
+    "items": [
+      {
+        "id": "checkout",
+        "text": "checkout_client.py implements retry backoff for checkout requests."
+      },
+      {
+        "id": "theme",
+        "text": "theme.css defines page typography."
+      }
+    ]
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

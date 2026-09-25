@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" role="img" aria-labelledby="title desc">
+  <title id="title">Qualixar Jev Decision Layer architecture</title>
+  <desc id="desc">The coding agent sends bounded questions to a local policy broker. With workspace consent, the broker calls hosted TypeSafe Jev or OpenRouter Jev, or optional attested local Laya. An advisory result and private receipt return to the agent; the agent retains tool execution and verification.</desc>
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#243444" stroke-width="1" opacity=".45"/></pattern>
+    <marker id="arrow" markerWidth="11" markerHeight="9" refX="10" refY="4.5" orient="auto"><path d="M0 0l11 4.5L0 9z" fill="#76d8bd"/></marker>
+    <marker id="arrow-soft" markerWidth="11" markerHeight="9" refX="10" refY="4.5" orient="auto"><path d="M0 0l11 4.5L0 9z" fill="#8ba6c0"/></marker>
+  </defs>
+  <rect width="1200" height="690" rx="26" fill="#071320"/>
+  <rect width="1200" height="690" rx="26" fill="url(#grid)"/>
+  <rect x="1" y="1" width="1198" height="688" rx="25" fill="none" stroke="#2b4656"/>
+  <text x="42" y="58" font-family="ui-sans-serif,system-ui,sans-serif" font-size="30" font-weight="750" fill="#f2fff9">One question, a bounded route, an inspectable receipt</text>
+  <text x="42" y="90" font-family="ui-sans-serif,system-ui,sans-serif" font-size="17" fill="#a9bec8">The agent keeps the job. Jev or Laya supplies a typed recommendation.</text>
+
+  <!-- Connections render behind opaque components. -->
+  <path d="M275 252H378" stroke="#76d8bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M785 206H880" stroke="#76d8bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+  <path d="M785 306Q830 306 830 405H880" stroke="#aa93df" stroke-width="3" fill="none" marker-end="url(#arrow-soft)"/>
+  <path d="M1156 212H1174V554Q1174 558 1160 558H792" stroke="#8ba6c0" stroke-width="2.5" fill="none" marker-end="url(#arrow-soft)"/>
+  <path d="M880 445Q820 445 820 515H792" stroke="#aa93df" stroke-width="2.5" fill="none" marker-end="url(#arrow-soft)"/>
+  <path d="M387 528H250Q206 528 206 388V355" stroke="#76d8bd" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Local device boundary. -->
+  <rect x="35" y="128" width="780" height="475" rx="18" fill="none" stroke="#4c8790" stroke-width="2" stroke-dasharray="9 6"/>
+  <text x="54" y="154" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" font-weight="700" fill="#8be1d4">ON THE USER'S COMPUTER</text>
+
+  <rect x="55" y="190" width="220" height="165" rx="14" fill="#12283a" stroke="#4d91aa" stroke-width="2"/>
+  <text x="76" y="226" font-family="ui-sans-serif,system-ui,sans-serif" font-size="21" font-weight="700" fill="#e8f7ff">Coding agent</text>
+  <text x="76" y="256" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#b6d1dc">Codex Desktop</text>
+  <text x="76" y="282" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#9ab6c5">Skills · MCP · hooks</text>
+  <text x="76" y="324" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#80d9bd">Executes and verifies</text>
+
+  <rect x="385" y="171" width="402" height="208" rx="14" fill="#113128" stroke="#59c69a" stroke-width="2"/>
+  <text x="409" y="208" font-family="ui-sans-serif,system-ui,sans-serif" font-size="22" font-weight="700" fill="#e7fff0">Local decision broker</text>
+  <path d="M409 225H762" stroke="#375a4e"/>
+  <text x="409" y="254" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#c4edda">1  Workspace-scoped consent</text>
+  <text x="409" y="287" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#c4edda">2  Secret screen + daily budget</text>
+  <text x="409" y="320" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#c4edda">3  Bounded typed state + questions</text>
+  <text x="409" y="351" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#8bd5aa">No tool authority granted by a model answer</text>
+
+  <rect x="385" y="466" width="402" height="121" rx="14" fill="#172d36" stroke="#63b8bc" stroke-width="2"/>
+  <text x="410" y="505" font-family="ui-sans-serif,system-ui,sans-serif" font-size="21" font-weight="700" fill="#e8ffff">Advisory answer + receipt</text>
+  <text x="410" y="535" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#b9d5d6">Choice, Score or Noul probability</text>
+  <text x="410" y="560" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#86bdc1">Private local evidence; agent checks the result</text>
+
+  <rect x="880" y="160" width="275" height="105" rx="14" fill="#3a2c14" stroke="#dfba62" stroke-width="2"/>
+  <text x="902" y="199" font-family="ui-sans-serif,system-ui,sans-serif" font-size="21" font-weight="700" fill="#fff1d4">Hosted Jev</text>
+  <text x="902" y="230" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#e4d1ab">TypeSafe or OpenRouter</text>
+  <text x="904" y="289" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" fill="#d8c89f">Only under selected scope</text>
+
+  <rect x="853" y="342" width="316" height="160" rx="18" fill="none" stroke="#aa93df" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="870" y="366" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" font-weight="700" fill="#c8b9e7">OPTIONAL · ON THIS COMPUTER</text>
+  <rect x="880" y="381" width="275" height="104" rx="14" fill="#27213f" stroke="#aa93df" stroke-width="2"/>
+  <text x="902" y="414" font-family="ui-sans-serif,system-ui,sans-serif" font-size="21" font-weight="700" fill="#f0e7ff">Local Laya</text>
+  <text x="902" y="445" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#d6c7f0">Optional · attested MLX</text>
+  <text x="902" y="469" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" fill="#c8b9e7">Only when selected by the user</text>
+
+  <rect x="44" y="631" width="1112" height="1" fill="#315062"/>
+  <text x="46" y="660" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#a9c4cf">Jev-only never silently falls back to Laya.</text>
+  <text x="726" y="660" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#a9c4cf">No universal interception or measured savings claim.</text>
+</svg>

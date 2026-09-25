@@ -1,0 +1,26 @@
+{
+  "id": "04-file-ranking",
+  "title": "Rank repository file candidates",
+  "group": "Context",
+  "industry": "Software engineering",
+  "objective": "Score supplied file summaries before Codex reads source; do not claim this replaces symbol search or proves dead code.",
+  "required_fields": [
+    "query",
+    "items"
+  ],
+  "questions": {},
+  "policy": {
+    "kind": "rank",
+    "review_labels": [],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

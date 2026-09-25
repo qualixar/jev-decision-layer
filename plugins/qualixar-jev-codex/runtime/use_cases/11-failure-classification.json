@@ -1,0 +1,48 @@
+{
+  "id": "11-failure-classification",
+  "title": "Classify bounded-loop failures",
+  "group": "Agent loops",
+  "industry": "Software engineering",
+  "objective": "Return a recovery recommendation using CTX, TOOL, PLAN, CAP, GATE, STALL, POLICY, BUDGET, or UNKNOWN.",
+  "required_fields": [
+    "goal",
+    "observations"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `goal` and `observations`. Which failure class best describes the observed problem?",
+      "criteria": {
+        "CTX": "Missing relevant context",
+        "TOOL": "Tool or environment failed",
+        "PLAN": "Current approach is wrong",
+        "CAP": "Reasoning or execution capability insufficient",
+        "GATE": "A validation gate failed",
+        "STALL": "Repeated attempts made no progress",
+        "POLICY": "Requested operation is outside authorization",
+        "BUDGET": "Run limit exhausted",
+        "UNKNOWN": "Insufficient evidence"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "CAP",
+      "UNKNOWN"
+    ],
+    "block_labels": [
+      "POLICY",
+      "BUDGET"
+    ]
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "qualixar-jev-decision-layer",
+  "version": "1.0.0",
+  "description": "Independent Qualixar integration for typed Jev decisions, optional local Laya, bounded recipes, and recoverable context in coding agents.",
+  "author": {"name": "Qualixar / Varun Pratap Bhardwaj"},
+  "license": "MIT",
+  "keywords": ["jev", "typesafe", "laya", "agent-decision-layer", "codex", "mcp", "recipes"],
+  "extensions": {
+    "com.openai": {
+      "hooks": "./hooks/hooks.json",
+      "interface": {
+        "displayName": "Qualixar Jev Decision Layer",
+        "shortDescription": "Advisory Jev and local Laya decisions for Codex.",
+        "longDescription": "Choose tasks, tools, skills and reviewed recipes with typed decisions. The existing coding model and native permissions remain in control. Context reductions retain exact recall; no token or cost saving is promised without measurement.",
+        "developerName": "Qualixar",
+        "category": "Productivity",
+        "capabilities": ["Interactive"],
+        "logo": "./assets/jev-mark.svg",
+        "screenshots": ["./assets/setup-wizard-modes.png"],
+        "defaultPrompt": [
+          "Set up Qualixar Jev Decision Layer for this workspace without asking me to use a terminal.",
+          "Show the available Jev decision recipes for this workspace."
+        ]
+      }
+    }
+  }
+}

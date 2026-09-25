@@ -1,0 +1,16 @@
+{
+  "fixture_id": "17-security-review-routing-adversarial",
+  "case_id": "17-security-review-routing",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "change": "Replace resource ownership checks with a default allow branch.",
+    "scope": "Account read handler."
+  },
+  "mock_values": {
+    "decision": "access_control_review"
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

@@ -1,0 +1,14 @@
+{
+  "fixture_id": "02-task-routing-uncertain",
+  "case_id": "02-task-routing",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "request": "Rename the local helper formatLabel to formatTitle and update its two unit tests.",
+    "constraints": "Local demo repository only."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

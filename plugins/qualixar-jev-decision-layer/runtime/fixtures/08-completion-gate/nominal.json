@@ -1,0 +1,26 @@
+{
+  "fixture_id": "08-completion-gate-nominal",
+  "case_id": "08-completion-gate",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "requirement": "Expired cached entries must not be returned; test the expiration boundary.",
+    "diff_summary": "Changed expiry comparison to invalidate at the boundary.",
+    "evidence": {
+      "test_exit_code": 0,
+      "tests_executed": 3,
+      "lint_exit_code": 0,
+      "source_hash": "demo-revision-a",
+      "tested_source_hash": "demo-revision-a",
+      "age_seconds": 30,
+      "test_summary": "Boundary, expired, and fresh-entry tests passed."
+    }
+  },
+  "mock_values": {
+    "satisfies_requirement": 0.98,
+    "missing_required_test": 0.01
+  },
+  "mock_uncertain": false,
+  "expected_status": "CHECKS_PASSED",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

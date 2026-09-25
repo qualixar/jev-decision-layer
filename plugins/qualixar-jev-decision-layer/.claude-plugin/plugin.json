@@ -1,0 +1,6 @@
+{
+  "name": "qualixar-jev-decision-layer",
+  "version": "1.0.0",
+  "description": "Workspace-scoped Jev decisions with an optional local Laya route.",
+  "author": {"name": "Qualixar / Varun Pratap Bhardwaj"}
+}

@@ -1,0 +1,39 @@
+{
+  "id": "18-support-triage",
+  "title": "Route a support request",
+  "group": "Industry",
+  "industry": "Customer support",
+  "objective": "Classify a synthetic support message for a queue; no automated refunds or promises.",
+  "required_fields": [
+    "message"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `message`. Which support queue fits?",
+      "criteria": {
+        "billing": "Payment or subscription question",
+        "integration": "Client or API integration problem",
+        "availability": "Possible service outage",
+        "other": "Other ordinary support request",
+        "human": "Ambiguous or consequential case needing a person"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "human"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

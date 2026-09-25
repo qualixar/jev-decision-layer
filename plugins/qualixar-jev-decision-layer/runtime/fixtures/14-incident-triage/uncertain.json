@@ -1,0 +1,14 @@
+{
+  "fixture_id": "14-incident-triage-uncertain",
+  "case_id": "14-incident-triage",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "summary": "Checkout errors after a release.",
+    "observations": "Error traces point to the changed checkout handler. Dependency probes are healthy."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

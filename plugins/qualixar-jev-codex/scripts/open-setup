@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+case "$0" in
+  */*) JEV_SCRIPT_DIR=${0%/*} ;;
+  *) printf '%s\n' 'PLUGIN_LAUNCH_PATH_REQUIRED' >&2; exit 2 ;;
+esac
+JEV_PLUGIN_ROOT=$(CDPATH= cd -- "$JEV_SCRIPT_DIR/.." && pwd -P)
+export PYTHONDONTWRITEBYTECODE=1
+JEV_PYTHON=''
+for JEV_CANDIDATE in "$JEV_PLUGIN_ROOT/runtime/python/bin/python3" /opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/python3; do
+  if [ -x "$JEV_CANDIDATE" ] && "$JEV_CANDIDATE" -I -S -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 3)'; then
+    JEV_PYTHON=$JEV_CANDIDATE
+    break
+  fi
+done
+if [ -z "$JEV_PYTHON" ]; then
+  printf '%s\n' 'PYTHON_3_11_REQUIRED' >&2
+  exit 3
+fi
+if [ "$#" -eq 1 ] && [ "$1" = '--help' ]; then
+  exec "$JEV_PYTHON" -I -S -B -c 'import runpy,sys; sys.path.insert(0,sys.argv[1]); sys.argv=["src.adl.api.setup_server",*sys.argv[2:]]; runpy.run_module("src.adl.api.setup_server",run_name="__main__")' "$JEV_PLUGIN_ROOT/runtime" --help
+fi
+if [ "$#" -ne 1 ]; then
+  printf '%s\n' 'WORKSPACE_PATH_REQUIRED' >&2
+  exit 2
+fi
+exec "$JEV_PYTHON" -I -S -B -c 'import runpy,sys; sys.path.insert(0,sys.argv[1]); sys.argv=["src.adl.api.setup_server",*sys.argv[2:]]; runpy.run_module("src.adl.api.setup_server",run_name="__main__")' "$JEV_PLUGIN_ROOT/runtime" --workspace "$1"

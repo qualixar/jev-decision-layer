@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" role="img" aria-label="Illustrative step one: ask a bounded question">
+  <rect width="720" height="400" rx="22" fill="#0b1925"/>
+  <rect x="1" y="1" width="718" height="398" rx="21" fill="none" stroke="#315464"/>
+  <text x="40" y="47" font-family="system-ui,sans-serif" font-size="17" font-weight="700" fill="#8de9bc">ILLUSTRATIVE FLOW · 1 / 3</text>
+  <text x="40" y="103" font-family="system-ui,sans-serif" font-size="34" font-weight="750" fill="#f2fff9">Ask one bounded question</text>
+  <text x="40" y="145" font-family="system-ui,sans-serif" font-size="20" fill="#bed1da">Which team handles a duplicate charge?</text>
+  <rect x="40" y="187" width="300" height="70" rx="12" fill="#173b38" stroke="#55c7a0" stroke-width="2"/>
+  <text x="65" y="230" font-family="system-ui,sans-serif" font-size="23" fill="#d6ffe6">Billing</text>
+  <rect x="380" y="187" width="300" height="70" rx="12" fill="#172a3b" stroke="#60859b" stroke-width="2"/>
+  <text x="405" y="230" font-family="system-ui,sans-serif" font-size="23" fill="#d8e9ef">Engineering</text>
+  <text x="40" y="341" font-family="system-ui,sans-serif" font-size="17" fill="#90aeb8">The agent supplies the state and candidate set.</text>
+</svg>

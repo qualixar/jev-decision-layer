@@ -1,0 +1,41 @@
+{
+  "id": "12-worker-routing",
+  "title": "Recommend the next worker role",
+  "group": "Agent loops",
+  "industry": "Software engineering",
+  "objective": "Route to a role without launching another provider, changing subscriptions, or duplicating the existing scheduler.",
+  "required_fields": [
+    "task",
+    "available_roles"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `task` and `available_roles`. Which available worker role fits? Select none when no role applies.",
+      "criteria": {
+        "planner": "Decompose requirements or rethink the plan",
+        "implementer": "Write a narrow implementation",
+        "critic": "Independently review a proposed result",
+        "visual": "Inspect or build the visual presentation",
+        "long_context": "Review a broad evidence set",
+        "none": "No permitted role fits"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "none"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

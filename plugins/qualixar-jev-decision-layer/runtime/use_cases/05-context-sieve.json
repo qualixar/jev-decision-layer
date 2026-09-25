@@ -1,0 +1,26 @@
+{
+  "id": "05-context-sieve",
+  "title": "Filter retrieved context",
+  "group": "Context",
+  "industry": "Software engineering",
+  "objective": "Recommend keep, flag conflict, review, or quarantine for supplied passages. This is not an injection-proof firewall.",
+  "required_fields": [
+    "query",
+    "items"
+  ],
+  "questions": {},
+  "policy": {
+    "kind": "context",
+    "review_labels": [],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

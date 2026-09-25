@@ -1,0 +1,14 @@
+{
+  "fixture_id": "11-failure-classification-uncertain",
+  "case_id": "11-failure-classification",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "goal": "Inspect the cache implementation.",
+    "observations": "Source file contents are not in the supplied context and no source read has occurred."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

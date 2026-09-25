@@ -1,0 +1,38 @@
+{
+  "$schema": "./capabilities.schema.json",
+  "schema_version": 1,
+  "name": "Qualixar Jev Decision Layer",
+  "version": "1.0.0",
+  "license": "MIT",
+  "publisher": "Qualixar / Varun Pratap Bhardwaj",
+  "primary_decision_model": "TypeSafe Jev",
+  "optional_local_model": "Laya-MLX",
+  "typed_answers": ["choice", "score", "noul"],
+  "recipe_counts": {"legacy_contracts": 20, "additional_specifications": 32},
+  "decision_modes": [
+    {"id": "jev-public", "hosted_scope": "public", "local_laya": false},
+    {"id": "jev-internal", "hosted_scope": "internal-minimized", "local_laya": false},
+    {"id": "jev-maximum", "hosted_scope": "restricted-non-secret-reviewed", "local_laya": false},
+    {"id": "hybrid", "hosted_scope": "internal-minimized", "local_laya": true},
+    {"id": "laya-only", "hosted_scope": "none", "local_laya": true}
+  ],
+  "interfaces": [
+    {"id": "route", "tool": "jev_route", "outcome": "advisory closed-candidate selection"},
+    {"id": "recipes", "tool": "jev_recipe_try", "outcome": "experimental typed recipe answer"},
+    {"id": "review", "tool": "jev_review_diff", "outcome": "advisory review focus"},
+    {"id": "context", "tool": "jev_reduce", "outcome": "extractive view with exact recall"},
+    {"id": "setup", "tool": "jev_setup", "outcome": "private workspace review wizard"}
+  ],
+  "host_support": [
+    {"id": "codex-desktop", "evidence": "installed MCP and synthetic TypeSafe public/restricted route", "installed_adapter": true, "explicit_jev_receipt_verified": true, "automatic_jev_hook_receipt_verified": false, "local_laya_receipt_verified": false},
+    {"id": "hermes", "evidence": "staged doctor: nine tools and one hook; installed copy pending refresh", "installed_adapter": true, "explicit_jev_receipt_verified": false, "automatic_jev_hook_receipt_verified": false, "local_laya_receipt_verified": false},
+    {"id": "antigravity", "evidence": "packaged PreInvocation advisory hook and two skills; no portable Jev MCP registration in v1", "installed_adapter": true, "explicit_jev_receipt_verified": false, "automatic_jev_hook_receipt_verified": false, "local_laya_receipt_verified": false},
+    {"id": "claude-code", "evidence": "portable plugin metadata only", "installed_adapter": false, "explicit_jev_receipt_verified": false, "automatic_jev_hook_receipt_verified": false, "local_laya_receipt_verified": false},
+    {"id": "vscode", "evidence": "no native extension bundled", "installed_adapter": false, "explicit_jev_receipt_verified": false, "automatic_jev_hook_receipt_verified": false, "local_laya_receipt_verified": false}
+  ],
+  "workspace_review_required": true,
+  "model_answer_authorizes_execution": false,
+  "automatic_all_internal_choices_intercepted": false,
+  "measured_host_token_savings": null,
+  "measured_host_cost_savings": null
+}

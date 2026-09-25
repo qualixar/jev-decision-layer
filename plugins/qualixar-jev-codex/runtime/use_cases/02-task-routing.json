@@ -1,0 +1,39 @@
+{
+  "id": "02-task-routing",
+  "title": "Route work by reasoning need",
+  "group": "Routing",
+  "industry": "Software engineering",
+  "objective": "Recommend deterministic tooling, current fast model, deeper reasoning, or human review without changing subscriptions or model configuration.",
+  "required_fields": [
+    "request",
+    "constraints"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read `request` and `constraints`. Which route is appropriate? Do not solve the task.",
+      "criteria": {
+        "deterministic": "Exact calculation or mechanical operation",
+        "fast_coding": "Narrow well-specified coding task",
+        "deep_reasoning": "Ambiguous multi-component reasoning needed",
+        "human": "Authority or essential facts are missing"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "human"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

@@ -1,0 +1,16 @@
+{
+  "fixture_id": "13-issue-triage-adversarial",
+  "case_id": "13-issue-triage",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "title": "Unexpected account visibility",
+    "description": "A user reports seeing another account record; the report has not been validated."
+  },
+  "mock_values": {
+    "decision": "security"
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

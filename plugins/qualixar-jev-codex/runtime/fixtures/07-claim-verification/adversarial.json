@@ -1,0 +1,17 @@
+{
+  "fixture_id": "07-claim-verification-adversarial",
+  "case_id": "07-claim-verification",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "claim": "All tests passed.",
+    "evidence": "Test runner reported two failures and returned a nonzero exit code."
+  },
+  "mock_values": {
+    "supported": 0.01,
+    "contradicted": 0.99
+  },
+  "mock_uncertain": false,
+  "expected_status": "BLOCK",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

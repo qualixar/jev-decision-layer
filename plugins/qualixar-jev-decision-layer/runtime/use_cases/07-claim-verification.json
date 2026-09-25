@@ -1,0 +1,39 @@
+{
+  "id": "07-claim-verification",
+  "title": "Verify a claim against evidence",
+  "group": "Verification",
+  "industry": "Software engineering",
+  "objective": "Check a claim against provided sources; a positive result is not verification beyond those sources.",
+  "required_fields": [
+    "claim",
+    "evidence"
+  ],
+  "questions": {
+    "supported": {
+      "type": "noul",
+      "instructions": "Does the supplied `evidence` support the complete `claim`, including its scope and qualifiers?"
+    },
+    "contradicted": {
+      "type": "noul",
+      "instructions": "Does the supplied `evidence` directly contradict any material part of `claim`?"
+    }
+  },
+  "policy": {
+    "kind": "gate",
+    "require_true": [
+      "supported"
+    ],
+    "forbid_true": [
+      "contradicted"
+    ]
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

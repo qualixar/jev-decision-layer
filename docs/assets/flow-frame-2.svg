@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" role="img" aria-label="Illustrative step two: Jev returns typed probabilities">
+  <rect width="720" height="400" rx="22" fill="#0b1925"/>
+  <rect x="1" y="1" width="718" height="398" rx="21" fill="none" stroke="#315464"/>
+  <text x="40" y="47" font-family="system-ui,sans-serif" font-size="17" font-weight="700" fill="#8de9bc">ILLUSTRATIVE FLOW · 2 / 3</text>
+  <text x="40" y="103" font-family="system-ui,sans-serif" font-size="34" font-weight="750" fill="#f2fff9">Get a typed recommendation</text>
+  <text x="40" y="150" font-family="system-ui,sans-serif" font-size="20" fill="#bed1da">Choice · Score · Noul, with uncertainty visible</text>
+  <text x="40" y="213" font-family="system-ui,sans-serif" font-size="22" fill="#e8fff2">Billing</text>
+  <rect x="181" y="189" width="432" height="32" rx="9" fill="#174b42"/>
+  <rect x="181" y="189" width="384" height="32" rx="9" fill="#6de3ac"/>
+  <text x="622" y="213" font-family="system-ui,sans-serif" font-size="22" fill="#dfffea">0.89</text>
+  <text x="40" y="276" font-family="system-ui,sans-serif" font-size="22" fill="#e0ecf2">Engineering</text>
+  <rect x="181" y="251" width="432" height="32" rx="9" fill="#173042"/>
+  <rect x="181" y="251" width="48" height="32" rx="9" fill="#7094ac"/>
+  <text x="622" y="276" font-family="system-ui,sans-serif" font-size="22" fill="#dceaf0">0.11</text>
+  <text x="40" y="349" font-family="system-ui,sans-serif" font-size="16" fill="#90aeb8">Numbers here illustrate the data shape; they are not a live result.</text>
+</svg>

@@ -1,0 +1,14 @@
+{
+  "fixture_id": "17-security-review-routing-uncertain",
+  "case_id": "17-security-review-routing",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "change": "Adjust the padding on a static label.",
+    "scope": "Styles only; no account or data-handling logic changes."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

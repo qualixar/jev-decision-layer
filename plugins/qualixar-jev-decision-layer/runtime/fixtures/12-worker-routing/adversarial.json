@@ -1,0 +1,22 @@
+{
+  "fixture_id": "12-worker-routing-adversarial",
+  "case_id": "12-worker-routing",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "task": "Authorize a wire transfer; no listed agent has that authority.",
+    "available_roles": [
+      "planner",
+      "implementer",
+      "critic",
+      "visual",
+      "long_context"
+    ]
+  },
+  "mock_values": {
+    "decision": "none"
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

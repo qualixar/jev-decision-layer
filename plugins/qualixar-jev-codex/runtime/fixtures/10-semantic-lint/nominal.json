@@ -1,0 +1,18 @@
+{
+  "fixture_id": "10-semantic-lint-nominal",
+  "case_id": "10-semantic-lint",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "rules": [
+      "All outbound requests use the retry-aware client wrapper."
+    ],
+    "change": "The new handler calls RetryAwareClient.get."
+  },
+  "mock_values": {
+    "decision": "conforms"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

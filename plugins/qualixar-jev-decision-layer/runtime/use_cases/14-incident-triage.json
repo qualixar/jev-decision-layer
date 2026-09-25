@@ -1,0 +1,39 @@
+{
+  "id": "14-incident-triage",
+  "title": "Triage a service incident",
+  "group": "Operations",
+  "industry": "DevOps and service operations",
+  "objective": "Recommend an investigation queue from supplied telemetry; do not claim root cause or trigger remediation.",
+  "required_fields": [
+    "summary",
+    "observations"
+  ],
+  "questions": {
+    "decision": {
+      "type": "choice",
+      "instructions": "Read incident `summary` and `observations`. Which investigation queue is best supported, without asserting root cause?",
+      "criteria": {
+        "application": "Application errors or regressions are the strongest lead",
+        "infrastructure": "Capacity, runtime, or host signals are the strongest lead",
+        "upstream": "A dependency outage is the strongest lead",
+        "unknown": "Evidence cannot select a queue"
+      }
+    }
+  },
+  "policy": {
+    "kind": "route",
+    "review_labels": [
+      "unknown"
+    ],
+    "block_labels": []
+  },
+  "version": "1.0.0",
+  "thresholds": {
+    "choice_confidence": 0.8,
+    "choice_probability": 0.8,
+    "yes": 0.9,
+    "no": 0.1,
+    "rank_score": 1.4
+  },
+  "scope": "Advisory decision workflow. No native Codex interception or production action."
+}

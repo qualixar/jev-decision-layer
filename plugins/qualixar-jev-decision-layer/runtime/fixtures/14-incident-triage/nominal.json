@@ -1,0 +1,16 @@
+{
+  "fixture_id": "14-incident-triage-nominal",
+  "case_id": "14-incident-triage",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "summary": "Checkout errors after a release.",
+    "observations": "Error traces point to the changed checkout handler. Dependency probes are healthy."
+  },
+  "mock_values": {
+    "decision": "application"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

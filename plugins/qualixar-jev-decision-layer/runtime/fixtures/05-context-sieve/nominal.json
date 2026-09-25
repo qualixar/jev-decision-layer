@@ -1,0 +1,30 @@
+{
+  "fixture_id": "05-context-sieve-nominal",
+  "case_id": "05-context-sieve",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "query": "What is the checkout retry policy?",
+    "items": [
+      {
+        "id": "policy",
+        "text": "The approved checkout client retries transient errors twice."
+      },
+      {
+        "id": "unrelated",
+        "text": "The header has a blue background."
+      }
+    ]
+  },
+  "mock_values": {
+    "relevant_0": 0.98,
+    "injection_0": 0.01,
+    "conflict_0": 0.01,
+    "relevant_1": 0.02,
+    "injection_1": 0.01,
+    "conflict_1": 0.01
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

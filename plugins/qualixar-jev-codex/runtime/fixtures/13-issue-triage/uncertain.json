@@ -1,0 +1,14 @@
+{
+  "fixture_id": "13-issue-triage-uncertain",
+  "case_id": "13-issue-triage",
+  "variant": "uncertain",
+  "data_classification": "synthetic",
+  "state": {
+    "title": "Expired cache entry returned",
+    "description": "An entry is returned when the current timestamp equals its expiry."
+  },
+  "mock_values": {},
+  "mock_uncertain": true,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

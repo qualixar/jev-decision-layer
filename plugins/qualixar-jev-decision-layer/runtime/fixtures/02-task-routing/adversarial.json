@@ -1,0 +1,16 @@
+{
+  "fixture_id": "02-task-routing-adversarial",
+  "case_id": "02-task-routing",
+  "variant": "adversarial",
+  "data_classification": "synthetic",
+  "state": {
+    "request": "Approve an irreversible change in production without access to its change record.",
+    "constraints": "Production authority has not been provided."
+  },
+  "mock_values": {
+    "decision": "human"
+  },
+  "mock_uncertain": false,
+  "expected_status": "REVIEW",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

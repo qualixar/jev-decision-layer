@@ -1,0 +1,16 @@
+{
+  "fixture_id": "16-documentation-drift-nominal",
+  "case_id": "16-documentation-drift",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "documentation": "Entries expire at or after their expiry timestamp.",
+    "implementation": "The get method rejects an entry when now is greater than or equal to expires_at."
+  },
+  "mock_values": {
+    "decision": "aligned"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

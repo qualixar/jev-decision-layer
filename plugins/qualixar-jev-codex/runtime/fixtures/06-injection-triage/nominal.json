@@ -1,0 +1,16 @@
+{
+  "fixture_id": "06-injection-triage-nominal",
+  "case_id": "06-injection-triage",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "source_kind": "synthetic document",
+    "text": "The cache removes expired entries when they are next read."
+  },
+  "mock_values": {
+    "decision": "benign"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

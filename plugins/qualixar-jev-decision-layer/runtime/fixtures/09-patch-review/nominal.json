@@ -1,0 +1,16 @@
+{
+  "fixture_id": "09-patch-review-nominal",
+  "case_id": "09-patch-review",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "requirement": "Reject empty display labels.",
+    "patch": "Add empty-string validation and a regression test without other changes."
+  },
+  "mock_values": {
+    "decision": "ordinary_review"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}

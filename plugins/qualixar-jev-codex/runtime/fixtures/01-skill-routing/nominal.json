@@ -1,0 +1,20 @@
+{
+  "fixture_id": "01-skill-routing-nominal",
+  "case_id": "01-skill-routing",
+  "variant": "nominal",
+  "data_classification": "synthetic",
+  "state": {
+    "request": "Run and diagnose the checkout regression tests.",
+    "skills": {
+      "testing": "unit and regression tests",
+      "docs": "edit documentation",
+      "browser": "inspect browser UI"
+    }
+  },
+  "mock_values": {
+    "decision": "testing"
+  },
+  "mock_uncertain": false,
+  "expected_status": "RECOMMEND",
+  "disclaimer": "Hand-authored synthetic response, not a Jev prediction or accuracy benchmark."
+}
