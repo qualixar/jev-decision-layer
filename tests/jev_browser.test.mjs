@@ -5,7 +5,7 @@ import {mkdtemp,mkdir,writeFile,chmod,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {availableActions,originOf,parseState,createSession,run,ipc,loadConfig} from '../plugins/qualixar-jev-decision-layer/skills/jev-browser-choice/bridge.mjs';
-const snapshot=(label='Next',origin='https://example.org',extra='')=>`Browser tab: Demo URL: "${origin}/page".\n1 button ${label}\n2 text field Query\n${extra}`;
+const snapshot=(label='Next',origin='https://example.org',extra='')=>`Browser tab: Demo URL: "${origin}/page".\n1 link ${label}\n2 text field Query\n${extra}`;
 function tab(states=[snapshot()]) {
  let n=0;const calls=[];
  return {calls,async getAXState(){return states[Math.min(n++,states.length-1)];},async click(i){calls.push(['click',i]);},async pressKey(k){calls.push(['press',k]);},async reload(){calls.push(['reload']);}};
@@ -28,8 +28,13 @@ test('unknown origin is rejected',()=>assert.throws(()=>originOf('not a state'))
 test('discovers observed navigation, not a text field',()=>{const a=availableActions(snapshot());assert.equal(a.length,1);assert.equal(a[0].index,1);});
 test('ambiguous duplicate names not clicked',()=>assert.equal(availableActions(snapshot('Next',undefined,'3 button Next')).length,0));
 test('consequential controls are not discovered',()=>assert.equal(availableActions(snapshot('Pay now')).length,0));
+test('explicit checkout and account controls are never executable',()=>{
+ for(const label of ['Continue to checkout','Place order','Proceed','Open account settings','View checkout','Add to cart']) {
+  assert.equal(availableActions(snapshot(label),[{op:'click',name:label}],false).length,0,label);
+ }
+});
 test('explicit text typing not supported',()=>assert.throws(()=>availableActions(snapshot(),[{op:'type',text:'anything'}])));
-test('explicit safe controls map to observed indexes',()=>assert.equal(availableActions(snapshot('Reports'),[{op:'click',name:'Reports'}],false)[0].index,1));
+test('explicit safe navigation controls map to observed indexes',()=>assert.equal(availableActions(snapshot('View reports'),[{op:'click',name:'View reports'}],false)[0].index,1));
 test('unobserved explicit control omitted',()=>assert.equal(availableActions(snapshot(),[{op:'click',name:'Absent'}],false).length,0));
 test('press Enter is not an implicit submit',()=>assert.equal(availableActions(snapshot(),[{op:'press',key:'Enter'}],false).length,0));
 test('duplicate explicit/discovered actions coalesce',()=>assert.equal(availableActions(snapshot(),[{op:'click',name:'Next'}]).length,1));
@@ -51,6 +56,7 @@ test('run overrides cannot expand enrolled browser authority',async()=>{
  const s=createSession(tab(),config({maxSteps:2}));
  await assert.rejects(()=>s.run({maxSteps:3}),/BROWSER_STEP_BUDGET/);
  await assert.rejects(()=>s.run({allowedOrigins:['https://other.example']}),/BROWSER_AUTHORITY_OVERRIDE/);
+ await assert.rejects(()=>s.run({controls:[{op:'click',name:'Next'}]}),/BROWSER_AUTHORITY_OVERRIDE/);
 });
 test('invalid confidence configuration rejected',async()=>{await assert.rejects(()=>run(tab(),config({minConfidence:NaN})));});
 test('action failure returns control',async()=>{const t=tab();t.click=async()=>{throw Error('stale');};assert.equal((await run(t,config())).reason,'action_or_origin_error');});
