@@ -3,49 +3,237 @@
   "$id": "https://raw.githubusercontent.com/qualixar/jev-decision-layer/main/docs/capabilities.schema.json",
   "title": "Qualixar Jev Decision Layer capability manifest",
   "type": "object",
-  "required": ["schema_version", "name", "version", "license", "publisher", "primary_decision_model", "optional_local_model", "typed_answers", "recipe_counts", "decision_modes", "interfaces", "host_support", "workspace_review_required", "model_answer_authorizes_execution", "automatic_all_internal_choices_intercepted", "measured_host_token_savings", "measured_host_cost_savings"],
+  "required": [
+    "schema_version",
+    "name",
+    "version",
+    "license",
+    "publisher",
+    "primary_decision_model",
+    "optional_local_model",
+    "typed_answers",
+    "recipe_counts",
+    "decision_modes",
+    "interfaces",
+    "host_support",
+    "workspace_review_required",
+    "model_answer_authorizes_execution",
+    "automatic_all_internal_choices_intercepted",
+    "measured_host_token_savings",
+    "measured_host_cost_savings",
+    "offline_fixtures"
+  ],
   "properties": {
-    "$schema": {"type": "string"},
-    "schema_version": {"const": 1},
-    "name": {"type": "string", "minLength": 1},
-    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
-    "license": {"const": "MIT"},
-    "publisher": {"type": "string", "minLength": 1},
-    "primary_decision_model": {"type": "string", "minLength": 1},
-    "optional_local_model": {"type": "string", "minLength": 1},
-    "typed_answers": {"type": "array", "uniqueItems": true, "items": {"enum": ["choice", "score", "noul"]}},
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 2
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "license": {
+      "const": "MIT"
+    },
+    "publisher": {
+      "type": "string",
+      "minLength": 1
+    },
+    "primary_decision_model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "optional_local_model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "typed_answers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "choice",
+          "score",
+          "noul"
+        ]
+      }
+    },
     "recipe_counts": {
       "type": "object",
-      "required": ["legacy_contracts", "additional_specifications"],
-      "properties": {"legacy_contracts": {"type": "integer", "minimum": 0}, "additional_specifications": {"type": "integer", "minimum": 0}},
+      "required": [
+        "legacy_contracts",
+        "additional_specifications"
+      ],
+      "properties": {
+        "legacy_contracts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "additional_specifications": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
       "additionalProperties": false
     },
     "decision_modes": {
-      "type": "array", "minItems": 5, "items": {
-        "type": "object", "required": ["id", "hosted_scope", "local_laya"],
-        "properties": {"id": {"enum": ["jev-public", "jev-internal", "jev-maximum", "hybrid", "laya-only"]}, "hosted_scope": {"enum": ["public", "internal-minimized", "restricted-non-secret-reviewed", "none"]}, "local_laya": {"type": "boolean"}},
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "hosted_scope",
+          "local_laya"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              "jev-public",
+              "jev-internal",
+              "jev-maximum",
+              "hybrid",
+              "laya-only"
+            ]
+          },
+          "hosted_scope": {
+            "enum": [
+              "public",
+              "internal-minimized",
+              "restricted-non-secret-reviewed",
+              "none"
+            ]
+          },
+          "local_laya": {
+            "type": "boolean"
+          }
+        },
         "additionalProperties": false
       }
     },
     "interfaces": {
-      "type": "array", "minItems": 1, "items": {
-        "type": "object", "required": ["id", "tool", "outcome"],
-        "properties": {"id": {"type": "string"}, "tool": {"type": "string"}, "outcome": {"type": "string"}},
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "tool",
+          "outcome"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string"
+          }
+        },
         "additionalProperties": false
       }
     },
     "host_support": {
-      "type": "array", "minItems": 1, "items": {
-        "type": "object", "required": ["id", "evidence", "installed_adapter", "explicit_jev_receipt_verified", "automatic_jev_hook_receipt_verified", "local_laya_receipt_verified"],
-        "properties": {"id": {"type": "string"}, "evidence": {"type": "string"}, "installed_adapter": {"type": "boolean"}, "explicit_jev_receipt_verified": {"type": "boolean"}, "automatic_jev_hook_receipt_verified": {"type": "boolean"}, "local_laya_receipt_verified": {"type": "boolean"}},
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "evidence",
+          "installed_adapter",
+          "explicit_jev_receipt_verified",
+          "automatic_jev_hook_receipt_verified",
+          "local_laya_receipt_verified"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "installed_adapter": {
+            "type": "boolean"
+          },
+          "explicit_jev_receipt_verified": {
+            "type": "boolean"
+          },
+          "automatic_jev_hook_receipt_verified": {
+            "type": "boolean"
+          },
+          "local_laya_receipt_verified": {
+            "type": "boolean"
+          }
+        },
         "additionalProperties": false
       }
     },
-    "workspace_review_required": {"type": "boolean"},
-    "model_answer_authorizes_execution": {"const": false},
-    "automatic_all_internal_choices_intercepted": {"const": false},
-    "measured_host_token_savings": {"type": "null"},
-    "measured_host_cost_savings": {"type": "null"}
+    "workspace_review_required": {
+      "type": "boolean"
+    },
+    "model_answer_authorizes_execution": {
+      "const": false
+    },
+    "automatic_all_internal_choices_intercepted": {
+      "const": false
+    },
+    "measured_host_token_savings": {
+      "type": "null"
+    },
+    "measured_host_cost_savings": {
+      "type": "null"
+    },
+    "offline_fixtures": {
+      "type": "object",
+      "required": [
+        "per_recipe",
+        "total",
+        "variants",
+        "requires_provider",
+        "requires_workspace_enrollment",
+        "is_accuracy_evidence"
+      ],
+      "properties": {
+        "per_recipe": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "variants": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "nominal",
+              "uncertain",
+              "adversarial"
+            ]
+          }
+        },
+        "requires_provider": {
+          "const": false
+        },
+        "requires_workspace_enrollment": {
+          "const": false
+        },
+        "is_accuracy_evidence": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }

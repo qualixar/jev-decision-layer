@@ -1,6 +1,6 @@
 {
   "$schema": "./capabilities.schema.json",
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "Qualixar Jev Decision Layer",
   "version": "1.0.1",
   "license": "MIT",
@@ -68,6 +68,11 @@
       "id": "setup",
       "tool": "jev_setup",
       "outcome": "private workspace review wizard"
+    },
+    {
+      "id": "selftest",
+      "tool": "jev_recipe_selftest",
+      "outcome": "offline replay of shipped synthetic fixtures through the local gate"
     }
   ],
   "host_support": [
@@ -97,16 +102,16 @@
     },
     {
       "id": "claude-code",
-      "evidence": "portable plugin metadata only",
-      "installed_adapter": false,
+      "evidence": "marketplace install and plugin validate pass; seven commands and three skills load; MCP launcher answers initialize; hook launcher exits cleanly on an unenrolled workspace. Plugin-provided MCP servers do not load in the desktop app Code tab, which affects every plugin on that surface",
+      "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
       "local_laya_receipt_verified": false
     },
     {
       "id": "vscode",
-      "evidence": "no native extension bundled",
-      "installed_adapter": false,
+      "evidence": "adapter writes .vscode/mcp.json in the documented servers format; merge, parse-refusal and symlink behaviour covered by tests; no extension bundled and no live Copilot agent-mode turn run",
+      "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
       "local_laya_receipt_verified": false
@@ -116,5 +121,17 @@
   "model_answer_authorizes_execution": false,
   "automatic_all_internal_choices_intercepted": false,
   "measured_host_token_savings": null,
-  "measured_host_cost_savings": null
+  "measured_host_cost_savings": null,
+  "offline_fixtures": {
+    "per_recipe": 3,
+    "total": 96,
+    "variants": [
+      "nominal",
+      "uncertain",
+      "adversarial"
+    ],
+    "requires_provider": false,
+    "requires_workspace_enrollment": false,
+    "is_accuracy_evidence": false
+  }
 }

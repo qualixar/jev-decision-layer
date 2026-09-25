@@ -1,15 +1,20 @@
 # Qualixar Jev Decision Layer
 
-> Independent Qualixar plugin for bounded typed Jev decisions in coding-agent workflows, with optional local Laya. Advisory answers never grant tool authority.
+> One decision runtime with host adapters for Codex, Claude Code, Antigravity, Hermes and VS Code. Bounded typed Jev decisions for coding-agent workflows, with an optional local Laya route. Answers are gated locally and never grant tool authority.
 
-This index is a reading convenience for agents, not a guarantee of search ranking or universal host support.
+This index is a reading convenience for agents, not a guarantee of search ranking or universal host support. Every claim about a specific harness is qualified in the host guide by what was actually run.
 
 - [Product overview and install](README.md)
+- [Host adapters, per-harness install, and what is verified](docs/HOSTS.md)
 - [Machine-readable capabilities and host evidence](docs/capabilities.json)
 - [Capability schema](docs/capabilities.schema.json)
-- [First use in Codex Desktop](docs/GETTING_STARTED.md)
+- [First use on any supported harness](docs/GETTING_STARTED.md)
 - [Everyday and developer use cases](docs/USE_CASES.md)
 - [Security and privacy boundary](docs/SECURITY.md)
+- [Remove or roll back](docs/ROLLBACK.md)
+- [Release notes](CHANGELOG.md)
 - [Contributor guide](CONTRIBUTING.md)
 - [MIT license](LICENSE)
 - [Third-party notices](plugins/qualixar-jev-decision-layer/THIRD_PARTY_NOTICES.md)
+
+To evaluate this layer without a key, a provider or an enrolled workspace, run `python3 -m jev_auto.cli selftest`: it replays 96 synthetic fixtures through the real gate offline. A passing run is a contract check on the shipped gate, never evidence of provider accuracy.
