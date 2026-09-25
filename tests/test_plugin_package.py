@@ -106,7 +106,7 @@ class PluginPackageTests(unittest.TestCase):
         module.register(context)
         self.assertTrue({"jev_auto_status", "jev_route", "jev_recipe_catalog", "jev_recipe_try", "jev_review_diff"}
                         <= {tool["name"] for tool in context.tools})
-        self.assertEqual({name for name, _ in context.skills}, {"jev-decision-guide", "jev-browser-choice"})
+        self.assertEqual({name for name, _ in context.skills}, {"jev-decision-guide", "jev-browser-choice", "jev-use-cases"})
         self.assertEqual(context.hooks, ["pre_llm_call"])
 
     def test_identity_and_runtime_hashes(self):

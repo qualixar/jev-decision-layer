@@ -18,8 +18,11 @@ from typing import Callable
 #   antigravity -> plugin-root hooks.json (PreInvocation) + jev_auto/agy_hook.py
 #   hermes      -> jev_auto/hermes_hook.py + jev_auto/hermes_tool.py
 #   claude_code -> hooks/claude-hooks.json + jev_auto/claude_hook.py
-# vscode has no adapter yet and must stay False until one ships.
-_NATIVE_ADAPTERS = frozenset({"codex", "antigravity", "hermes", "claude_code"})
+#   vscode      -> jev_auto/vscode_adapter.py, writing .vscode/mcp.json
+# VS Code exposes no hook surface, so its adapter registers the same stdio
+# launcher as a workspace MCP server instead. That is a shipped adapter, not a
+# conformance claim: `native_status` stays NOT_RUN like every other host.
+_NATIVE_ADAPTERS = frozenset({"codex", "antigravity", "hermes", "claude_code", "vscode"})
 
 
 _HOSTS = (

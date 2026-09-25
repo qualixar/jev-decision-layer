@@ -1,6 +1,6 @@
 {
   "id": "01-skill-routing",
-  "title": "Select a relevant Codex skill",
+  "title": "Select a relevant host skill",
   "group": "Routing",
   "industry": "Software engineering",
   "objective": "Choose one relevant skill or explicitly choose none; do not load the whole catalogue.",

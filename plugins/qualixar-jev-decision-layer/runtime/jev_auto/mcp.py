@@ -80,6 +80,9 @@ def definitions(legacy):
             'data_classification':{'type':'string','enum':['public','internal-minimized','restricted']}},
            ['workspace_path','kind','task','candidates','data_classification']),
       tool('jev_recipe_catalog','List the available data-only use-case recipes. They are specifications, not provider accuracy evidence.',{},[]),
+      tool('jev_recipe_selftest','Replay the shipped synthetic fixtures through the local gate. Fully offline: no provider call, no key, no workspace enrollment. Use this to check the gate behaves before spending anything on a live decision.',
+           {'recipe_id':{'type':'string','minLength':1,'maxLength':128},
+            'variant':{'type':'string','enum':['nominal','uncertain','adversarial']}},[]),
       tool('jev_recipe_try','Evaluate one explicit recipe input through the enrolled typed Jev route. The answer is experimental advice, never permission to execute.',
            {'workspace_path':wp,'recipe_id':{'type':'string','minLength':1,'maxLength':128},'input':{'type':'object'},
             'data_classification':{'type':'string','enum':['public','internal-minimized','restricted']}},
@@ -132,6 +135,12 @@ def dispatch(name,args,legacy,caller=None,setup_launcher=None):
     if name=='jev_recipe_catalog':
         from .recipe_runtime import catalog_preview
         return catalog_preview()
+    if name=='jev_recipe_selftest':
+        # Offline by construction: no workspace, no enrollment, no provider.
+        from .recipe_fixtures import run_fixture, selftest
+        if 'recipe_id' in args:return run_fixture(args['recipe_id'],args.get('variant','nominal'))
+        if 'variant' in args:raise AutoError('MCP_ARGUMENTS')
+        return selftest()
     return legacy.call(name,args,scope='global-hybrid')
 
 def serve():
