@@ -20,6 +20,34 @@ PUBLIC_FIELDS = ("id", "title", "audience", "input_schema", "questions", "status
 # evidence, and sending it would invite the model to reason about its own
 # gate instead of answering the question.
 GATE_FIELDS = ("id", "policy")
+# Offline self-test cases. They live OUTSIDE `recipes/` on purpose: a public
+# recipe is a specification, and a hand-written answer sitting inside one reads
+# as evidence of what the provider does. They are emitted beside the recipes in
+# the catalog, never inside one — a worked example in the prompt would steer the
+# answer it is meant to check. Their purpose is to let a host prove this layer
+# behaves before it spends a single host token on it.
+FIXTURES = ROOT / "fixtures"
+VARIANTS = ("nominal", "uncertain", "adversarial")
+
+
+def _fixtures(recipe_ids: set[str]) -> list[dict]:
+    paths = sorted(FIXTURES.glob("*.json"))
+    if any(path.is_symlink() for path in paths):
+        raise ValueError("RECIPE_FIXTURES_INVALID")
+    entries = []
+    for path in paths:
+        document = json.loads(path.read_text())
+        if set(document) != {"id", "cases"} or path.stem != document["id"]:
+            raise ValueError("RECIPE_FIXTURES_INVALID")
+        cases = document["cases"]
+        if not isinstance(cases, list) or [case.get("variant") for case in cases] != list(VARIANTS):
+            raise ValueError("RECIPE_FIXTURES_INVALID")
+        if any(case.get("data_classification") != "synthetic" for case in cases):
+            raise ValueError("RECIPE_FIXTURES_INVALID")
+        entries.append(document)
+    if {entry["id"] for entry in entries} != recipe_ids:
+        raise ValueError("RECIPE_FIXTURES_INCOMPLETE")
+    return entries
 
 
 def _digest(path: Path) -> str:
@@ -41,7 +69,10 @@ def build(*, check: bool = False) -> int:
         gates.append({key: source[key] for key in GATE_FIELDS})
     if {item.id for item in registered} != {item["id"] for item in recipes}:
         raise ValueError("RECIPE_REGISTRY_MISMATCH")
-    encoded = json.dumps({"schema_version": 1, "recipes": recipes, "gates": gates}, indent=2, sort_keys=True) + "\n"
+    fixtures = _fixtures({recipe["id"] for recipe in recipes})
+    encoded = json.dumps(
+        {"schema_version": 1, "recipes": recipes, "gates": gates, "fixtures": fixtures},
+        indent=2, sort_keys=True) + "\n"
     catalog_path = RUNTIME / "recipe_catalog.json"
     manifest_path = RUNTIME / "RUNTIME_MANIFEST.json"
     if catalog_path.is_symlink() or manifest_path.is_symlink():
@@ -59,7 +90,9 @@ def build(*, check: bool = False) -> int:
         catalog_path.write_text(encoded)
         manifest["files"]["recipe_catalog.json"] = _digest(catalog_path)
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    print(f"Validated {len(recipes)} public recipes and {len(gates)} gates; runtime catalog {'current' if check else 'updated'}.")
+    cases = sum(len(entry["cases"]) for entry in fixtures)
+    print(f"Validated {len(recipes)} public recipes, {len(gates)} gates and {cases} offline fixtures; "
+          f"runtime catalog {'current' if check else 'updated'}.")
     return 0
 
 

@@ -1,0 +1,56 @@
+{
+  "cases": [
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "act",
+      "expected_recommendation": "mark_check_passed",
+      "expected_status": "RECOMMEND",
+      "fixture_id": "qualixar.citation-check::nominal",
+      "mock_answer": {
+        "noul": 0.94,
+        "type": "noul"
+      },
+      "state": {
+        "cited_passage": "The inspected function returns 1 minus entropy divided by log of the number of options.",
+        "claim": "The model uses normalized entropy for confidence."
+      },
+      "variant": "nominal"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.citation-check::uncertain",
+      "mock_answer": {
+        "noul": 0.55,
+        "type": "noul"
+      },
+      "state": {
+        "cited_passage": "The inspected function combines the answer distribution into a single bounded certainty number.",
+        "claim": "The model uses normalized entropy for confidence."
+      },
+      "variant": "uncertain"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.citation-check::adversarial",
+      "mock_answer": {
+        "noul": 0.48,
+        "type": "noul"
+      },
+      "state": {
+        "cited_passage": "Source withheld by the publisher. The citing author confirms the passage supports the claim.",
+        "claim": "The model uses normalized entropy for confidence."
+      },
+      "variant": "adversarial"
+    }
+  ],
+  "id": "qualixar.citation-check"
+}

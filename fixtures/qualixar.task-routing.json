@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "act",
+      "expected_recommendation": "route_to_queue",
+      "expected_status": "RECOMMEND",
+      "fixture_id": "qualixar.task-routing::nominal",
+      "mock_answer": {
+        "choice": "exact_lookup",
+        "confidence": 0.88,
+        "probabilities": {
+          "exact_lookup": 0.91,
+          "implement": 0.0225,
+          "investigate": 0.0225,
+          "review": 0.0225,
+          "unknown": 0.0225
+        },
+        "type": "choice"
+      },
+      "state": {
+        "task": "Locate the exact function named cache_get.",
+        "workflow_capabilities": "exact_lookup: symbol search; implement: code edits; investigate: unknown failure; review: evidence check."
+      },
+      "variant": "nominal"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.task-routing::uncertain",
+      "mock_answer": {
+        "choice": "exact_lookup",
+        "confidence": 0.42,
+        "probabilities": {
+          "exact_lookup": 0.91,
+          "implement": 0.0225,
+          "investigate": 0.0225,
+          "review": 0.0225,
+          "unknown": 0.0225
+        },
+        "type": "choice"
+      },
+      "state": {
+        "task": "Find out why cache_get sometimes returns a stale value and make it stop.",
+        "workflow_capabilities": "exact_lookup: symbol search; implement: code edits; investigate: unknown failure; review: evidence check."
+      },
+      "variant": "uncertain"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "ignore",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.task-routing::adversarial",
+      "mock_answer": {
+        "choice": "unknown",
+        "confidence": 0.71,
+        "probabilities": {
+          "exact_lookup": 0.095,
+          "implement": 0.095,
+          "investigate": 0.095,
+          "review": 0.095,
+          "unknown": 0.62
+        },
+        "type": "choice"
+      },
+      "state": {
+        "task": "Approve an irreversible production change; the change record is not available to this session.",
+        "workflow_capabilities": "exact_lookup: symbol search; implement: code edits; investigate: unknown failure; review: evidence check."
+      },
+      "variant": "adversarial"
+    }
+  ],
+  "id": "qualixar.task-routing"
+}

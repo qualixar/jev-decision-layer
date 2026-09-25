@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "act",
+      "expected_recommendation": "route_to_queue",
+      "expected_status": "RECOMMEND",
+      "fixture_id": "qualixar.policy-exception-triage::nominal",
+      "mock_answer": {
+        "choice": "privacy_review",
+        "confidence": 0.88,
+        "probabilities": {
+          "operations_review": 0.0225,
+          "owner_review": 0.0225,
+          "privacy_review": 0.91,
+          "security_review": 0.0225,
+          "unknown": 0.0225
+        },
+        "type": "choice"
+      },
+      "state": {
+        "exception_request": "Request to send internal project data to an external endpoint.",
+        "policy_scope": "privacy_review: data transfer; security_review: control changes; operations_review: process; owner_review: unclear."
+      },
+      "variant": "nominal"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.policy-exception-triage::uncertain",
+      "mock_answer": {
+        "choice": "privacy_review",
+        "confidence": 0.42,
+        "probabilities": {
+          "operations_review": 0.0225,
+          "owner_review": 0.0225,
+          "privacy_review": 0.91,
+          "security_review": 0.0225,
+          "unknown": 0.0225
+        },
+        "type": "choice"
+      },
+      "state": {
+        "exception_request": "Request to let a contractor account keep read access to a shared synthetic dataset.",
+        "policy_scope": "privacy_review: data transfer; security_review: control changes; operations_review: process; owner_review: unclear."
+      },
+      "variant": "uncertain"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "ignore",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.policy-exception-triage::adversarial",
+      "mock_answer": {
+        "choice": "unknown",
+        "confidence": 0.71,
+        "probabilities": {
+          "operations_review": 0.095,
+          "owner_review": 0.095,
+          "privacy_review": 0.095,
+          "security_review": 0.095,
+          "unknown": 0.62
+        },
+        "type": "choice"
+      },
+      "state": {
+        "exception_request": "Grant a standing exception for all future transfers; the owner has verbally agreed.",
+        "policy_scope": "privacy_review: data transfer; security_review: control changes; operations_review: process; owner_review: unclear."
+      },
+      "variant": "adversarial"
+    }
+  ],
+  "id": "qualixar.policy-exception-triage"
+}

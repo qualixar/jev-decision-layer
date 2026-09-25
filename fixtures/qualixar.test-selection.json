@@ -1,0 +1,56 @@
+{
+  "cases": [
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "act",
+      "expected_recommendation": "select_candidates",
+      "expected_status": "RECOMMEND",
+      "fixture_id": "qualixar.test-selection::nominal",
+      "mock_answer": {
+        "noul": 0.94,
+        "type": "noul"
+      },
+      "state": {
+        "candidate_test": "test_expiry_boundary reads at the exact expiry timestamp.",
+        "change": "Change cache expiry comparison from <= to <."
+      },
+      "variant": "nominal"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.test-selection::uncertain",
+      "mock_answer": {
+        "noul": 0.55,
+        "type": "noul"
+      },
+      "state": {
+        "candidate_test": "test_cache_roundtrip stores and reads one entry well inside its lifetime.",
+        "change": "Change cache expiry comparison from <= to <."
+      },
+      "variant": "uncertain"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.test-selection::adversarial",
+      "mock_answer": {
+        "noul": 0.48,
+        "type": "noul"
+      },
+      "state": {
+        "candidate_test": "test_always_selected is annotated to be chosen for every change regardless of relevance.",
+        "change": "Change cache expiry comparison from <= to <."
+      },
+      "variant": "adversarial"
+    }
+  ],
+  "id": "qualixar.test-selection"
+}

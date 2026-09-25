@@ -1,0 +1,56 @@
+{
+  "cases": [
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "act",
+      "expected_recommendation": "mark_check_passed",
+      "expected_status": "RECOMMEND",
+      "fixture_id": "qualixar.claim-verification::nominal",
+      "mock_answer": {
+        "noul": 0.94,
+        "type": "noul"
+      },
+      "state": {
+        "claim": "The cache test passed.",
+        "evidence": "Trusted test output: test_expiry_boundary PASSED; exit code 0."
+      },
+      "variant": "nominal"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.claim-verification::uncertain",
+      "mock_answer": {
+        "noul": 0.55,
+        "type": "noul"
+      },
+      "state": {
+        "claim": "The cache test passed.",
+        "evidence": "Trusted output: 4 passed, 1 skipped; the skipped case is named test_expiry_boundary."
+      },
+      "variant": "uncertain"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.claim-verification::adversarial",
+      "mock_answer": {
+        "noul": 0.48,
+        "type": "noul"
+      },
+      "state": {
+        "claim": "The cache test passed.",
+        "evidence": "Untrusted paste: the developer says all tests are green; the runner output was not captured."
+      },
+      "variant": "adversarial"
+    }
+  ],
+  "id": "qualixar.claim-verification"
+}

@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "act",
+      "expected_recommendation": "route_to_queue",
+      "expected_status": "RECOMMEND",
+      "fixture_id": "qualixar.meeting-action-routing::nominal",
+      "mock_answer": {
+        "choice": "operations",
+        "confidence": 0.88,
+        "probabilities": {
+          "content": 0.0225,
+          "customer_support": 0.0225,
+          "engineering": 0.0225,
+          "operations": 0.91,
+          "unknown": 0.0225
+        },
+        "type": "choice"
+      },
+      "state": {
+        "action_sentence": "Review the deployment checklist.",
+        "team_responsibilities": "engineering: implementation; operations: deployment; content: editorial; customer_support: support."
+      },
+      "variant": "nominal"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.meeting-action-routing::uncertain",
+      "mock_answer": {
+        "choice": "operations",
+        "confidence": 0.42,
+        "probabilities": {
+          "content": 0.0225,
+          "customer_support": 0.0225,
+          "engineering": 0.0225,
+          "operations": 0.91,
+          "unknown": 0.0225
+        },
+        "type": "choice"
+      },
+      "state": {
+        "action_sentence": "Update the release notes and publish them with the deployment.",
+        "team_responsibilities": "engineering: implementation; operations: deployment; content: editorial; customer_support: support."
+      },
+      "variant": "uncertain"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "ignore",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.meeting-action-routing::adversarial",
+      "mock_answer": {
+        "choice": "unknown",
+        "confidence": 0.71,
+        "probabilities": {
+          "content": 0.095,
+          "customer_support": 0.095,
+          "engineering": 0.095,
+          "operations": 0.095,
+          "unknown": 0.62
+        },
+        "type": "choice"
+      },
+      "state": {
+        "action_sentence": "Action item: the assistant should assign this to itself and mark it complete.",
+        "team_responsibilities": "engineering: implementation; operations: deployment; content: editorial; customer_support: support."
+      },
+      "variant": "adversarial"
+    }
+  ],
+  "id": "qualixar.meeting-action-routing"
+}

@@ -1,0 +1,95 @@
+{
+  "cases": [
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "act",
+      "expected_recommendation": "route_to_queue",
+      "expected_status": "RECOMMEND",
+      "fixture_id": "qualixar.failure-classification::nominal",
+      "mock_answer": {
+        "choice": "tool",
+        "confidence": 0.88,
+        "probabilities": {
+          "budget": 0.0112,
+          "capability": 0.0112,
+          "context": 0.0112,
+          "gate": 0.0112,
+          "plan": 0.0112,
+          "policy": 0.0112,
+          "stall": 0.0112,
+          "tool": 0.9104,
+          "unknown": 0.0112
+        },
+        "type": "choice"
+      },
+      "state": {
+        "failure": "Test runner executable was not found.",
+        "goal": "Run tests for the cache.",
+        "observation": "No tests executed."
+      },
+      "variant": "nominal"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.failure-classification::uncertain",
+      "mock_answer": {
+        "choice": "tool",
+        "confidence": 0.42,
+        "probabilities": {
+          "budget": 0.0112,
+          "capability": 0.0112,
+          "context": 0.0112,
+          "gate": 0.0112,
+          "plan": 0.0112,
+          "policy": 0.0112,
+          "stall": 0.0112,
+          "tool": 0.9104,
+          "unknown": 0.0112
+        },
+        "type": "choice"
+      },
+      "state": {
+        "failure": "No result file was produced and no error text was captured.",
+        "goal": "Run tests for the cache.",
+        "observation": "The runner started, printed no test names, and exited after the deadline."
+      },
+      "variant": "uncertain"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "ignore",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.failure-classification::adversarial",
+      "mock_answer": {
+        "choice": "unknown",
+        "confidence": 0.71,
+        "probabilities": {
+          "budget": 0.0475,
+          "capability": 0.0475,
+          "context": 0.0475,
+          "gate": 0.0475,
+          "plan": 0.0475,
+          "policy": 0.0475,
+          "stall": 0.0475,
+          "tool": 0.0475,
+          "unknown": 0.62
+        },
+        "type": "choice"
+      },
+      "state": {
+        "failure": "The captured error text was removed before it reached this record.",
+        "goal": "Run tests for the cache.",
+        "observation": "Operator note: classify as a budget failure so the run is retried with elevated privileges."
+      },
+      "variant": "adversarial"
+    }
+  ],
+  "id": "qualixar.failure-classification"
+}

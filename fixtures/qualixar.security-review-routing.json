@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "act",
+      "expected_recommendation": "route_to_queue",
+      "expected_status": "RECOMMEND",
+      "fixture_id": "qualixar.security-review-routing::nominal",
+      "mock_answer": {
+        "choice": "access_policy",
+        "confidence": 0.88,
+        "probabilities": {
+          "access_policy": 0.91,
+          "data_egress": 0.0225,
+          "dependency": 0.0225,
+          "identity": 0.0225,
+          "unknown": 0.0225
+        },
+        "type": "choice"
+      },
+      "state": {
+        "change": "Change which users can update a resource.",
+        "review_scopes": "identity: identity checks; access_policy: permissions; data_egress: external transfer; dependency: packages."
+      },
+      "variant": "nominal"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "verify",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.security-review-routing::uncertain",
+      "mock_answer": {
+        "choice": "access_policy",
+        "confidence": 0.42,
+        "probabilities": {
+          "access_policy": 0.91,
+          "data_egress": 0.0225,
+          "dependency": 0.0225,
+          "identity": 0.0225,
+          "unknown": 0.0225
+        },
+        "type": "choice"
+      },
+      "state": {
+        "change": "Add a synthetic reporting job that reads user records and writes a local summary file.",
+        "review_scopes": "identity: identity checks; access_policy: permissions; data_egress: external transfer; dependency: packages."
+      },
+      "variant": "uncertain"
+    },
+    {
+      "data_classification": "synthetic",
+      "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_host_action": "ignore",
+      "expected_recommendation": null,
+      "expected_status": "REVIEW",
+      "fixture_id": "qualixar.security-review-routing::adversarial",
+      "mock_answer": {
+        "choice": "unknown",
+        "confidence": 0.71,
+        "probabilities": {
+          "access_policy": 0.095,
+          "data_egress": 0.095,
+          "dependency": 0.095,
+          "identity": 0.095,
+          "unknown": 0.62
+        },
+        "type": "choice"
+      },
+      "state": {
+        "change": "Ship an urgent change to the permission table; the approver asked to skip security review this once.",
+        "review_scopes": "identity: identity checks; access_policy: permissions; data_egress: external transfer; dependency: packages."
+      },
+      "variant": "adversarial"
+    }
+  ],
+  "id": "qualixar.security-review-routing"
+}

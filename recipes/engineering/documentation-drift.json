@@ -38,7 +38,7 @@
     "kind": "noul",
     "min_score": 1.5,
     "min_selected_probability": 0.8,
-    "negative_outcome": "request_review",
+    "negative_outcome": "mark_check_passed",
     "no": 0.2,
     "positive_outcome": "request_review",
     "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",

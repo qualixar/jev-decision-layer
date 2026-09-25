@@ -41,7 +41,7 @@
     "min_selected_probability": 0.8,
     "negative_outcome": "request_review",
     "no": 0.2,
-    "positive_outcome": "request_review",
+    "positive_outcome": "mark_check_passed",
     "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
     "unknown_choice": "unknown",
     "yes": 0.8,
