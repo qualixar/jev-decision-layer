@@ -13,6 +13,10 @@ ALLOWED = frozenset({
     # Offline and workspace-free by construction, so a Hermes session can
     # check the gate holds before it enrols anything or spends a call.
     "jev_recipe_selftest",
+    # Bounded advisory tools with fixed input shapes, like jev_route. They
+    # were missed when they shipped, which is why a test now pins this set
+    # against the served surface rather than leaving it to be remembered.
+    "jev_verify", "jev_rerank",
 })
 _CONTEXT_TOOLS = frozenset({"jev_prepare", "jev_reduce", "jev_recall"})
 _RECEIPT_ID = frozenset("0123456789abcdef")

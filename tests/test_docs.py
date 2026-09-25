@@ -147,5 +147,31 @@ class CapabilityManifest(unittest.TestCase):
                 self.assertFalse(host["local_laya_receipt_verified"])
 
 
+
+
+class VersionIsStated(unittest.TestCase):
+    """A reader should see the version without cloning, and it must be true.
+
+    A README version is the first thing that goes stale, so it is checked
+    against the manifest rather than trusted.
+    """
+
+    def _version(self):
+        return json.loads((ROOT / "plugins" / "qualixar-jev-decision-layer"
+                           / ".claude-plugin" / "plugin.json").read_text())["version"]
+
+    def test_the_readme_states_the_shipped_version(self):
+        readme = (ROOT / "README.md").read_text()
+        version = self._version()
+        self.assertIn(f"**Current release: {version}**", readme)
+        self.assertIn(f"version-{version}-", readme, "the badge is stale")
+
+    def test_the_readme_counts_match_what_ships(self):
+        readme = (ROOT / "README.md").read_text()
+        catalog = json.loads((ROOT / "plugins" / "qualixar-jev-decision-layer"
+                              / "runtime" / "recipe_catalog.json").read_text())
+        self.assertIn(f"{len(catalog['recipes'])} recipes", readme)
+        self.assertIn("108 offline fixtures", readme)
+
 if __name__ == "__main__":
     unittest.main()

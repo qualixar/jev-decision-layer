@@ -47,7 +47,7 @@ Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes
 **Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the desktop app's Code tab. This is a property of that surface, not of this plugin: in a Code tab session, every enabled plugin that ships an MCP server is equally absent, with no error and no failed entry. Commands and skills load normally there. To get the tools in the Code tab, register the launcher directly:
 
 ```sh
-claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.3/scripts/launch-jev"
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.4/scripts/launch-jev"
 ```
 
 For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. Note that `claude mcp list` reports on the CLI's own configuration and says nothing about what the desktop app can see — a green line there is not evidence the app loaded anything.

@@ -4,6 +4,16 @@ All notable changes to this project are recorded here. This project follows [Sem
 
 No release states measured token, cost or time savings, because none has been measured.
 
+## [1.0.4] — 2026-09-26
+
+### Fixed
+
+- **Hermes could not reach `jev_verify` or `jev_rerank`.** Every other host spawns the same launcher and gets the whole tool surface automatically; Hermes filters through its own allow-list, and the two new tools were never added to it. They were reachable from four hosts and invisible from the fifth, with nothing failing. A test now pins that allow-list against the served surface, with a documented reason for each deliberate exclusion, so adding a tool forces a decision rather than relying on memory.
+
+### Added
+
+- The README states the shipped version, host count, tool count and fixture count, and a test checks each against what actually ships.
+
 ## [1.0.3] — 2026-09-26
 
 ### Added

@@ -216,3 +216,52 @@ class HermesParityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HostParity(unittest.TestCase):
+    """Hermes keeps its own allow-list, so it drifts every time a tool ships.
+
+    Every other host spawns `scripts/launch-jev` and therefore gets the whole
+    surface for free. Hermes filters, and `jev_verify` and `jev_rerank` were
+    both missed when they shipped — reachable from four hosts and invisible
+    from the fifth, with nothing failing. This pins the exclusions so adding a
+    tool forces a decision instead of relying on memory.
+    """
+
+    # Excluded on purpose, with the reason. Anything not listed here must be
+    # exposed: a bounded advisory tool is part of the product on every host.
+    DELIBERATELY_EXCLUDED = {
+        "jev_catalog": "legacy jevkit surface; Hermes uses the recipe catalog",
+        "jev_describe": "legacy jevkit surface",
+        "jev_evaluate": "legacy jevkit surface",
+        "jev_health": "legacy jevkit surface; jev_auto_status is the modern check",
+        "jev_policy_check": "legacy advisory classifier",
+        "jev_policy_status": "legacy local policy mode, not workspace authority",
+        "jev_run_fixture": "legacy fixture runner; jev_recipe_selftest replaces it",
+        "jev_typed_decide": "accepts arbitrary question sets; the bounded tools are preferred",
+    }
+
+    def test_hermes_exposes_every_tool_it_does_not_deliberately_exclude(self):
+        from jev_auto.hermes_tool import ALLOWED
+        from jev_auto.mcp import definitions
+        from jevkit import mcp_server
+
+        served = {tool["name"] for tool in definitions(mcp_server)}
+        expected = served - set(self.DELIBERATELY_EXCLUDED)
+        missing = expected - ALLOWED
+        self.assertEqual(missing, set(),
+                         f"reachable from every other host but not Hermes: {sorted(missing)}")
+
+    def test_the_exclusion_list_does_not_name_a_tool_that_no_longer_exists(self):
+        from jev_auto.mcp import definitions
+        from jevkit import mcp_server
+
+        served = {tool["name"] for tool in definitions(mcp_server)}
+        stale = set(self.DELIBERATELY_EXCLUDED) - served
+        self.assertEqual(stale, set(), f"exclusion list is stale: {sorted(stale)}")
+
+    def test_verification_and_reranking_reach_hermes(self):
+        from jev_auto.hermes_tool import ALLOWED
+
+        self.assertIn("jev_verify", ALLOWED)
+        self.assertIn("jev_rerank", ALLOWED)
