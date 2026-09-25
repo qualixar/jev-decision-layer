@@ -28,10 +28,37 @@ Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent op
 | A proposed patch | Score review attention and suggest the first area to inspect | Perform independent code review and run tests |
 | A browser workflow | When several safe observed controls are plausible, rank a bounded choice; skip Jev for an obvious click | Grant browser access, execute the action, and inspect the resulting page |
 | A freelance, creator, research, or support job | Try a typed recipe for brief fit, invoice exceptions, lead routing, citation checks, research ranking, and more | Supply evidence, handle uncertainty, and make consequential decisions |
+| A failing step in an agent loop | Decide whether the failure is worth retrying, or whether retrying is waste | Enforce the retry budget, and run whatever is decided |
+| A release | Check one requirement against the evidence you supply — version agreement, a changelog entry, test evidence | Inspect the repository, run the build, and decide to publish |
+| A long tool result | Decide whether it contains anything that answers the goal, before the host reads it | Keep the original output, which stays authoritative |
 
-The package has **20 original workflow contracts and 32 additional data-only recipe specifications**. That is a catalog of use cases, not a claim that Jev is accurate on every user's data. Browse [everyday examples and recipe families](docs/USE_CASES.md), or ask the agent for `jev_recipe_catalog`.
+The package has **20 original workflow contracts and 36 data-only recipe specifications**. That is a catalog of use cases, not a claim that Jev is accurate on every user's data. Browse [everyday examples and recipe families](docs/USE_CASES.md), or ask the agent for `jev_recipe_catalog`.
+
+### Prove it before you spend anything
+
+Every recipe ships three synthetic cases — a clear-cut one, a genuinely ambiguous one, and one carrying an instruction hidden in material that is supposed to be data. Replaying all **108** runs the real gate with no provider call, no key, and no workspace enrolment:
+
+```sh
+plugins/qualixar-jev-decision-layer/scripts/jev selftest
+```
+
+The three variants are enforced, not described: a clear-cut case must clear the gate, and an ambiguous or adversarial one must not. A fixture cannot be made to pass by recording whatever the gate happened to do. A passing run is a contract check on the shipped gate, never evidence of the provider's accuracy.
 
 The TypeSafe question types are [Choice, Score, and Noul](https://docs.typesafe.ai/primitives): a selection from known options, a position on a defined scale, or a yes/no probability. The plugin wraps those answers in policy checks and receipts; it never treats a model answer as permission to act.
+
+### The answer arrives already gated
+
+The host should not have to re-derive, in its own expensive context, the judgment the cheap model was called to settle. Every answer is evaluated locally first and carries a `host_action`:
+
+| `host_action` | What it means | What the host should do |
+|---|---|---|
+| `act` | Cleared the confidence floor and the distribution bar | Use it. Do not re-reason it — that is the cost the call removed |
+| `verify` | A starting point, not a conclusion | Check it. Cheaper than working it out from nothing |
+| `ignore` | Below the floor, or the model chose `unknown` | Decide normally. The call still removed a bad option |
+
+**Confidence is not probability.** A distribution can look decisive while the answer is not calibrated, and gating on probability alone passes answers the model is not actually sure of. The gate applies both. A Noul answer carries no confidence field at all — its distance from 0.5 is the certainty.
+
+**The gate fails closed.** A threshold that is missing, malformed, or out of range is a broken gate, not an absent one, and degrades to `verify` rather than `act`. So does a value outside its own domain, a label the model ranked below another, and an `act` that would carry no recommendation.
 
 ## How a decision moves through the system
 
@@ -53,7 +80,9 @@ The shared runtime lives in `plugins/qualixar-jev-decision-layer/`. A host adapt
 | Antigravity | `jev_auto/agy_hook.py`, root `hooks.json` | Deliberately does **not** register PreToolUse: that contract requires a permission `decision` and can widen host trust |
 | Hermes | `jev_auto/hermes_hook.py`, `jev_auto/hermes_tool.py` | Separate hook and tool entry points |
 | Claude Code | `jev_auto/claude_hook.py`, `hooks/claude-hooks.json` | Uses `${CLAUDE_PLUGIN_ROOT}`, not `${PLUGIN_ROOT}`; PreToolUse *can* be advisory-only here, so a hint costs no authority |
-| VS Code | `jev_auto/vscode_adapter.py` | No hook surface at all, so the adapter registers the same launcher as a workspace MCP server in `.vscode/mcp.json`. That file keys servers under `servers`, **not** `mcpServers` — the wrong key produces no error and no server |
+| VS Code | `jev_auto/vscode_adapter.py` | No hook surface at all, so the adapter registers the same launcher as a workspace MCP server in `.vscode/mcp.json` |
+
+Three of those hosts also take MCP registration, and they disagree about its shape in ways that fail silently: VS Code keys servers under `servers`, Antigravity and the Claude desktop config under `mcpServers`, and only VS Code expects a `type` field. `jev_auto/host_mcp.py` holds all three shapes in one table with a test per row, and `plugins/qualixar-jev-decision-layer/scripts/jev host-register --host <name>` writes the right one. It plans before it writes, merges rather than replaces, refuses a config it cannot parse, and never prints another server's secrets.
 
 Hook files are **per host and never merged** — the plugin-root variable differs, and Codex registers a matcher Claude Code deliberately does not. See `plugins/qualixar-jev-decision-layer/hooks/README.md`.
 
