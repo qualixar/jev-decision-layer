@@ -111,7 +111,7 @@
     "src/__init__.py": "da24b168216ee43deedcaf6313d9c2974da3680d15bd46173a64202ef6c79c24",
     "src/adl/__init__.py": "826fc1a55e11bdcaf8285f77c9d4f0365e6c73f1f3298475398eded74474d522",
     "src/adl/api/__init__.py": "dbabd1265c2ad6eb5a069099d3e04886421fcf308b085e6f9572d59ec77a4718",
-    "src/adl/api/host_inventory.py": "eff880e134debe4244ca7724ea49cc407396c3eab426df66647e27d6cf783ab5",
+    "src/adl/api/host_inventory.py": "b2c7a265b9e8b7b3215d974d9f77113915d84ffbac50decdfa2ad56b5a3eb044",
     "src/adl/api/keychain.py": "c1010763d5f2e05c66fd7b0db0dd70f19bb1f455c9ae9070f053c3b07fd462bb",
     "src/adl/api/local_attestor.py": "c8b41ba415e85ed23504c380550d40f83ba5209d75d0e52a9c778cf7cbac48d7",
     "src/adl/api/setup_controller.py": "0a2fe4cc4c29b9f59178e2489132aca87dc47a0189f7e63eae17983f5b5a476c",
