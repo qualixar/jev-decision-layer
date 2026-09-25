@@ -11,6 +11,20 @@ from pathlib import Path
 from typing import Callable
 
 
+# Hosts for which this plugin actually SHIPS a native adapter. This is a
+# statement about the package contents, not about a conformance run: it is
+# derived from files in this repository, never from probing a host.
+#   codex       -> hooks/hooks.json + jev_auto/hooks.py
+#   antigravity -> plugin-root hooks.json (PreInvocation) + jev_auto/agy_hook.py
+#   hermes      -> jev_auto/hermes_hook.py + jev_auto/hermes_tool.py
+#   claude_code -> hooks/claude-hooks.json + jev_auto/claude_hook.py
+#   vscode      -> jev_auto/vscode_adapter.py, writing .vscode/mcp.json
+# VS Code exposes no hook surface, so its adapter registers the same stdio
+# launcher as a workspace MCP server instead. That is a shipped adapter, not a
+# conformance claim: `native_status` stays NOT_RUN like every other host.
+_NATIVE_ADAPTERS = frozenset({"codex", "antigravity", "hermes", "claude_code", "vscode"})
+
+
 _HOSTS = (
     ("codex", "Codex", ("codex",), ("/Applications/Codex.app", "/Applications/ChatGPT.app")),
     ("claude_code", "Claude Code", ("claude",), ("/Applications/Claude.app",)),
@@ -39,6 +53,7 @@ def inventory_hosts(
             "detection_source": source,
             "version": "NOT_MEASURED",
             "native_status": "NOT_RUN",
+            "native_adapter": host_id in _NATIVE_ADAPTERS,
             "auto_mode_allowed": False,
         })
     return rows

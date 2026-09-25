@@ -53,7 +53,7 @@ The shared runtime lives in `plugins/qualixar-jev-decision-layer/`. A host adapt
 | Antigravity | `jev_auto/agy_hook.py`, root `hooks.json` | Deliberately does **not** register PreToolUse: that contract requires a permission `decision` and can widen host trust |
 | Hermes | `jev_auto/hermes_hook.py`, `jev_auto/hermes_tool.py` | Separate hook and tool entry points |
 | Claude Code | `jev_auto/claude_hook.py`, `hooks/claude-hooks.json` | Uses `${CLAUDE_PLUGIN_ROOT}`, not `${PLUGIN_ROOT}`; PreToolUse *can* be advisory-only here, so a hint costs no authority |
-| VS Code | — | No adapter yet |
+| VS Code | `jev_auto/vscode_adapter.py` | No hook surface at all, so the adapter registers the same launcher as a workspace MCP server in `.vscode/mcp.json`. That file keys servers under `servers`, **not** `mcpServers` — the wrong key produces no error and no server |
 
 Hook files are **per host and never merged** — the plugin-root variable differs, and Codex registers a matcher Claude Code deliberately does not. See `plugins/qualixar-jev-decision-layer/hooks/README.md`.
 
@@ -91,9 +91,25 @@ claude plugin marketplace add qualixar/jev-decision-layer
 claude plugin install qualixar-jev-decision-layer@qualixar
 ```
 
-Adds five commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes`, `/jev-review` — plus the shared skills and the `qualixar-jev` MCP server. Claude Code reads `.claude-plugin/plugin.json`, which points at the Claude-specific hook file.
+Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes`, `/jev-review`, `/jev-selftest`, `/jev-vscode` — plus the shared skills and the `qualixar-jev` MCP server. Claude Code reads `.claude-plugin/plugin.json`, which points at the Claude-specific hook file.
+
+**Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the Claude desktop app's Code tab: there, every enabled plugin that ships a server is equally absent, ours included, with no error and no failed entry. Commands and skills load normally. If you work in the Code tab and want the tools, register the launcher directly instead:
+
+```sh
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.1/scripts/launch-jev"
+```
+
+For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. `claude mcp list` reports on the CLI's own config and says nothing about what the desktop app can see.
 
 If your organization sets `allowManagedHooksOnly`, your own `settings.json` hooks are blocked; hooks from a plugin force-enabled in managed `enabledPlugins` are documented as exempt. The MCP tools and commands are unaffected either way.
+
+### VS Code
+
+```sh
+python3 -m jev_auto.cli vscode --workspace .
+```
+
+Prints what it would change and writes nothing. Add `--write` to apply. An existing `.vscode/mcp.json` is merged — one `qualixar-jev` entry is added or updated and every other key is kept — and a file that does not parse is refused rather than overwritten. Restart VS Code afterwards; Copilot agent mode picks the server up from the workspace. `/jev-vscode` does the same from inside Claude Code.
 
 ### Antigravity and Hermes
 
@@ -116,10 +132,12 @@ Support is **not uniform**, and this table separates what has been observed from
 | Host | Evidence | Boundary |
 |---|---|---|
 | **Codex Desktop** | Installed MCP tools and live synthetic TypeSafe routing verified on a Mac | Automatic-hook coverage and savings are not proved by that call |
-| **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; five commands and two skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly and stays silent on an unenrolled workspace | A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are **not yet verified** |
+| **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; seven commands and three skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly and stays silent on an unenrolled workspace | A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are **not yet verified**. In the desktop app's **Code tab**, the plugin-provided MCP server does not load at all — see the install note above |
 | **Hermes** | Staged plugin doctor registers 9 tools and 1 hook; installed copy awaits refresh | Native model/tool turn still needs verification |
 | **Antigravity** | Packaged PreInvocation advisory hook and 2 skills; host adapter previously validated | No portable Jev MCP launcher or native model/tool turn verified |
-| **VS Code** | Detected by the host inventory only | **No adapter and no extension ship yet.** Not an integration |
+| **VS Code** | Adapter writes a valid `.vscode/mcp.json` against the documented `servers` format; merge, refusal and symlink behaviour are covered by tests | **No live Copilot agent-mode turn has been run.** No extension ships; registration is the whole integration |
+
+Every recipe also ships three synthetic fixtures — nominal, uncertain and adversarial. `jev_recipe_selftest`, or `python3 -m jev_auto.cli selftest`, replays all 96 through the local gate with no provider call, no key and no enrolment, so you can check the gate holds before spending anything. A passing run is a contract check, never a measurement of Jev's accuracy.
 
 The optional Laya worker has completed local synthetic inference and macOS sandbox file/network-denial tests. Those results do not prove a particular GPU path or native host interception. The [capability manifest](docs/capabilities.json) and [agent-readable index](llms.txt) provide machine-readable pointers; the table above is the human-facing support boundary.
 

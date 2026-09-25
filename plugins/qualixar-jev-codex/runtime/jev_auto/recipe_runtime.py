@@ -39,18 +39,35 @@ def _validate_catalog(recipes: Any) -> list[dict[str, Any]]:
     return recipes
 
 
+def catalog_document() -> dict[str, Any] | None:
+    """The packaged catalog as written, or None when only sources are present.
+
+    `recipes` is what the model sees. `gates` and `fixtures` sit beside it and
+    are never merged in — a model must not be shown its own threshold, nor a
+    worked example of the answer it is being asked for.
+    """
+    packaged = Path(__file__).resolve().parents[1] / "recipe_catalog.json"
+    if not packaged.exists():
+        return None
+    if packaged.is_symlink() or packaged.stat().st_size > 512_000:
+        raise AutoError("RECIPE_CATALOG_INVALID")
+    try:
+        data = json.loads(packaged.read_text())
+    except (OSError, ValueError):
+        raise AutoError("RECIPE_CATALOG_INVALID") from None
+    if not isinstance(data, dict) or data.get("schema_version") != 1 or not isinstance(data.get("recipes"), list):
+        raise AutoError("RECIPE_CATALOG_INVALID")
+    return data
+
+
 def _catalog() -> list[dict[str, Any]]:
     root = Path(__file__).resolve().parents[1]
-    packaged = root / "recipe_catalog.json"
-    if packaged.exists():
-        if packaged.is_symlink() or packaged.stat().st_size > 512_000:
-            raise AutoError("RECIPE_CATALOG_INVALID")
-        try:
-            data = json.loads(packaged.read_text())
-        except (OSError, ValueError):
-            raise AutoError("RECIPE_CATALOG_INVALID") from None
-        if not isinstance(data, dict) or data.get("schema_version") != 1 or not isinstance(data.get("recipes"), list):
-            raise AutoError("RECIPE_CATALOG_INVALID")
+    data = catalog_document()
+    if data is not None:
+        if "gates" in data:
+            from .recipe_gate import validate_gates
+
+            validate_gates(data["gates"])
         recipes = data["recipes"]
     else:
         from src.adl.recipes.registry import load_registry

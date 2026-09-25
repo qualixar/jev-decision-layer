@@ -114,7 +114,7 @@ class PluginPackageTests(unittest.TestCase):
         overlay = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
         self.assertEqual(plugin["name"], "qualixar-jev-decision-layer")
         self.assertEqual(overlay["name"], plugin["name"])
-        self.assertEqual(plugin["version"], "1.0.0")
+        self.assertEqual(plugin["version"], "1.0.1")
         self.assertEqual(overlay["version"], plugin["version"])
         self.assertEqual(overlay["hooks"], "./hooks/hooks.json")
         self.assertTrue((PLUGIN / overlay["hooks"]).is_file())

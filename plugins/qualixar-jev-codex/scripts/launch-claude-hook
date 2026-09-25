@@ -1,0 +1,24 @@
+#!/bin/sh
+# Claude Code hook launcher.
+#
+# Mirrors launch-agy-hook. A bare `python3` in hooks.json is not safe here:
+# the Claude Code desktop app is GUI-launched and inherits a minimal PATH,
+# so `python3` may not resolve at all. Probe for a 3.11+ interpreter the
+# same way launch-jev does.
+#
+# Never blocks. Any failure to find an interpreter exits non-zero WITHOUT
+# writing to stdout, so Claude Code sees a non-blocking hook error and the
+# user's prompt or tool call proceeds untouched.
+set -eu
+case "$0" in
+  */*) JEV_SCRIPT_DIR=${0%/*} ;;
+  *) exit 2 ;;
+esac
+JEV_PLUGIN_ROOT=$(CDPATH= cd -- "$JEV_SCRIPT_DIR/.." && pwd -P)
+export PYTHONDONTWRITEBYTECODE=1
+for JEV_PYTHON in "$JEV_PLUGIN_ROOT/runtime/python/bin/python3" /opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/python3; do
+  if [ -x "$JEV_PYTHON" ] && "$JEV_PYTHON" -I -S -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 3)'; then
+    exec "$JEV_PYTHON" -I -S -B -c 'import runpy,sys; sys.path.insert(0,sys.argv[1]); runpy.run_module("jev_auto.claude_hook",run_name="__main__")' "$JEV_PLUGIN_ROOT/runtime"
+  fi
+done
+exit 3

@@ -102,7 +102,7 @@ def handle(event, base=None, caller=None, starter=None):
             return {
                 "hookSpecificOutput": {
                     "hookEventName": name,
-                    "additionalContext": "Qualixar Jev Decision Layer 1.0.0 is enrolled here. Eligible decisions use the standing budget; do not request per-turn grants. Preserve SLM and the existing Computer Use skill.",
+                    "additionalContext": "Qualixar Jev Decision Layer 1.0.1 is enrolled here. Eligible decisions use the standing budget; do not request per-turn grants. Preserve SLM and the existing Computer Use skill.",
                 }
             }
         if name == "UserPromptSubmit" and isinstance(session, str):
