@@ -36,6 +36,7 @@
   "limitations": "Evaluate supplied style, not a person; maintain author voice and allowed examples.",
   "policy": {
     "kind": "score",
+    "min_confidence": 0.55,
     "min_score": 1.5,
     "min_selected_probability": 0.8,
     "negative_outcome": "request_review",

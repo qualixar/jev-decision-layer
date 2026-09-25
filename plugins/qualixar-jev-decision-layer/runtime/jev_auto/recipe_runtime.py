@@ -51,6 +51,12 @@ def _catalog() -> list[dict[str, Any]]:
             raise AutoError("RECIPE_CATALOG_INVALID") from None
         if not isinstance(data, dict) or data.get("schema_version") != 1 or not isinstance(data.get("recipes"), list):
             raise AutoError("RECIPE_CATALOG_INVALID")
+        # `gates` carries the local thresholds. It is validated here but never
+        # merged into a recipe: the model must not see its own gate.
+        if "gates" in data:
+            from .recipe_gate import validate_gates
+
+            validate_gates(data["gates"])
         recipes = data["recipes"]
     else:
         from src.adl.recipes.registry import load_registry

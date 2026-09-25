@@ -15,6 +15,11 @@ ROOT = Path(__file__).resolve().parents[1]
 RECIPES = ROOT / "recipes"
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
 PUBLIC_FIELDS = ("id", "title", "audience", "input_schema", "questions", "status", "limitations")
+# Fields used ONLY for local gating. They are emitted in a separate `gates`
+# array and are never part of a recipe the model sees: a threshold is not
+# evidence, and sending it would invite the model to reason about its own
+# gate instead of answering the question.
+GATE_FIELDS = ("id", "policy")
 
 
 def _digest(path: Path) -> str:
@@ -29,12 +34,14 @@ def build(*, check: bool = False) -> int:
     if not 1 <= len(sources) <= 128 or any(path.is_symlink() for path in sources):
         raise ValueError("RECIPE_SOURCE_INVALID")
     recipes = []
+    gates = []
     for path in sources:
         source = json.loads(path.read_text())
         recipes.append({key: source[key] for key in PUBLIC_FIELDS})
+        gates.append({key: source[key] for key in GATE_FIELDS})
     if {item.id for item in registered} != {item["id"] for item in recipes}:
         raise ValueError("RECIPE_REGISTRY_MISMATCH")
-    encoded = json.dumps({"schema_version": 1, "recipes": recipes}, indent=2, sort_keys=True) + "\n"
+    encoded = json.dumps({"schema_version": 1, "recipes": recipes, "gates": gates}, indent=2, sort_keys=True) + "\n"
     catalog_path = RUNTIME / "recipe_catalog.json"
     manifest_path = RUNTIME / "RUNTIME_MANIFEST.json"
     if catalog_path.is_symlink() or manifest_path.is_symlink():
@@ -52,7 +59,7 @@ def build(*, check: bool = False) -> int:
         catalog_path.write_text(encoded)
         manifest["files"]["recipe_catalog.json"] = _digest(catalog_path)
         manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-    print(f"Validated {len(recipes)} public recipes; runtime catalog {'current' if check else 'updated'}.")
+    print(f"Validated {len(recipes)} public recipes and {len(gates)} gates; runtime catalog {'current' if check else 'updated'}.")
     return 0
 
 

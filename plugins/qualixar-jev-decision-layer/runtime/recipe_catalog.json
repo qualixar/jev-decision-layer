@@ -1,4 +1,506 @@
 {
+  "gates": [
+    {
+      "id": "qualixar.catalog-quality",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "request_review",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": true
+      }
+    },
+    {
+      "id": "qualixar.handoff-readiness",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "mark_check_passed",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.incident-triage",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.invoice-exception-triage",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.issue-triage",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.lead-routing",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.meeting-action-routing",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.policy-exception-triage",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.proposal-requirements",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "mark_check_passed",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.support-triage",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.brand-tone",
+      "policy": {
+        "kind": "score",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "request_review",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.brief-fit",
+      "policy": {
+        "kind": "score",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "request_review",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.publication-review",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.completion-gate",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "mark_check_passed",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.documentation-drift",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "request_review",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": true
+      }
+    },
+    {
+      "id": "qualixar.failure-classification",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.file-ranking",
+      "policy": {
+        "kind": "score",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "select_candidates",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.injection-triage",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "quarantine_candidate",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": true
+      }
+    },
+    {
+      "id": "qualixar.patch-review",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.security-review-routing",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.semantic-lint",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "request_review",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": true
+      }
+    },
+    {
+      "id": "qualixar.skill-routing",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.task-routing",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.test-selection",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "select_candidates",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.tool-selection",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.worker-routing",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.citation-check",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "mark_check_passed",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.claim-verification",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "mark_check_passed",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.context-sieve",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "select_candidates",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.memory-admission",
+      "policy": {
+        "kind": "choice",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "route_to_queue",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.research-ranking",
+      "policy": {
+        "kind": "score",
+        "min_confidence": 0.55,
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "select_candidates",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": false
+      }
+    },
+    {
+      "id": "qualixar.source-deduplication",
+      "policy": {
+        "kind": "noul",
+        "min_score": 1.5,
+        "min_selected_probability": 0.8,
+        "negative_outcome": "request_review",
+        "no": 0.2,
+        "positive_outcome": "select_candidates",
+        "threshold_status": "UNVALIDATED_DEMONSTRATION_DEFAULT",
+        "unknown_choice": "unknown",
+        "yes": 0.8,
+        "yes_requires_review": true
+      }
+    }
+  ],
   "recipes": [
     {
       "audience": "business",
