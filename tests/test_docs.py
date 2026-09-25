@@ -83,7 +83,7 @@ class DocumentedCommands(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
         self.assertTrue(payload["all_passed"])
-        self.assertEqual(payload["cases"], 96)
+        self.assertEqual(payload["cases"], 108)
 
     def test_an_unknown_subcommand_fails_loudly_rather_than_silently(self):
         result = subprocess.run([str(self.LAUNCHER), "selftest", "--recipe", "qualixar.not-real"],

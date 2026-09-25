@@ -115,7 +115,7 @@ class CoreContractTests(unittest.TestCase):
         from jev_auto.recipe_runtime import catalog_preview, prepare_recipe
 
         catalog = catalog_preview()
-        self.assertEqual(len(catalog["recipes"]), 32)
+        self.assertEqual(len(catalog["recipes"]), 36)
         prepared = prepare_recipe("qualixar.brief-fit", {
             "query": "Explain the idea plainly", "candidate": "This paragraph explains the idea plainly.",
         })

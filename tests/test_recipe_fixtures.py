@@ -34,8 +34,8 @@ class ShippedFixtures(unittest.TestCase):
     def test_the_whole_suite_replays_clean(self):
         result = selftest()
         self.assertTrue(result["all_passed"], result["failures"])
-        self.assertEqual(result["cases"], 96)
-        self.assertEqual(result["passed"], 96)
+        self.assertEqual(result["cases"], 108)
+        self.assertEqual(result["passed"], 108)
 
     def test_fixtures_are_not_shipped_inside_the_model_facing_recipes(self):
         for recipe in CATALOG["recipes"]:

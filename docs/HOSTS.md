@@ -16,6 +16,8 @@ Harnesses do not agree on how a plugin attaches. Four expose a hook or tool surf
 | Hermes | `jev_auto/hermes_hook.py`, `jev_auto/hermes_tool.py` | Separate hook and tool entry points |
 | VS Code | `jev_auto/vscode_adapter.py` | No hook surface at all. Registers the stdio launcher as a workspace MCP server in `.vscode/mcp.json` |
 
+Three of those hosts also take MCP registration, and they disagree about its shape in ways that fail silently — VS Code keys servers under `servers`, Antigravity and the Claude desktop config under `mcpServers`, and only VS Code wants a `type` field. `jev_auto/host_mcp.py` holds all three shapes in one table with a test per row.
+
 **Hook files are per host and are never merged.** Each harness reads its own file and they have incompatible schemas — Codex's `hooks/hooks.json` and Claude Code's `hooks/claude-hooks.json` are different documents on purpose. Editing one to satisfy another breaks the first silently.
 
 **`.vscode/mcp.json` keys servers under `servers`, not `mcpServers`.** VS Code ignores the wrong key without an error, producing no server and no diagnostic. The adapter writes the documented shape and a test asserts it, because this is not a mistake review catches.
@@ -45,7 +47,7 @@ Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes
 **Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the desktop app's Code tab. This is a property of that surface, not of this plugin: in a Code tab session, every enabled plugin that ships an MCP server is equally absent, with no error and no failed entry. Commands and skills load normally there. To get the tools in the Code tab, register the launcher directly:
 
 ```sh
-claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.1/scripts/launch-jev"
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.2/scripts/launch-jev"
 ```
 
 For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. Note that `claude mcp list` reports on the CLI's own configuration and says nothing about what the desktop app can see — a green line there is not evidence the app loaded anything.
@@ -58,9 +60,27 @@ plugins/qualixar-jev-decision-layer/scripts/jev vscode --workspace .
 
 This writes nothing. It prints the planned change, the config path, and `preserved_servers` — your existing servers, which are kept. Add `--write` to apply. An existing `.vscode/mcp.json` is merged: exactly one `qualixar-jev` entry is added or updated and every other key is carried through. A file that does not parse is refused rather than overwritten, because rewriting it would discard servers the adapter cannot read. Restart VS Code afterwards; Copilot agent mode reads the workspace file.
 
-### Antigravity and Hermes
+### Antigravity
 
-Use the portable plugin source at `plugins/qualixar-jev-decision-layer` with the host's own plugin install path. Antigravity picks up the root `hooks.json` PreInvocation advisory; Hermes uses its own hook and tool entry points.
+Use the portable plugin source at `plugins/qualixar-jev-decision-layer` with Antigravity's own plugin install path. It picks up the root `hooks.json` PreInvocation advisory. For the decision tools, register the MCP server in Antigravity's global config:
+
+```sh
+plugins/qualixar-jev-decision-layer/scripts/jev host-register --host antigravity
+```
+
+Add `--write` to apply. A plugin-relative `mcp_config.json` is deliberately **not** shipped: Antigravity documents `command` as an executable or a binary name and says nothing about resolving a path relative to the plugin, so the adapter writes an absolute one into the documented global config instead. A repository test keeps that file from being added until the relative form is documented and verified.
+
+### Hermes
+
+Use the portable plugin source with Hermes's own plugin install path; it uses its own hook and tool entry points. The offline self-test is reachable there too — it takes no workspace and contacts no provider.
+
+### Claude desktop app
+
+```sh
+plugins/qualixar-jev-decision-layer/scripts/jev host-register --host claude-desktop --write
+```
+
+**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed.
 
 ## What is verified, and what is not
 
@@ -78,7 +98,7 @@ Use the portable plugin source at `plugins/qualixar-jev-decision-layer` with the
 
 ## Check it before you spend anything
 
-Every recipe ships three synthetic cases. Replaying all 96 through the real gate costs no provider call, no key, and no workspace enrolment:
+Every recipe ships three synthetic cases. Replaying all 108 through the real gate costs no provider call, no key, and no workspace enrolment:
 
 ```sh
 plugins/qualixar-jev-decision-layer/scripts/jev selftest

@@ -17,4 +17,4 @@ This index is a reading convenience for agents, not a guarantee of search rankin
 - [MIT license](LICENSE)
 - [Third-party notices](plugins/qualixar-jev-decision-layer/THIRD_PARTY_NOTICES.md)
 
-To evaluate this layer without a key, a provider or an enrolled workspace, run `plugins/qualixar-jev-decision-layer/scripts/jev selftest`: it replays 96 synthetic fixtures through the real gate offline. A passing run is a contract check on the shipped gate, never evidence of provider accuracy.
+To evaluate this layer without a key, a provider or an enrolled workspace, run `plugins/qualixar-jev-decision-layer/scripts/jev selftest`: it replays 108 synthetic fixtures through the real gate offline. A passing run is a contract check on the shipped gate, never evidence of provider accuracy.

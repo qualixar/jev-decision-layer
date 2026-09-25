@@ -38,7 +38,7 @@ def bridge_record(path,p):
         write_private(f,data)
 
 def main(argv=None):
-    parser=argparse.ArgumentParser(description='Qualixar Jev Decision Layer 1.0.1')
+    parser=argparse.ArgumentParser(description='Qualixar Jev Decision Layer 1.0.2')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('mcp')
     en=sub.add_parser('enroll');en.add_argument('--workspace',required=True);en.add_argument('--provider',choices=['existing','typesafe','openrouter','laya-mlx'],default='existing')
@@ -59,11 +59,25 @@ def main(argv=None):
     vs=sub.add_parser('vscode',help='Register this layer as a workspace MCP server for VS Code Copilot agent mode')
     vs.add_argument('--workspace',required=True)
     vs.add_argument('--write',action='store_true',help='Apply the change. Without it the plan is printed and nothing is written.')
+    hr=sub.add_parser('host-register',help='Register this layer as an MCP server in the shape a given host expects')
+    hr.add_argument('--host',required=True,choices=['vscode','antigravity','claude-desktop'])
+    hr.add_argument('--workspace',help='Required for vscode; the other hosts use a user-level config')
+    hr.add_argument('--write',action='store_true',help='Apply the change. Without it the plan is printed and nothing is written.')
     args=parser.parse_args(argv)
     try:
         if args.command=='mcp':
             from .mcp import serve
             serve();return 0
+        if args.command=='host-register':
+            from .host_mcp import install,plan
+            root=workspace(args.workspace) if args.workspace else None
+            result=install(args.host,root) if args.write else plan(args.host,root)
+            print(canonical(result).decode())
+            if not args.write:print('Nothing written. Re-run with --write to apply.',file=sys.stderr)
+            # A host holding its config in memory will flush over an external edit.
+            if args.host=='claude-desktop' and args.write:
+                print('Quit the Claude desktop app before this edit, or it will be overwritten on exit.',file=sys.stderr)
+            return 0
         if args.command=='selftest':
             from .recipe_fixtures import run_fixture,selftest
             result=run_fixture(args.recipe,args.variant) if args.recipe else selftest()

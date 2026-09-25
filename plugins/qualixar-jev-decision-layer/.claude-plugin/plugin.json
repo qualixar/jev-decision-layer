@@ -1,6 +1,6 @@
 {
   "name": "qualixar-jev-decision-layer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Typed, calibrated Jev decisions for task, tool, skill and file routing, bounded recipes, review triage and recoverable context reduction. Advisory only.",
   "author": {
     "name": "Qualixar / Varun Pratap Bhardwaj",
@@ -9,7 +9,15 @@
   "homepage": "https://github.com/qualixar/jev-decision-layer",
   "repository": "https://github.com/qualixar/jev-decision-layer",
   "license": "MIT",
-  "keywords": ["jev", "typesafe", "laya", "decision-layer", "routing", "mcp", "recipes"],
+  "keywords": [
+    "jev",
+    "typesafe",
+    "laya",
+    "decision-layer",
+    "routing",
+    "mcp",
+    "recipes"
+  ],
   "hooks": "./hooks/claude-hooks.json",
   "mcpServers": "./.mcp.json"
 }

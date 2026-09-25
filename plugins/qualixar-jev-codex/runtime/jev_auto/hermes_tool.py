@@ -10,6 +10,9 @@ from .common import AutoError, canonical, decode
 ALLOWED = frozenset({
     "jev_setup", "jev_auto_status", "jev_prepare", "jev_reduce", "jev_recall",
     "jev_route", "jev_recipe_catalog", "jev_recipe_try", "jev_review_diff",
+    # Offline and workspace-free by construction, so a Hermes session can
+    # check the gate holds before it enrols anything or spends a call.
+    "jev_recipe_selftest",
 })
 _CONTEXT_TOOLS = frozenset({"jev_prepare", "jev_reduce", "jev_recall"})
 _RECEIPT_ID = frozenset("0123456789abcdef")

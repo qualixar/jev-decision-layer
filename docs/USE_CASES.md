@@ -40,6 +40,13 @@ Use `qualixar.claim-verification`, `qualixar.citation-check`, `qualixar.research
 
 Closed routing contracts cover tasks, tools, skills, workers, files, tests and review scopes. Other recipes address incident and failure classification, injection triage, semantic lint, documentation drift, patch review and completion evidence. Use `jev_route` when you already have a concrete candidate list; `jev_review_diff` for advisory review focus; `jev_recipe_catalog` to inspect the full catalog. None grants permission to execute a tool or approve a patch.
 
+## For delivery and agent loops
+
+- **Release readiness** (`qualixar.release-readiness`): judge whether supplied evidence satisfies one stated release requirement — version agreement across manifests, a changelog entry, test evidence. It reads the evidence you give it; it does not inspect the repository, run a build, or approve a publish.
+- **Retry or stop** (`qualixar.retry-decision`): given a failure and what has already been tried, choose among the actions you supplied. Agent loops burn more host tokens re-reasoning failures they have already seen than on almost anything else. It never re-runs a command, and the retry budget stays yours.
+- **Disclosure check** (`qualixar.disclosure-check`): does this commit message or release note say more than the change requires? Best-effort on supplied text, not a secret scanner.
+- **Output relevance** (`qualixar.output-relevance`): before the host reads a long tool result, decide whether it contains anything that answers the goal. It judges relevance, not correctness, and nothing is discarded — the original output stays authoritative.
+
 ## For browser tasks
 
 The `jev-browser-choice` skill uses the browser interface already available in the host. It skips Jev when the next safe control is obvious. When several observed, benign controls plausibly serve the same goal, it can send only their short labels and a concise goal to `jev_route`; for an uncertain operation and target, `jev_typed_decide` can ask both Choice questions in one request. The host still validates the selected control against the current page, performs the click under its native permissions, and verifies the result. It does not hand Jev a screenshot, hidden fields, selectors, credentials, checkout controls, or authority to purchase. One call may improve a difficult choice; that is not a measured token- or time-savings claim.

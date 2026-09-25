@@ -12,7 +12,7 @@ You do not need a key, a provider, or an enrolled workspace to see whether the l
 plugins/qualixar-jev-decision-layer/scripts/jev selftest
 ```
 
-That replays all 96 through the real gate offline and reports counts. From a host with the MCP tools, `jev_recipe_selftest` does the same, and `jev_recipe_selftest` with a `recipe_id` shows one case with expected against observed. This is a contract check on the shipped gate, never evidence of provider accuracy.
+That replays all 108 through the real gate offline and reports counts. From a host with the MCP tools, `jev_recipe_selftest` does the same, and `jev_recipe_selftest` with a `recipe_id` shows one case with expected against observed. This is a contract check on the shipped gate, never evidence of provider accuracy.
 
 ## Enrol a workspace
 

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 from recipe_registry import load_registry
@@ -31,20 +32,35 @@ VARIANTS = ("nominal", "uncertain", "adversarial")
 
 
 def _fixtures(recipe_ids: set[str]) -> list[dict]:
+    """Validate against the SAME contract the runtime enforces.
+
+    The builder used to accept a case carrying only `variant` and
+    `data_classification`, which the runtime's `validate_fixtures` then
+    rejected. A build that passes must not produce a catalog the runtime
+    refuses to load, so the runtime's own validator is the authority here.
+    """
+    sys.path.insert(0, str(RUNTIME))
+    from jev_auto.common import AutoError
+    from jev_auto.recipe_fixtures import validate_fixtures
+
     paths = sorted(FIXTURES.glob("*.json"))
     if any(path.is_symlink() for path in paths):
         raise ValueError("RECIPE_FIXTURES_INVALID")
     entries = []
     for path in paths:
-        document = json.loads(path.read_text())
-        if set(document) != {"id", "cases"} or path.stem != document["id"]:
+        try:
+            document = json.loads(path.read_text())
+        except (OSError, ValueError):
+            raise ValueError("RECIPE_FIXTURES_INVALID") from None
+        if not isinstance(document, dict) or set(document) != {"id", "cases"}:
             raise ValueError("RECIPE_FIXTURES_INVALID")
-        cases = document["cases"]
-        if not isinstance(cases, list) or [case.get("variant") for case in cases] != list(VARIANTS):
-            raise ValueError("RECIPE_FIXTURES_INVALID")
-        if any(case.get("data_classification") != "synthetic" for case in cases):
+        if not isinstance(document["id"], str) or path.stem != document["id"]:
             raise ValueError("RECIPE_FIXTURES_INVALID")
         entries.append(document)
+    try:
+        validate_fixtures(entries)
+    except AutoError as error:
+        raise ValueError(f"RECIPE_FIXTURES_INVALID: {error}") from None
     if {entry["id"] for entry in entries} != recipe_ids:
         raise ValueError("RECIPE_FIXTURES_INCOMPLETE")
     return entries
@@ -64,7 +80,14 @@ def build(*, check: bool = False) -> int:
     recipes = []
     gates = []
     for path in sources:
-        source = json.loads(path.read_text())
+        try:
+            source = json.loads(path.read_text())
+        except (OSError, ValueError):
+            raise ValueError("RECIPE_SOURCE_INVALID") from None
+        if not isinstance(source, dict) or not set(PUBLIC_FIELDS + GATE_FIELDS) <= set(source):
+            # A missing field used to surface as a bare KeyError naming one
+            # key, which reads like a crash rather than an invalid recipe.
+            raise ValueError("RECIPE_SOURCE_INVALID")
         recipes.append({key: source[key] for key in PUBLIC_FIELDS})
         gates.append({key: source[key] for key in GATE_FIELDS})
     if {item.id for item in registered} != {item["id"] for item in recipes}:
@@ -77,13 +100,20 @@ def build(*, check: bool = False) -> int:
     manifest_path = RUNTIME / "RUNTIME_MANIFEST.json"
     if catalog_path.is_symlink() or manifest_path.is_symlink():
         raise ValueError("RUNTIME_FILE_INVALID")
-    manifest = json.loads(manifest_path.read_text())
-    if manifest.get("adapter_version") != "1.0.0" or "recipe_catalog.json" not in manifest.get("files", {}):
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except (OSError, ValueError):
+        raise ValueError("RUNTIME_MANIFEST_INVALID") from None
+    if not isinstance(manifest, dict) or not isinstance(manifest.get("files"), dict):
+        raise ValueError("RUNTIME_MANIFEST_INVALID")
+    if manifest.get("adapter_version") != "1.0.0" or "recipe_catalog.json" not in manifest["files"]:
         raise ValueError("RUNTIME_MANIFEST_INVALID")
     for name, expected in manifest["files"].items():
         if name != "recipe_catalog.json" and _digest(RUNTIME / name) != expected:
             raise ValueError("RUNTIME_MANIFEST_MISMATCH")
     if check:
+        if not catalog_path.is_file():
+            raise ValueError("RECIPE_CATALOG_STALE")
         if catalog_path.read_text() != encoded or _digest(catalog_path) != manifest["files"]["recipe_catalog.json"]:
             raise ValueError("RECIPE_CATALOG_STALE")
     else:

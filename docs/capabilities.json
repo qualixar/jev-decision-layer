@@ -2,7 +2,7 @@
   "$schema": "./capabilities.schema.json",
   "schema_version": 2,
   "name": "Qualixar Jev Decision Layer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "license": "MIT",
   "publisher": "Qualixar / Varun Pratap Bhardwaj",
   "primary_decision_model": "TypeSafe Jev",
@@ -14,7 +14,7 @@
   ],
   "recipe_counts": {
     "legacy_contracts": 20,
-    "additional_specifications": 32
+    "additional_specifications": 36
   },
   "decision_modes": [
     {
@@ -124,7 +124,7 @@
   "measured_host_cost_savings": null,
   "offline_fixtures": {
     "per_recipe": 3,
-    "total": 96,
+    "total": 108,
     "variants": [
       "nominal",
       "uncertain",
