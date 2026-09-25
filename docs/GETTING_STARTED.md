@@ -36,12 +36,14 @@ Keep normal work going in the host; the layer is advisory and its absence blocks
 
 ## Update an existing marketplace installation
 
-Refresh the marketplace and installed plugin, then start a fresh task so changed skill text loads. On Codex:
+Finish any active Codex task and fully quit Codex Desktop before updating from your system terminal. A running task may still call a hook from the old version's cache after Codex replaces that cache, producing a `can't open file .../hooks/jev_hook.py` error even when the new version installed successfully. Then refresh the marketplace and installed plugin:
 
 ```sh
 codex plugin marketplace upgrade qualixar-jev-layer
 codex plugin add qualixar-jev-decision-layer@qualixar-jev-layer
 ```
+
+Reopen Codex Desktop and start a fresh task. Check the installed version in the Plugins screen or with `codex plugin list`. If the old task showed the missing-hook-file error, reopen the app first and check the installed version before retrying the update; do not re-enter your provider key to fix a missing local file. A workspace's reviewed consent is separate from the plugin files.
 
 On Claude Code:
 

@@ -118,6 +118,8 @@ The secret screen is best-effort, **not comprehensive data-loss prevention**. Je
 
 Whichever host you use: **fully quit and reopen it after installing**, so its skills, MCP tools, and hooks reload. A running session binds them at start and will not pick up a new plugin.
 
+For a Codex version upgrade, finish the current task and quit the desktop app **before** refreshing the marketplace from your system terminal. Reopen it after the update. An active task can hold a hook path into the previous version's cache; see the [upgrade and recovery steps](docs/GETTING_STARTED.md#update-an-existing-marketplace-installation).
+
 ### Codex Desktop
 
 ```sh
