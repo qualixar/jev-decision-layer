@@ -16,6 +16,16 @@ CODEX_PACKAGE = ROOT / "plugins" / "qualixar-jev-codex"
 
 
 class PluginPackageTests(unittest.TestCase):
+    def test_browser_skill_uses_selective_host_agnostic_jev_routing(self):
+        skill = (PLUGIN / "skills/jev-browser-choice/SKILL.md").read_text()
+        self.assertIn("jev_route", skill)
+        self.assertIn("No Jev call", skill)
+        self.assertIn("observed", skill)
+        self.assertIn("re-observe", skill)
+        self.assertNotIn("loadConfig", skill)
+        self.assertNotIn("createSession", skill)
+        self.assertNotIn("node:net", skill)
+
     def test_marketplace_uses_codex_hook_compatible_package(self):
         marketplace = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text())
         self.assertEqual(marketplace["plugins"][0]["source"]["path"], "./plugins/qualixar-jev-codex")
