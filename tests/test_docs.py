@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -48,6 +50,46 @@ class Universal(unittest.TestCase):
         index = (ROOT / "llms.txt").read_text()
         self.assertIn("docs/HOSTS.md", index)
         self.assertIn("CHANGELOG.md", index)
+
+
+class DocumentedCommands(unittest.TestCase):
+    """A command we tell people to run has to run.
+
+    `python3 -m jev_auto.cli ...` was documented in nine places and exited 1
+    with no output: the module has no `__main__` guard. Reviewing the prose
+    could not catch that, so the prose is executed instead.
+    """
+
+    LAUNCHER = ROOT / "plugins" / "qualixar-jev-decision-layer" / "scripts" / "jev"
+
+    def test_the_documented_launcher_exists_and_is_executable(self):
+        self.assertTrue(self.LAUNCHER.is_file())
+        self.assertTrue(self.LAUNCHER.stat().st_mode & 0o111)
+
+    def test_every_launcher_path_in_the_docs_points_at_it(self):
+        pattern = re.compile(r"([\w./-]*scripts/jev)\s")
+        found = 0
+        for document in DOCS + ROOT_DOCS:
+            for path in pattern.findall(document.read_text()):
+                found += 1
+                with self.subTest(document=document.name, path=path):
+                    self.assertTrue((ROOT / path).is_file(), f"{path} does not exist")
+        self.assertGreater(found, 0, "the docs stopped naming the CLI at all")
+
+    def test_the_self_test_command_actually_runs_from_an_unrelated_directory(self):
+        with tempfile.TemporaryDirectory() as elsewhere:
+            result = subprocess.run([str(self.LAUNCHER), "selftest"], cwd=elsewhere,
+                                    capture_output=True, text=True, timeout=120)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["all_passed"])
+        self.assertEqual(payload["cases"], 96)
+
+    def test_an_unknown_subcommand_fails_loudly_rather_than_silently(self):
+        result = subprocess.run([str(self.LAUNCHER), "selftest", "--recipe", "qualixar.not-real"],
+                                capture_output=True, text=True, timeout=120)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("RECIPE_NOT_FOUND", result.stderr)
 
 
 class Honesty(unittest.TestCase):

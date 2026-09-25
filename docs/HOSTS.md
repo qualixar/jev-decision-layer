@@ -53,7 +53,7 @@ For the desktop app specifically, add the same command to `~/Library/Application
 ### VS Code
 
 ```sh
-python3 -m jev_auto.cli vscode --workspace .
+plugins/qualixar-jev-decision-layer/scripts/jev vscode --workspace .
 ```
 
 This writes nothing. It prints the planned change, the config path, and `preserved_servers` — your existing servers, which are kept. Add `--write` to apply. An existing `.vscode/mcp.json` is merged: exactly one `qualixar-jev` entry is added or updated and every other key is carried through. A file that does not parse is refused rather than overwritten, because rewriting it would discard servers the adapter cannot read. Restart VS Code afterwards; Copilot agent mode reads the workspace file.
@@ -81,7 +81,7 @@ Use the portable plugin source at `plugins/qualixar-jev-decision-layer` with the
 Every recipe ships three synthetic cases. Replaying all 96 through the real gate costs no provider call, no key, and no workspace enrolment:
 
 ```sh
-python3 -m jev_auto.cli selftest
+plugins/qualixar-jev-decision-layer/scripts/jev selftest
 ```
 
 Or `jev_recipe_selftest` from any host with the MCP tools. A passing run means the shipped gate still matches its recorded contract. It is a contract check and never evidence of the provider's accuracy.

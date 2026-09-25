@@ -106,7 +106,7 @@ If your organization sets `allowManagedHooksOnly`, your own `settings.json` hook
 ### VS Code
 
 ```sh
-python3 -m jev_auto.cli vscode --workspace .
+plugins/qualixar-jev-decision-layer/scripts/jev vscode --workspace .
 ```
 
 Prints what it would change and writes nothing. Add `--write` to apply. An existing `.vscode/mcp.json` is merged — one `qualixar-jev` entry is added or updated and every other key is kept — and a file that does not parse is refused rather than overwritten. Restart VS Code afterwards; Copilot agent mode picks the server up from the workspace. `/jev-vscode` does the same from inside Claude Code.
@@ -137,7 +137,7 @@ Support is **not uniform**, and this table separates what has been observed from
 | **Antigravity** | Packaged PreInvocation advisory hook and 2 skills; host adapter previously validated | No portable Jev MCP launcher or native model/tool turn verified |
 | **VS Code** | Adapter writes a valid `.vscode/mcp.json` against the documented `servers` format; merge, refusal and symlink behaviour are covered by tests | **No live Copilot agent-mode turn has been run.** No extension ships; registration is the whole integration |
 
-Every recipe also ships three synthetic fixtures — nominal, uncertain and adversarial. `jev_recipe_selftest`, or `python3 -m jev_auto.cli selftest`, replays all 96 through the local gate with no provider call, no key and no enrolment, so you can check the gate holds before spending anything. A passing run is a contract check, never a measurement of Jev's accuracy.
+Every recipe also ships three synthetic fixtures — nominal, uncertain and adversarial. `jev_recipe_selftest`, or `plugins/qualixar-jev-decision-layer/scripts/jev selftest`, replays all 96 through the local gate with no provider call, no key and no enrolment, so you can check the gate holds before spending anything. A passing run is a contract check, never a measurement of Jev's accuracy.
 
 The optional Laya worker has completed local synthetic inference and macOS sandbox file/network-denial tests. Those results do not prove a particular GPU path or native host interception. The [capability manifest](docs/capabilities.json) and [agent-readable index](llms.txt) provide machine-readable pointers; the table above is the human-facing support boundary.
 

@@ -19,7 +19,7 @@ Record `expected_status`, `expected_host_action` and `expected_recommendation` a
 ```sh
 python3 tools/build_recipes.py
 python3 -m unittest discover -s tests -q
-python3 -m jev_auto.cli selftest
+plugins/qualixar-jev-decision-layer/scripts/jev selftest
 ```
 
 `build_recipes.py` validates the source contracts and refreshes only the sanitized catalog in the plugin runtime. Commit the recipe, its fixture file and the regenerated catalog/manifest together. A new runtime file also needs its hash in `RUNTIME_MANIFEST.json` **and** a `git add` — the manifest test compares against `git ls-files`, so an unstaged file fails in a way that looks unrelated.

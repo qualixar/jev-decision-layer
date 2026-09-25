@@ -8,8 +8,8 @@ No release states measured token, cost or time savings, because none has been me
 
 ### Added
 
-- **Offline fixtures.** Every recipe now ships three synthetic cases — nominal, uncertain and adversarial — in `fixtures/<recipe-id>.json`. Replaying all 96 runs the real gate with no provider call, no key and no workspace enrolment, so the layer can be checked before anything is spent on it. Available as `jev_recipe_selftest` or `python3 -m jev_auto.cli selftest`.
-- **VS Code host support.** VS Code exposes no hook surface, so its adapter registers the same stdio launcher the other hosts use as a workspace MCP server in `.vscode/mcp.json`. An existing file is merged — one entry added or updated, every other key kept — and one that does not parse is refused rather than overwritten. Plan mode is the default; writing takes an explicit flag. Available as `/jev-vscode` or `python3 -m jev_auto.cli vscode`.
+- **Offline fixtures.** Every recipe now ships three synthetic cases — nominal, uncertain and adversarial — in `fixtures/<recipe-id>.json`. Replaying all 96 runs the real gate with no provider call, no key and no workspace enrolment, so the layer can be checked before anything is spent on it. Available as `jev_recipe_selftest` or `plugins/qualixar-jev-decision-layer/scripts/jev selftest`.
+- **VS Code host support.** VS Code exposes no hook surface, so its adapter registers the same stdio launcher the other hosts use as a workspace MCP server in `.vscode/mcp.json`. An existing file is merged — one entry added or updated, every other key kept — and one that does not parse is refused rather than overwritten. Plan mode is the default; writing takes an explicit flag. Available as `/jev-vscode` or `plugins/qualixar-jev-decision-layer/scripts/jev vscode`.
 - **`jev-use-cases` skill** covering the twenty decision contracts: when to reach for one, the catalog → describe → fixture → evaluate sequence, and how to read a gated answer.
 - **Two commands**, `/jev-selftest` and `/jev-vscode`, bringing the total to seven.
 - **`docs/HOSTS.md`** — per-harness adapters, install, verified evidence against stated boundaries, and the checklist for adding a sixth harness.

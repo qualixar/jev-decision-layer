@@ -12,7 +12,7 @@ VS Code exposes no hook surface, so its adapter registers the same stdio launche
 
 1. Run the adapter in plan mode first, against `$ARGUMENTS` or the current directory:
 
-   `python3 -m jev_auto.cli vscode --workspace <path>`
+   `scripts/jev vscode --workspace <path>`
 
    This writes nothing. Show the user the `action`, the `config_path`, and `preserved_servers` — the list of their existing servers that will be kept untouched.
 

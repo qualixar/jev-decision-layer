@@ -9,7 +9,7 @@ Guided hosted setup currently requires macOS Keychain; optional Laya additionall
 You do not need a key, a provider, or an enrolled workspace to see whether the layer behaves. Every recipe ships three synthetic cases — a clear-cut one, a genuinely ambiguous one, and one carrying an instruction hidden in material that is supposed to be data:
 
 ```sh
-python3 -m jev_auto.cli selftest
+plugins/qualixar-jev-decision-layer/scripts/jev selftest
 ```
 
 That replays all 96 through the real gate offline and reports counts. From a host with the MCP tools, `jev_recipe_selftest` does the same, and `jev_recipe_selftest` with a `recipe_id` shows one case with expected against observed. This is a contract check on the shipped gate, never evidence of provider accuracy.

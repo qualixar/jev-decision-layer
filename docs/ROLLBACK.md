@@ -7,7 +7,7 @@ Removal is per host, because each harness installs the plugin its own way. Revok
 Revoking the workspace policy stops Jev calls for that workspace without touching the installation:
 
 ```sh
-python3 -m jev_auto.cli revoke --workspace .
+plugins/qualixar-jev-decision-layer/scripts/jev revoke --workspace .
 ```
 
 Ask the agent to help you identify the exact workspace path rather than deleting a broad state directory. Existing native host use is unchanged by this.

@@ -49,7 +49,7 @@ The `jev-browser-choice` skill uses the browser interface already available in t
 Offline first, at no cost and with nothing enrolled:
 
 ```sh
-python3 -m jev_auto.cli selftest --recipe qualixar.brief-fit --variant nominal
+plugins/qualixar-jev-decision-layer/scripts/jev selftest --recipe qualixar.brief-fit --variant nominal
 ```
 
 Then, after workspace setup, ask your agent: **"Show the Qualixar Jev recipe catalog, then try the brief-fit recipe on this public synthetic example."** It can call `jev_recipe_catalog` and `jev_recipe_try` without you writing JSON. The tool returns a receipt and marks the result `EXPERIMENTAL_ADVISORY`.
