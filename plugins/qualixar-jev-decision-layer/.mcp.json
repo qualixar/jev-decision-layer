@@ -1,11 +1,10 @@
 {
   "mcpServers": {
     "qualixar-jev": {
-      "command": "./scripts/launch-jev",
+      "type": "stdio",
+      "command": "${CLAUDE_PLUGIN_ROOT}/scripts/launch-jev",
       "args": [],
-      "cwd": ".",
-      "startup_timeout_sec": 15,
-      "tool_timeout_sec": 120
+      "env": {}
     }
   }
 }

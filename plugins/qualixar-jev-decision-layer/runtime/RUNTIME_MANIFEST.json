@@ -66,6 +66,7 @@
     "jev.py": "f63425d0efd6a2773a1dc5bb71845ea6f0e0a3c1c82d451603cfa80685615dd6",
     "jev_auto/__init__.py": "b9048f9037a59a27aea93a56315519e7dc1f6de574489b9cb5766aeb87bab4db",
     "jev_auto/agy_hook.py": "5750d0b9778024ab9542283a69a7d6858730c2846712fb0581e13de3e7510c51",
+    "jev_auto/claude_hook.py": "3680a727e999eee0a019ad2ed573fb68b514c4e01235b5d4666870f6ade11ca8",
     "jev_auto/cli.py": "638b124a08c725f396aa0232215ded8fdf01f4c848e99490817dd06d71bcd614",
     "jev_auto/common.py": "c19b43813e94687d7c8e6361bf6f747306a8a86d49478cae952ed0a4d48179d3",
     "jev_auto/engine.py": "648b8c0899b618679c03044b1ad7c524dbce170473f831f3d7d458b242ffd11d",
