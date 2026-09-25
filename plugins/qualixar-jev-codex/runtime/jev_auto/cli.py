@@ -38,7 +38,7 @@ def bridge_record(path,p):
         write_private(f,data)
 
 def main(argv=None):
-    parser=argparse.ArgumentParser(description='Qualixar Jev Decision Layer 1.0.4')
+    parser=argparse.ArgumentParser(description='Qualixar Jev Decision Layer 1.0.5')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('mcp')
     en=sub.add_parser('enroll');en.add_argument('--workspace',required=True);en.add_argument('--provider',choices=['existing','typesafe','openrouter','laya-mlx'],default='existing')

@@ -6,7 +6,7 @@
 Route bounded task, tool, skill, and review choices through TypeSafe Jev, with optional local Laya.</p>
 
 <p align="center">
-<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/version-1.0.4-2fd3b3?style=flat-square" alt="Version 1.0.4"></a>
+<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.5"><img src="https://img.shields.io/badge/version-1.0.5-2fd3b3?style=flat-square" alt="Version 1.0.5"></a>
 <img src="https://img.shields.io/badge/hosts-5-4ddbb6?style=flat-square" alt="Five supported hosts">
 <img src="https://img.shields.io/badge/tools-20-4ddbb6?style=flat-square" alt="Twenty MCP tools">
 <img src="https://img.shields.io/badge/fixtures-108%20offline-4ddbb6?style=flat-square" alt="108 offline fixtures">
@@ -21,7 +21,7 @@ Route bounded task, tool, skill, and review choices through TypeSafe Jev, with o
 
 **One layer, five hosts.** The decision runtime, the recipes, and the policy broker are shared. Each host gets a thin adapter for its own hook contract and plugin manifest — nothing is forked. Support is uneven and the <a href="#supported-hosts">host table</a> says exactly how far each host has been taken.
 
-**Current release: 1.0.4** — 20 MCP tools, 36 recipes, 108 offline fixtures, five host adapters. See the [changelog](CHANGELOG.md).
+**Current release: 1.0.5** — 20 MCP tools, 36 recipes, 108 offline fixtures, five host adapters. See the [changelog](CHANGELOG.md).
 
 Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent open-source integration, not an official TypeSafe, OpenAI, Anthropic, Google, or Laya product. [Jev is TypeSafe AI's System One model](https://docs.typesafe.ai/introduction/coding-agents), designed to answer structured questions rather than generate prose.
 
@@ -137,7 +137,7 @@ Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes
 **Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the Claude desktop app's Code tab: there, every enabled plugin that ships a server is equally absent, ours included, with no error and no failed entry. Commands and skills load normally. If you work in the Code tab and want the tools, register the launcher directly instead:
 
 ```sh
-claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.4/scripts/launch-jev"
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.5/scripts/launch-jev"
 ```
 
 For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. `claude mcp list` reports on the CLI's own config and says nothing about what the desktop app can see.

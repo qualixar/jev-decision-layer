@@ -143,6 +143,36 @@ class RerankAbstains(unittest.TestCase):
         self.assertEqual(out["memories"][0]["fact_id"], "id0", "ranked best first")
         self.assertFalse(out["execution_authorized"])
 
+    def test_each_passage_question_restates_the_question(self):
+        """Measured contamination, and the cheapest fix for it.
+
+        With one shared question and the passages only in state, the SAME
+        passage scored 0.73 in a set with no answer and 2.72 in a set with
+        one — the model was ranking against its neighbours despite being told
+        not to. Restating the question inside each per-passage question cut
+        that drift to 0.03 and moved the actually-answering passage from last
+        to first.
+        """
+        query = "What invalidates a cache entry?"
+        _, questions = rr.compile_rerank(query, self.memories(3))
+        for index in range(3):
+            key = f"m{index}"
+            with self.subTest(key):
+                instructions = questions[key]["instructions"]
+                self.assertIn(query, instructions, "the question must be self-contained")
+                self.assertIn(key, instructions, "the question must name its own passage")
+                others = {f"m{other}" for other in range(3)} - {key}
+                self.assertFalse(others & set(instructions.split()),
+                                 "a question must not name another passage")
+
+    def test_the_scale_names_the_case_that_was_scoring_too_high(self):
+        """Background and 'we decided to build it' belong at level 1, explicitly."""
+        _, questions = rr.compile_rerank("q", self.memories(1))
+        level_one = questions["m0"]["criteria"][1]
+        for phrase in ("background", "history", "configuration", "decision"):
+            with self.subTest(phrase):
+                self.assertIn(phrase, level_one.lower())
+
     def test_malformed_input_is_refused(self):
         for query, memories in (("", [{"content": "x"}]), ("q", []), ("q", None),
                                 ("q", [{"content": ""}]), ("q", ["not a dict"]),

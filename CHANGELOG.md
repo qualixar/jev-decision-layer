@@ -4,6 +4,20 @@ All notable changes to this project are recorded here. This project follows [Sem
 
 No release states measured token, cost or time savings, because none has been measured.
 
+## [1.0.5] — 2026-09-26
+
+### Fixed
+
+- **`jev_rerank` scored each passage against its neighbours instead of the question.** Found by running it against a live provider, not by reading it. The instruction said "judge the passage on its own", but every passage sits in the shared state, and the model read them together anyway.
+
+  Measured: *"The team agreed in Q2 to add a caching layer"*, asked "what invalidates a cache entry?", scored **0.73** in a set containing no answer and **2.72** in a set containing one. Identical passage, identical question. In the second set it ranked **first**, above the passage that actually answered, and all three came back `usable`.
+
+  Each per-passage question now restates the question and names its own passage, so it stands alone, and the scale names the case that was scoring too high — background, history, configuration and "we decided to build it" are level 1, explicitly. Re-measured on the same two sets: the drift fell to **0.03**, the answering passage moved from last to **first at 2.95**, and `usable_count` fell from 3 to 1.
+
+  The retrieval inversion is now stark: retrieval ranked the answering passage **last** at 0.62; this ranks it **first**.
+
+  `should_abstain` was correct throughout and is unchanged — 0.07/0.08 on the unanswering set, 0.91 on the answering one. The set-level question was never the problem.
+
 ## [1.0.4] — 2026-09-26
 
 ### Fixed
