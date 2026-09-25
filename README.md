@@ -1,8 +1,13 @@
-![Qualixar Jev Decision Layer mark](docs/assets/jev-mark.svg)
+<p align="center"><img src="docs/assets/jev-mark.svg" alt="Qualixar Jev Decision Layer mark" width="56" height="56"></p>
 
-# Qualixar Jev Decision Layer
+<h1 align="center">Qualixar Jev Decision Layer</h1>
 
-![Qualixar Jev Decision Layer: typed decisions for coding-agent workflows](docs/assets/hero.svg)
+<p align="center"><strong>Typed decisions for coding agents. Execution stays with the agent.</strong><br>
+Route bounded task, tool, skill, and review choices through TypeSafe Jev, with optional local Laya.</p>
+
+<p align="center"><a href="#install-in-codex-desktop">Get started</a> · <a href="docs/USE_CASES.md">Explore use cases</a> · <a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.0">v1.0.0</a> · <a href="LICENSE">MIT license</a></p>
+
+<p align="center"><img src="docs/assets/hero.svg" alt="Qualixar Jev Decision Layer: typed decisions for coding-agent workflows" width="820"></p>
 
 **A decision layer for coding agents, not another chat model.** Give Jev a bounded question—*which tool, skill, task, file, or review path fits this state?*—and get a typed answer with probabilities and a local receipt. Your agent still writes code, uses tools, requests native permissions, and verifies the result. TypeSafe Jev is the primary decision model; [Laya-MLX](https://github.com/mizorewww/laya-mlx) is an optional, separately installed local route.
 

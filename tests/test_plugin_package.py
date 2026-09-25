@@ -26,6 +26,10 @@ class PluginPackageTests(unittest.TestCase):
 
     def test_readme_relative_links_and_release_images_exist(self):
         readme = (ROOT / "README.md").read_text()
+        self.assertIn('src="docs/assets/jev-mark.svg"', readme)
+        self.assertIn('width="56" height="56"', readme)
+        self.assertIn('src="docs/assets/hero.svg"', readme)
+        self.assertIn('width="820"', readme)
         targets = re.findall(r"\]\(([^)]+)\)", readme)
         for target in targets:
             if target.startswith(("https://", "http://")):
