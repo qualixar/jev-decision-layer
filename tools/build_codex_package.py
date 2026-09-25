@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "plugins" / "qualixar-jev-decision-layer"
 TARGET = ROOT / "plugins" / "qualixar-jev-codex"
 DIRECTORIES = (".codex-plugin", "assets", "hooks", "licenses", "runtime", "scripts", "skills")
-FILES = (".mcp.json", "THIRD_PARTY_NOTICES.md")
+FILES = ("THIRD_PARTY_NOTICES.md",)
+CODEX_MCP = ROOT / "tools" / "host_mcp" / "codex.json"
 
 
 def _included(path: Path) -> bool:
@@ -33,11 +34,13 @@ def build(*, check: bool) -> None:
     for directory in DIRECTORIES:
         expected.update(path.relative_to(SOURCE) for path in (SOURCE / directory).rglob("*") if path.is_file() and _included(path.relative_to(SOURCE)))
     expected.update(Path(name) for name in FILES)
+    expected.add(Path(".mcp.json"))
     if check:
         if (TARGET / "plugin.json").exists() or _files(TARGET) != expected:
             raise ValueError("CODEX_PACKAGE_FILE_SET_MISMATCH")
         for name in expected:
-            if hashlib.sha256((SOURCE / name).read_bytes()).digest() != hashlib.sha256((TARGET / name).read_bytes()).digest():
+            origin = CODEX_MCP if name == Path(".mcp.json") else SOURCE / name
+            if hashlib.sha256(origin.read_bytes()).digest() != hashlib.sha256((TARGET / name).read_bytes()).digest():
                 raise ValueError(f"CODEX_PACKAGE_HASH_MISMATCH:{name}")
         print(f"Codex package verified: {len(expected)} files, no root portable manifest.")
         return
@@ -47,6 +50,7 @@ def build(*, check: bool) -> None:
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache"))
     for name in FILES:
         shutil.copy2(SOURCE / name, TARGET / name)
+    shutil.copy2(CODEX_MCP, TARGET / ".mcp.json")
     build(check=True)
 
 

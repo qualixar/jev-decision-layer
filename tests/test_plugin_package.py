@@ -46,18 +46,29 @@ class PluginPackageTests(unittest.TestCase):
             hashlib.sha256((PLUGIN / "scripts/launch-jev").read_bytes()).digest(),
         )
 
-    def test_codex_mcp_descriptor_launches_and_answers_offline_initialize(self):
-        config = json.loads((CODEX_PACKAGE / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
+    def test_codex_and_claude_launchers_list_the_same_tools_offline(self):
+        codex = json.loads((CODEX_PACKAGE / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
+        claude = json.loads((PLUGIN / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
         request = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
                    "params": {"protocolVersion": "2025-06-18"}}
-        result = subprocess.run(
-            [config["command"], *config["args"]], input=json.dumps(request) + "\n",
-            capture_output=True, text=True, cwd=CODEX_PACKAGE / config["cwd"], timeout=15,
-            check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(result.stdout.splitlines()[0])["result"]["serverInfo"]["name"],
-                         "qualixar-jev-decision-layer")
+        listing = {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}
+        names_by_host = {}
+        for host, config, root, command in (
+            ("codex", codex, CODEX_PACKAGE / codex["cwd"], codex["command"]),
+            ("claude", claude, PLUGIN, claude["command"].replace("${CLAUDE_PLUGIN_ROOT}", str(PLUGIN))),
+        ):
+            with self.subTest(host=host):
+                result = subprocess.run(
+                    [command, *config["args"]], input=json.dumps(request) + "\n" + json.dumps(listing) + "\n",
+                    capture_output=True, text=True, cwd=root, timeout=15, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                responses = [json.loads(line) for line in result.stdout.splitlines()]
+                self.assertEqual(responses[0]["result"]["serverInfo"]["name"], "qualixar-jev")
+                names_by_host[host] = {tool["name"] for tool in responses[1]["result"]["tools"]}
+        self.assertEqual(names_by_host["codex"], names_by_host["claude"])
+        self.assertTrue({"jev_auto_status", "jev_route", "jev_recipe_catalog", "jev_verify", "jev_rerank"}
+                        <= names_by_host["codex"])
 
     def test_readme_relative_links_and_release_images_exist(self):
         readme = (ROOT / "README.md").read_text()
@@ -138,7 +149,7 @@ class PluginPackageTests(unittest.TestCase):
         overlay = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
         self.assertEqual(plugin["name"], "qualixar-jev-decision-layer")
         self.assertEqual(overlay["name"], plugin["name"])
-        self.assertEqual(plugin["version"], "1.0.5")
+        self.assertEqual(plugin["version"], "1.0.6")
         self.assertEqual(overlay["version"], plugin["version"])
         self.assertEqual(overlay["hooks"], "./hooks/hooks.json")
         self.assertTrue((PLUGIN / overlay["hooks"]).is_file())

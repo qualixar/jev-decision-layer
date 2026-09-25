@@ -412,9 +412,12 @@ class CoreContractTests(unittest.TestCase):
     def test_mcp_tool_discovery_does_not_create_legacy_state(self):
         from jev_auto.mcp import definitions
         from jevkit import mcp_server
+        from jevkit.security import SafeError
 
         with patch.object(mcp_server, "context", side_effect=AssertionError("STATE_ROOT_TOUCHED")):
             names = {tool["name"] for tool in definitions(mcp_server)}
+            with self.assertRaisesRegex(SafeError, "INVALID_RUNTIME_SCOPE"):
+                mcp_server.tools(scope="unrecognized")
         self.assertIn("jev_auto_status", names)
         self.assertIn("jev_rerank", names)
 

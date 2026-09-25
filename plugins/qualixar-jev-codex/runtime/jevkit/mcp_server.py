@@ -3,9 +3,10 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from .engine import ROOT
+from .build_mode import OFFLINE_ONLY
+from .engine import ROOT,catalog as case_catalog
 from .policy_mode import classify_intent,policy_status
-from .runtime import GLOBAL_HYBRID,GLOBAL_OFFLINE,RuntimeContext
+from .runtime import GLOBAL_HYBRID,GLOBAL_OFFLINE,PROJECT_LIVE,RuntimeContext
 from .security import SafeError,canonical
 VERSIONS=('2025-11-25','2025-06-18','2025-03-26','2024-11-05')
 
@@ -22,8 +23,13 @@ def health(root=ROOT,scope=GLOBAL_OFFLINE,state_root:Path|None=None,workspace_ro
             'current_workspace_status_tool':'jev_auto_status'}
 
 def tools(root=ROOT,scope=GLOBAL_OFFLINE,state_root:Path|None=None,workspace_root:Path|None=None,ctx=None):
-    active=ctx or context(root,scope,state_root,workspace_root)
-    ids=[x['id'] for x in active.catalog()]
+    # Listing tool schemas must not create a state directory. MCP clients ask
+    # for tools before selecting a workspace or granting filesystem access.
+    active_scope=ctx.scope if ctx is not None else scope
+    if active_scope not in (GLOBAL_OFFLINE,GLOBAL_HYBRID,PROJECT_LIVE):raise SafeError('INVALID_RUNTIME_SCOPE')
+    if active_scope in (GLOBAL_HYBRID,PROJECT_LIVE) and OFFLINE_ONLY:raise SafeError('LIVE_RUNTIME_NOT_AVAILABLE')
+    if active_scope==PROJECT_LIVE and ctx is None and workspace_root is None:raise SafeError('WORKSPACE_ID_REQUIRED')
+    ids=[x['id'] for x in (ctx.catalog() if ctx is not None else case_catalog(Path(root)))]
     def obj(properties,required=(),**extra):
         return {'type':'object','properties':properties,'required':list(required),
                 'additionalProperties':False,**extra}
@@ -39,13 +45,13 @@ def tools(root=ROOT,scope=GLOBAL_OFFLINE,state_root:Path|None=None,workspace_roo
       tool('jev_catalog','List the approved decision workflows; choose a case ID before judging.',obj({})),
       tool('jev_describe','Read required input fields, rubric and demonstration thresholds for one case.',obj({'case_id':case},['case_id'])),
       tool('jev_run_fixture','Run a clearly labeled OFFLINE synthetic fixture. No model inference; never use as proof of Jev accuracy.',obj({'case_id':case,'variant':variant},['case_id']),False)]
-    if active.scope==GLOBAL_OFFLINE:return offline
+    if active_scope==GLOBAL_OFFLINE:return offline
     live_properties={'case_id':case,
              'state':{'type':'object','description':'Reviewed minimized object data only.'},
              'request_id':{'type':'string','minLength':1,'maxLength':128},
              'data_classification':{'type':'string','enum':['public','internal-minimized']}}
     live_required=['case_id']
-    if active.scope==GLOBAL_HYBRID:
+    if active_scope==GLOBAL_HYBRID:
         live_properties['workspace_path']={'type':'string','minLength':1,'maxLength':4096,
             'description':'Absolute path to the trusted Git workspace with a human-created live grant.'}
         live_required.append('workspace_path')

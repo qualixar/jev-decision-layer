@@ -4,6 +4,17 @@ All notable changes to this project are recorded here. This project follows [Sem
 
 No release states measured token, cost or time savings, because none has been measured.
 
+## [1.0.6] — 2026-09-26
+
+### Fixed
+
+- The Codex package now has its own MCP connection descriptor instead of copying Claude's `${CLAUDE_PLUGIN_ROOT}` command. Both packages still launch the same bundled server. A package test starts each launcher and checks its offline tool list.
+- MCP tool discovery no longer creates a legacy state directory before the host can list tools. A read-only or restricted host can discover the same twenty tools without a workspace grant or provider call.
+
+### Upgrade
+
+- Finish the active Codex task, fully quit Codex Desktop, refresh the marketplace and installed plugin, then reopen it. A running task may still hold a hook path from the previous version's removed cache; the [setup guide](docs/GETTING_STARTED.md) covers that recovery.
+
 ## [1.0.5] — 2026-09-26
 
 ### Fixed
