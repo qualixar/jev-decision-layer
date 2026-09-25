@@ -17,3 +17,6 @@ __pycache__/
 *.onnx
 models/
 private-evidence/
+
+# Local session handoff notes — never publish
+MEMORY.md
