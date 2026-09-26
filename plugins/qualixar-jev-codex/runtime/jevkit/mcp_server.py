@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from . import __version__
 from .build_mode import OFFLINE_ONLY
 from .engine import ROOT,catalog as case_catalog
 from .policy_mode import classify_intent,policy_status
@@ -18,7 +19,7 @@ def context(root=ROOT,scope=GLOBAL_OFFLINE,state_root:Path|None=None,workspace_r
 
 def health(root=ROOT,scope=GLOBAL_OFFLINE,state_root:Path|None=None,workspace_root:Path|None=None,ctx=None):
     active=ctx or context(root,scope,state_root,workspace_root)
-    return {'version':'1.0.0','service':'qualixar-jev-decision-layer','scope':active.scope,
+    return {'version':__version__,'service':'qualixar-jev-decision-layer','scope':active.scope,
             'legacy_tool_surface':True,'provider_checked':False,
             'current_workspace_status_tool':'jev_auto_status'}
 
@@ -130,7 +131,7 @@ def serve(root=ROOT,scope=GLOBAL_OFFLINE,state_root:Path|None=None,workspace_roo
                     'No judgment authorizes a shell command, deployment, or access change.'
                 )
                 result={'protocolVersion':version if version in VERSIONS else VERSIONS[0],
-                    'serverInfo':{'name':'qualixar-jev-decision-layer','version':'1.0.0'},'capabilities':{'tools':{'listChanged':False}},
+                    'serverInfo':{'name':'qualixar-jev-decision-layer','version':__version__},'capabilities':{'tools':{'listChanged':False}},
                     'instructions':instructions}
                 initialized=True
             elif method=='ping':result={}

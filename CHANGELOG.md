@@ -4,6 +4,24 @@ All notable changes to this project are recorded here. This project follows [Sem
 
 No release states measured token, cost or time savings, because none has been measured.
 
+## [1.0.7] — 2026-09-26
+
+### Fixed
+
+- **The portable package still handed Codex a Claude variable.** 1.0.6 repaired the generated Codex package; the portable package's Codex overlay still pointed at the Claude connection descriptor, so installing it into Codex failed exactly as before — a command containing `${CLAUDE_PLUGIN_ROOT}`, which Codex does not expand. Both packages now name one Codex descriptor, so the shared overlay cannot point at the wrong host's file.
+
+- **The server reported 1.0.0 from every release since 1.0.0.** The runtime stated its release in a module docstring and in a value beside it, and only the docstring was ever updated. A host asking which version answered — the fastest way to find a package whose server never started — was told 1.0.0 whatever it had installed. Each package now states its release once and everything that reports a version reads it from there. A test starts both launchers and compares what they say against what shipped.
+
+- **The Hermes manifest under-declared its own tools.** `plugin.yaml` listed nine while the adapter served twelve. The allow-list had been pinned against the served surface since 1.0.4, but nothing pinned the manifest an operator actually reads.
+
+- **A Claude hook file shipped inside the Codex package**, and an MCP descriptor shipped that no manifest named. Neither was reachable, and both were the same shape as the defect above: a file a host could find and act on, belonging to a different host.
+
+### Added
+
+- **A test that fails when any host is handed something it cannot resolve.** It reads each package's manifests, follows what they point at, and checks every variable against the vocabulary that host expands, so this class of defect cannot return in a file nobody thought to check. Run against the 1.0.5 tree it names the original Codex failure in one line. Nothing host-facing may ship unreferenced, and every version literal must be declared as either product identity or a frozen contract — the broker handshake and the on-disk document versions are pinned as contracts and deliberately do not move with the release.
+
+- **`tools/release.py`** sets the release across every declared site and regenerates the Codex package, the recipe catalog and the runtime manifest, printing each runtime file it re-seals. `--check` verifies without changing anything. Five host adapters cannot be version-bumped by hand, and the evidence that they cannot is the previous six releases.
+
 ## [1.0.6] — 2026-09-26
 
 ### Fixed

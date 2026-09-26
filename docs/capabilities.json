@@ -2,7 +2,7 @@
   "$schema": "./capabilities.schema.json",
   "schema_version": 2,
   "name": "Qualixar Jev Decision Layer",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "license": "MIT",
   "publisher": "Qualixar / Varun Pratap Bhardwaj",
   "primary_decision_model": "TypeSafe Jev",

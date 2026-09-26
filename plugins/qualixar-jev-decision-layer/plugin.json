@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "qualixar-jev-decision-layer",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Independent Qualixar integration for typed Jev decisions, optional local Laya, bounded recipes, and recoverable context in coding agents.",
   "author": {
     "name": "Qualixar / Varun Pratap Bhardwaj"

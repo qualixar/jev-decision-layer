@@ -1,6 +1,6 @@
 {
   "name": "qualixar-jev-decision-layer",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Typed Jev decisions and optional local Laya for bounded agent workflows.",
   "author": {
     "name": "Qualixar / Varun Pratap Bhardwaj"
@@ -25,5 +25,5 @@
       "Show the available Jev decision recipes for this workspace."
     ]
   },
-  "mcpServers": "./.mcp.json"
+  "mcpServers": "./mcp.json"
 }

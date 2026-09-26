@@ -36,7 +36,7 @@ class PluginPackageTests(unittest.TestCase):
         self.assertTrue((CODEX_PACKAGE / overlay["hooks"]).is_file())
 
     def test_codex_and_claude_mcp_descriptors_start_the_same_bundled_server(self):
-        codex = json.loads((CODEX_PACKAGE / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
+        codex = json.loads((CODEX_PACKAGE / "mcp.json").read_text())["mcpServers"]["qualixar-jev"]
         claude = json.loads((PLUGIN / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
         self.assertEqual(codex["command"], "./scripts/launch-jev")
         self.assertEqual(codex["cwd"], ".")
@@ -47,7 +47,7 @@ class PluginPackageTests(unittest.TestCase):
         )
 
     def test_codex_and_claude_launchers_list_the_same_tools_offline(self):
-        codex = json.loads((CODEX_PACKAGE / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
+        codex = json.loads((CODEX_PACKAGE / "mcp.json").read_text())["mcpServers"]["qualixar-jev"]
         claude = json.loads((PLUGIN / ".mcp.json").read_text())["mcpServers"]["qualixar-jev"]
         request = {"jsonrpc": "2.0", "id": 1, "method": "initialize",
                    "params": {"protocolVersion": "2025-06-18"}}
@@ -149,8 +149,9 @@ class PluginPackageTests(unittest.TestCase):
         overlay = json.loads((PLUGIN / ".codex-plugin" / "plugin.json").read_text())
         self.assertEqual(plugin["name"], "qualixar-jev-decision-layer")
         self.assertEqual(overlay["name"], plugin["name"])
-        self.assertEqual(plugin["version"], "1.0.6")
+        claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
         self.assertEqual(overlay["version"], plugin["version"])
+        self.assertEqual(claude["version"], plugin["version"])
         self.assertEqual(overlay["hooks"], "./hooks/hooks.json")
         self.assertTrue((PLUGIN / overlay["hooks"]).is_file())
         extension = plugin["extensions"]["com.openai"]

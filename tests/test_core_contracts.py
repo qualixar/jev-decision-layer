@@ -79,14 +79,16 @@ class CoreContractTests(unittest.TestCase):
             with patch("sys.stdin", io.StringIO(json.dumps(request) + "\n")), redirect_stdout(output):
                 serve(root=RUNTIME, state_root=Path(directory))
         identity = json.loads(output.getvalue())["result"]["serverInfo"]
-        self.assertEqual(identity, {"name": "qualixar-jev-decision-layer", "version": "1.0.0"})
+        shipped = json.loads((ROOT / "plugins/qualixar-jev-decision-layer/plugin.json").read_text())["version"]
+        self.assertEqual(identity, {"name": "qualixar-jev-decision-layer", "version": shipped})
 
     def test_legacy_health_does_not_misreport_new_workspace_credentials(self):
         from jevkit import mcp_server
 
         with tempfile.TemporaryDirectory() as directory:
             result = mcp_server.health(root=RUNTIME, scope="global-hybrid", state_root=Path(directory))
-        self.assertEqual(result["version"], "1.0.0")
+        shipped = json.loads((ROOT / "plugins/qualixar-jev-decision-layer/plugin.json").read_text())["version"]
+        self.assertEqual(result["version"], shipped)
         self.assertEqual(result["current_workspace_status_tool"], "jev_auto_status")
         self.assertNotIn("credential_available", result)
         self.assertNotIn("policy_mode", result)

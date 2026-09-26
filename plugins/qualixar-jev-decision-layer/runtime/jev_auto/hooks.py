@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from . import __version__
 from .common import AutoError, decode, workspace
 from .settings import load_policy
 from .ipc import ensure, request
@@ -102,7 +103,7 @@ def handle(event, base=None, caller=None, starter=None):
             return {
                 "hookSpecificOutput": {
                     "hookEventName": name,
-                    "additionalContext": "Qualixar Jev Decision Layer 1.0.6 is enrolled here. Eligible decisions use the standing budget; do not request per-turn grants. Preserve SLM and the existing Computer Use skill.",
+                    "additionalContext": f"Qualixar Jev Decision Layer {__version__} is enrolled here. Eligible decisions use the standing budget; do not request per-turn grants. Preserve SLM and the existing Computer Use skill.",
                 }
             }
         if name == "UserPromptSubmit" and isinstance(session, str):

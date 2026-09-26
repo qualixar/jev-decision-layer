@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse, json, os, stat, sys
 from contextlib import contextmanager
 from pathlib import Path
+from . import __version__
 from .common import AutoError, canonical, home_root, private_dir, read_private, state_dir, workspace, write_private
 from .settings import make_policy,save_policy,load_policy,revoke
 from .ipc import address,ensure,request
@@ -38,7 +39,7 @@ def bridge_record(path,p):
         write_private(f,data)
 
 def main(argv=None):
-    parser=argparse.ArgumentParser(description='Qualixar Jev Decision Layer 1.0.6')
+    parser=argparse.ArgumentParser(description=f'Qualixar Jev Decision Layer {__version__}')
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('mcp')
     en=sub.add_parser('enroll');en.add_argument('--workspace',required=True);en.add_argument('--provider',choices=['existing','typesafe','openrouter','laya-mlx'],default='existing')

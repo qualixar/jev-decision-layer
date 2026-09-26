@@ -9,6 +9,7 @@ import signal
 import subprocess
 import threading
 from pathlib import Path
+from . import __version__
 from .common import AutoError,canonical,decode,workspace
 from .ipc import ensure,request
 
@@ -175,7 +176,7 @@ def serve():
             if method=='initialize':
                 v=params.get('protocolVersion');initialized=True
                 result={'protocolVersion':v if v in VERSIONS else VERSIONS[0],
-                        'serverInfo':{'name':'qualixar-jev','version':'1.0.0'},'capabilities':{'tools':{'listChanged':False}},
+                        'serverInfo':{'name':'qualixar-jev','version':__version__},'capabilities':{'tools':{'listChanged':False}},
                         'instructions':'Enrolled workspaces use standing Jev Decision Layer authority. Use compact recommendations; detailed receipts are local. Preserve SLM and the existing browser. Never create grants yourself.'}
             elif method=='ping':result={}
             elif not initialized:raise AutoError('MCP_INITIALIZE_FIRST')

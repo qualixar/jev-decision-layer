@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import sys
 import tempfile
@@ -23,7 +24,10 @@ class LegacyPolicyIdentityTests(unittest.TestCase):
 
         status = policy_status(config_root=Path("/nonexistent-policy-root"))
 
-        self.assertEqual(jevkit.__version__, "1.0.0")
+        shipped = json.loads((ROOT / "plugins/qualixar-jev-decision-layer/plugin.json").read_text())["version"]
+        self.assertEqual(jevkit.__version__, shipped)
+        # Not the product version: the legacy policy document's own schema
+        # version, which is a contract with policy files already on disk.
         self.assertEqual(status["version"], "1.0.0")
         self.assertTrue(status["deprecated"])
         self.assertEqual(status["modes"], ["off", "assist"])
