@@ -15,9 +15,17 @@ jobs:
         python-version: ['3.11', '3.14']
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Tags, not just the tip. The version guard compares the shipped
+          # tree against the tag its version claims; on the default shallow
+          # clone that tag is absent, so the guard would call every version
+          # unreleased and pass without enforcing anything.
+          fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Verify the release version is not being reused
+        run: python3 tools/version_guard.py --verbose
       - name: Verify sanitized recipe catalog
         run: python3 tools/build_recipes.py --check
       - name: Verify Codex compatibility package
