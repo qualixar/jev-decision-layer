@@ -43,7 +43,7 @@
   "limitations": "No unlimited retry: retry budget and policy stops remain deterministic.",
   "policy": {
     "kind": "choice",
-    "min_confidence": 0.55,
+    "min_confidence": 0.7,
     "min_score": 1.5,
     "min_selected_probability": 0.8,
     "negative_outcome": "request_review",

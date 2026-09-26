@@ -62,7 +62,14 @@ class Engine:
         return self.flight.run(key,work,on_join=lambda value:{**value,'cache_hit':True,'coalesced':True,'provider_usage_this_call':None})
     def evaluate_case(self,case,state):
         from jevkit.engine import spec,questions_for,policy
-        p=self.policy();s=spec(case);qs=questions_for(s,state)
+        from jevkit.security import SafeError
+        p=self.policy()
+        # jevkit raises SafeError, which is NOT an AutoError, so an unknown
+        # case id reached the broker's generic handler and came back as
+        # BROKER_INTERNAL_ERROR -- the caller lost UNKNOWN_CASE and could not
+        # tell a typo from a broker fault.
+        try:s=spec(case);qs=questions_for(s,state)
+        except SafeError as error:raise AutoError(str(error)) from None
         result=self.judge(case,state,qs,p);decision=policy(s,state,result['answers'])
         record={'case_id':case,'mode':'live','state':state,'questions':qs,'answers':result['answers'],
                 'policy':decision,'cache_hit':result['cache_hit'],'provider_receipt':result['receipt_id']}
@@ -71,7 +78,7 @@ class Engine:
     def evaluate_typed(self,state,questions,provider,data_classification):
         from src.adl.queries.typed import QueryError,prepare_query
         try:
-            compiled=prepare_query(self.workspace,state,questions,provider=provider,data_classification=data_classification)
+            compiled=prepare_query(self.workspace,state,questions,provider=provider,data_classification=data_classification,base=getattr(self,'base',None))
         except QueryError as error:
             raise AutoError(str(error)) from None
         p=self.policy()

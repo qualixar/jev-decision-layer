@@ -2493,7 +2493,7 @@
       "id": "qualixar.incident-triage",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2509,7 +2509,7 @@
       "id": "qualixar.invoice-exception-triage",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2525,7 +2525,7 @@
       "id": "qualixar.issue-triage",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2541,7 +2541,7 @@
       "id": "qualixar.lead-routing",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2557,7 +2557,7 @@
       "id": "qualixar.meeting-action-routing",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2573,7 +2573,7 @@
       "id": "qualixar.policy-exception-triage",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2604,7 +2604,7 @@
       "id": "qualixar.support-triage",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2620,7 +2620,7 @@
       "id": "qualixar.brand-tone",
       "policy": {
         "kind": "score",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2636,7 +2636,7 @@
       "id": "qualixar.brief-fit",
       "policy": {
         "kind": "score",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2652,7 +2652,7 @@
       "id": "qualixar.publication-review",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2690,7 +2690,7 @@
       "id": "qualixar.retry-decision",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
         "positive_outcome": "route_to_queue",
@@ -2732,7 +2732,7 @@
       "id": "qualixar.failure-classification",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2748,7 +2748,7 @@
       "id": "qualixar.file-ranking",
       "policy": {
         "kind": "score",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2790,7 +2790,7 @@
       "id": "qualixar.patch-review",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2806,7 +2806,7 @@
       "id": "qualixar.security-review-routing",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2837,7 +2837,7 @@
       "id": "qualixar.skill-routing",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2853,7 +2853,7 @@
       "id": "qualixar.task-routing",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2884,7 +2884,7 @@
       "id": "qualixar.tool-selection",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2900,7 +2900,7 @@
       "id": "qualixar.worker-routing",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2961,7 +2961,7 @@
       "id": "qualixar.memory-admission",
       "policy": {
         "kind": "choice",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",
@@ -2977,7 +2977,7 @@
       "id": "qualixar.research-ranking",
       "policy": {
         "kind": "score",
-        "min_confidence": 0.55,
+        "min_confidence": 0.7,
         "min_score": 1.5,
         "min_selected_probability": 0.8,
         "negative_outcome": "request_review",

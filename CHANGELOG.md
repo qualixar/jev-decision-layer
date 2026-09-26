@@ -6,6 +6,24 @@ No release states measured token, cost or time savings, because none has been me
 
 ## [1.0.7] — 2026-09-26
 
+### Added
+
+- **Per-provider gate thresholds, from the first provider measurement this project has ever made.** Every threshold was applied to every provider identically, which held only while nothing had been measured. Driving **laya-mlx 0.2.0** (`aac6fef/laya-mlx`, ModernBERT-large, 421M) through this package's own twenty decision contracts produced 14 typed answers: confidence median **0.2861**, and a gap between the selected probability and the model's own confidence with a median of **+0.2832**.
+
+  Laya's confidence runs structurally far below its distribution. That is a different calibration, not a fault — but a floor chosen for a hosted model cleared **1 of 10** real Laya answers where a lower floor cleared **5**, and nine of the ten were correct or an honest abstention. Sending nearly every clean answer to review is the defect 1.0.1 fixed in another form.
+
+  The floor now belongs to the provider. An unrecognised provider always gets the strict default: a name nobody has measured never buys a weaker gate. The result reports which profile decided it.
+
+  **This is a measurement, not a calibration.** Fourteen samples on one checkpoint. Every profile carries its sample size and says `MEASURED_SMALL_SAMPLE_NOT_CALIBRATED` or `UNVALIDATED_DEMONSTRATION_DEFAULT`, and a test refuses any profile claiming otherwise.
+
+- **A confidence-shortfall check.** An answer whose distribution asserts more certainty than the model's own confidence is refused rather than acted on. Measured against the gate: a coin flip (honest probability 0.574) sharpened by the `choice:11+` calibration temperature of **0.1006** that the Laya checkpoint ships — and that laya-mlx clamps at load, reporting it as uncalibrated — reads as probability 0.9518. With the old floor, both an inflated confidence and an **honest** one cleared the gate and returned `act`. Every individual check behaved as specified; the two thresholds were not independent and nothing read their disagreement.
+
+  **Documented limitation:** under the local profile this check is close to inert, because a large shortfall is ordinary for Laya. The defence there is upstream, where the temperature is clamped. A test pins that rather than implying the gate catches it.
+
+- **Nine defects found while raising test coverage**, each reproduced before being fixed: a bare `ValueError` escaping the typed-error contract on a malformed workspace path; a config write that crashed instead of refusing when its directory was unwritable; a recipe fallback that could never run because the module it imported has never existed; falsy rubric values silently replaced by boilerplate, so the model read a different question than the author wrote; a size check that a file could grow past between measurement and read; a credential store that wrote a key file it then refused to read back; a type guard that ran after the code it guarded; `--state-base` ignored by every typed tool; and `UNKNOWN_CASE` masked as an internal broker error.
+
+- **A coverage floor** (`tools/coverage_gate.py`) recorded per module and never lowered automatically, plus guards that every shipped runtime file is named in the tamper manifest and that no host-facing file ships unreferenced.
+
 ### Fixed
 
 - **The portable package still handed Codex a Claude variable.** 1.0.6 repaired the generated Codex package; the portable package's Codex overlay still pointed at the Claude connection descriptor, so installing it into Codex failed exactly as before — a command containing `${CLAUDE_PLUGIN_ROOT}`, which Codex does not expand. Both packages now name one Codex descriptor, so the shared overlay cannot point at the wrong host's file.

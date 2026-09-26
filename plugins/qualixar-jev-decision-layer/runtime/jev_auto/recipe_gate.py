@@ -72,6 +72,27 @@ _REQUIRED_THRESHOLDS = {
 # invent half a unit of probability.
 _MASS_TOLERANCE = 1.01
 
+# How far a model's own confidence may sit below the certainty its
+# distribution asserts before the answer is treated as self-contradictory.
+#
+# A distribution and a confidence are different quantities, so a gap is
+# normal. A LARGE gap is not: it means the distribution is sharper than the
+# model's own belief, which is what a miscalibrated temperature produces.
+# laya-mlx records that the shipped `choice:11+` calibration temperature of
+# 0.1006 "would sharpen logits ~10x and report a coin flip as near-certainty",
+# and clamps it away for exactly this reason.
+#
+# Measured against this gate: a genuine coin flip (honest p 0.574) sharpened at
+# that temperature reports probability 0.9518 while an honestly calibrated
+# confidence stays 0.5744 -- a shortfall of 0.377. Before this check the gate
+# returned `act` on it, because 0.9518 cleared the probability bar and 0.5744
+# cleared the confidence floor. Neither number alone was wrong. Their
+# disagreement was the only evidence, and nothing was reading it.
+#
+# The shipped fixtures' confident answers sit at probability 0.98 against
+# confidence 0.95, a shortfall of 0.03, so the bar is far above normal.
+_MAX_CONFIDENCE_SHORTFALL = 0.20
+
 
 def _number(value: Any) -> float | None:
     """Finite floats only. A NaN would pass every `<` test silently."""
@@ -161,8 +182,21 @@ def _probability_of(answer: dict[str, Any], label: Any) -> float | None:
     return chosen
 
 
-def evaluate(policy: Any, answer: Any) -> dict[str, Any]:
-    """Apply one recipe's policy to one typed answer. Never raises on content."""
+def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
+    """Apply one recipe's policy to one typed answer. Never raises on content.
+
+    `provider` selects a calibration profile. Confidence does not mean the
+    same thing in two models: measured on this package's own contracts, a
+    floor tuned for the hosted route cleared one of ten real laya-mlx answers
+    where a lower floor cleared five, and nine of the ten were correct or an
+    honest abstention. Omitting it, or naming a provider with no profile,
+    keeps the recipe's own thresholds -- an unrecognised provider never
+    loosens the gate.
+    """
+    from .provider_calibration import profile_for
+
+    calibration = profile_for(provider if provider is not None else
+                              (answer.get("provider") if isinstance(answer, dict) else None))
     reasons: list[str] = []
     result: dict[str, Any] = {
         "status": "REVIEW",
@@ -172,6 +206,9 @@ def evaluate(policy: Any, answer: Any) -> dict[str, Any]:
         "probability": None,
         "thresholds_applied": {},
         "thresholds_calibrated": False,
+        "provider_profile": {"provider": calibration.provider_id or "(default)",
+                             "calibration_status": calibration.calibration_status,
+                             "sample_size": calibration.sample_size},
         "reasons": reasons,
         "execution_authorized": False,
     }
@@ -213,7 +250,11 @@ def evaluate(policy: Any, answer: Any) -> dict[str, Any]:
         return finish("REVIEW", VERIFY, f"Unknown policy kind {kind!r}.")
 
     confidence = _unit(answer.get("confidence"))
-    floor = _unit(policy.get("min_confidence"))
+    recipe_floor = _unit(policy.get("min_confidence"))
+    # A profile may raise or lower the recipe's floor for this provider, but a
+    # malformed recipe floor stays malformed: _unit() has already refused it
+    # and the gate must still fail closed on a broken threshold.
+    floor = recipe_floor if recipe_floor is None else _unit(calibration.floor(recipe_floor))
     result["confidence"] = confidence
 
     if kind == "choice":
@@ -242,6 +283,11 @@ def evaluate(policy: Any, answer: Any) -> dict[str, Any]:
                           "but the answer is not calibrated.")
         if probability < min_probability:
             return finish("REVIEW", VERIFY, f"Selected probability {probability} is below {min_probability}.")
+        if probability - confidence > calibration.max_confidence_shortfall:
+            return finish("REVIEW", VERIFY,
+                          f"The distribution asserts {probability} for the selected option while the "
+                          f"model reports confidence {confidence}. A distribution sharper than the "
+                          "model's own belief is not a basis to act.")
         return finish("RECOMMEND", ACT, "Cleared both the confidence floor and the probability bar.",
                       policy.get("positive_outcome"))
 

@@ -8,8 +8,17 @@ def options(q):
     if q['type']=='choice':return [k if v in (None,'') else k+': '+render(v) for k,v in q['criteria'].items()]
     if q['type']=='score':return ['level %d: %s'%(i,render(v)) for i,v in enumerate(q['criteria'])]
     c=q.get('criteria') or {}
-    return ['false: '+render(c.get('false') or 'no, the statement does not hold'),
-            'true: '+render(c.get('true') or 'yes, the statement holds')]
+    # `or` treated every falsy criterion as absent, so an author writing
+    # `"false": 0` (or False, or 0.0) had their rubric silently replaced by
+    # boilerplate -- and the rubric is the text the MODEL READS, so it was
+    # asked a different question than the one written. Only an absent or
+    # empty criterion falls back, matching how verify.py already distinguishes
+    # an empty value from a falsy one.
+    def criterion(key,default):
+        value=c.get(key)
+        return default if value is None or value=='' else value
+    return ['false: '+render(criterion('false','no, the statement does not hold')),
+            'true: '+render(criterion('true','yes, the statement holds'))]
 
 def preflight(tok,cfg,state,qs):
     state=state if isinstance(state,str) else json.dumps(state,ensure_ascii=False)

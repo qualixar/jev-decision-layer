@@ -65,6 +65,17 @@ def provider_profile(provider_id: str) -> ProviderProfile:
 def _safe_regular_file(path: Path, error: str) -> None:
     for component in (path, *path.parents):
         if component.is_symlink():
+            # macOS ships /var as a symlink to /private/var, so every path
+            # under the system temporary directory -- and any config root a
+            # user points there -- has a symlinked ancestor by construction.
+            # Without this carve-out the credential store WROTE a key file and
+            # then refused to read back its own file, reporting
+            # UNSAFE_CREDENTIAL_PERMISSIONS for what was never a permissions
+            # problem. jevkit/security.py::validate_private_path and
+            # jev_auto/common.py::safe_path already carve out the same case;
+            # this guard was the one that did not.
+            if component == Path("/var") and component.resolve() == Path("/private/var"):
+                continue
             raise SafeError(error)
     metadata = path.stat()
     if (

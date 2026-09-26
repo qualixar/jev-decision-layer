@@ -1,0 +1,19 @@
+Qualixar Jev Decision Layer
+Copyright (c) 2026 Varun Pratap Bhardwaj / Qualixar
+
+Licensed under the MIT License; see LICENSE.
+
+SCOPE
+
+This license covers original kit code and documents only. It does not grant
+rights to TypeSafe, OpenAI, model services, third-party dependencies, or trademarks.
+No model weights or official provider skill are redistributed in this kit.
+
+This note lives here rather than in LICENSE because GitHub's license
+detector requires the MIT text verbatim. Appending to it reported the
+project as NOASSERTION -- shown as "Other" -- which also excluded the
+repository from `license:mit` search. The scope statement is unchanged
+and still applies.
+
+Third-party components and their notices: see
+plugins/qualixar-jev-decision-layer/THIRD_PARTY_NOTICES.md

@@ -43,7 +43,7 @@
   "limitations": "Advisory only; it never re-runs a command, and a retry budget remains the host's to enforce.",
   "policy": {
     "kind": "choice",
-    "min_confidence": 0.55,
+    "min_confidence": 0.7,
     "min_selected_probability": 0.8,
     "negative_outcome": "request_review",
     "positive_outcome": "route_to_queue",

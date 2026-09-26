@@ -37,7 +37,7 @@
   "limitations": "No person scoring, inferred sensitive traits or automatic marketing messages.",
   "policy": {
     "kind": "choice",
-    "min_confidence": 0.55,
+    "min_confidence": 0.7,
     "min_score": 1.5,
     "min_selected_probability": 0.8,
     "negative_outcome": "request_review",

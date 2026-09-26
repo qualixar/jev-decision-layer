@@ -80,7 +80,15 @@ def write_private(path: Path, value):
         if os.path.exists(name): os.unlink(name)
 
 def workspace(path: str | Path) -> Path:
-    p = safe_path(Path(path)).resolve()
+    # A host can hand us any string. An embedded NUL makes lstat raise a bare
+    # ValueError, which is not this module's typed error and escapes callers
+    # that catch AutoError. A malformed path is simply not a workspace.
+    # (An unpaired surrogate already lands on WORKSPACE_REQUIRED below; this
+    # closes the one shape that did not.)
+    try:
+        p = safe_path(Path(path)).resolve()
+    except (ValueError, UnicodeError):
+        raise AutoError('WORKSPACE_REQUIRED') from None
     if not p.is_dir(): raise AutoError('WORKSPACE_REQUIRED')
     try:
         r = subprocess.run(['git', '-C', str(p), 'rev-parse', '--show-toplevel'],

@@ -21,7 +21,25 @@ Route bounded task, tool, skill, and review choices through TypeSafe Jev, with o
 
 **One layer, five hosts.** The decision runtime, the recipes, and the policy broker are shared. Each host gets a thin adapter for its own hook contract and plugin manifest — nothing is forked. Support is uneven and the <a href="#supported-hosts">host table</a> says exactly how far each host has been taken.
 
-**Current release: 1.0.7** — 20 MCP tools, 36 recipes, 108 offline fixtures, five host adapters. See the [changelog](CHANGELOG.md).
+**Current release: 1.0.7** — 20 MCP tools, 36 recipes, 108 offline fixtures, five host adapters, per-provider thresholds. See the [changelog](CHANGELOG.md).
+
+### We measured a model against our own contracts, and it changed our thresholds
+
+Most agent tooling ships thresholds nobody has tested. This one did too, and said so — every recipe still carries `UNVALIDATED_DEMONSTRATION_DEFAULT`. In 1.0.7 we finally measured one.
+
+Fourteen typed decisions from **laya-mlx 0.2.0** (`aac6fef/laya-mlx`, ModernBERT-large, 421M), driven through this package's own twenty decision contracts:
+
+| | |
+|---|---|
+| Confidence | min 0.0085 · **median 0.2861** · max 0.7872 |
+| Probability minus that confidence | min +0.1078 · **median +0.2832** · max +0.4214 |
+| Answers correct or honestly abstaining | **13 of 14** |
+
+Laya's confidence sits structurally far below its own distribution. So a gate tuned for a hosted model cleared **1 of 10** real answers where a lower floor cleared **5** — nearly every clean answer sent to a review it did not need.
+
+**That is our own threshold being wrong, published rather than quietly adjusted.** Thresholds are now per provider, an unmeasured provider never gets a weaker gate, and every profile reports its sample size beside the word `NOT_CALIBRATED`. Fourteen samples on one checkpoint is a measurement, and a test refuses any profile that claims to be more.
+
+This is what AI reliability engineering looks like on a decision layer: publish the number that embarrasses you, then gate on it.
 
 Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent open-source integration, not an official TypeSafe, OpenAI, Anthropic, Google, or Laya product. [Jev is TypeSafe AI's System One model](https://docs.typesafe.ai/introduction/coding-agents), designed to answer structured questions rather than generate prose.
 

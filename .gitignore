@@ -20,3 +20,6 @@ private-evidence/
 
 # Local session handoff notes — never publish
 MEMORY.md
+
+# coverage_gate.py working data
+.coverage-gate

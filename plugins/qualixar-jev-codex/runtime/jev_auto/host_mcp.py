@@ -196,7 +196,14 @@ def install(host: str, workspace: Path | None = None, launcher: Path | None = No
 
 
 def _write_atomically(config: Path, payload: str) -> None:
-    handle, temporary = tempfile.mkstemp(dir=str(config.parent), prefix=".jev-", suffix=".json")
+    # mkstemp sat outside the try, so an unwritable or missing config
+    # directory raised a bare PermissionError straight past every caller that
+    # catches AutoError -- `jev vscode --write` reported it as a traceback
+    # rather than a refusal. A directory we cannot write to is a refusal.
+    try:
+        handle, temporary = tempfile.mkstemp(dir=str(config.parent), prefix=".jev-", suffix=".json")
+    except OSError:
+        raise AutoError("HOST_MCP_CONFIG_UNWRITABLE") from None
     try:
         with os.fdopen(handle, "w") as stream:
             stream.write(payload)

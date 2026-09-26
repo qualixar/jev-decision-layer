@@ -215,18 +215,26 @@ def prepare_query(
     provider: str,
     data_classification: str,
     automatic: bool = False,
+    base: Path | None = None,
 ) -> CompiledQuery:
     """Prepare only from the installed broker's persisted workspace policy.
 
     The result remains advisory and cannot itself reserve a budget or call a
     provider. The broker must reload and compare policy immediately before
     any transport. A raw caller policy is never accepted by this entrypoint.
+
+    `base` is the state root the broker was started with (`server.py
+    --state-base`). It was not accepted here, so policy was always resolved
+    through the default `home_root()` while the caller's own `Engine.policy()`
+    used its configured base. With a non-default base the two disagreed and
+    every typed tool -- typed_decide, verify, rerank, route, recipe_try,
+    review_diff -- failed on the POLICY_CHANGED comparison that follows.
     """
     from jev_auto.common import AutoError, digest
     from jev_auto.settings import load_policy
 
     try:
-        policy = load_policy(workspace_path)
+        policy = load_policy(workspace_path, base)
     except AutoError as error:
         raise QueryError("GENERIC_QUERY_NOT_ENROLLED") from error
     compiled = _prepare_query_with_policy(

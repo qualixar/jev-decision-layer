@@ -117,6 +117,10 @@ def _runtime_commit_from_python(python: Path) -> str:
 
 
 def _hash_artifact(root: Path, name: str, remaining_bytes: int) -> tuple[str, int]:
+    # The type guard has to come first: PurePosixPath(name) on a non-string
+    # raised a raw TypeError before the check that exists to catch it.
+    if not isinstance(name, str) or not name:
+        raise AttestationError("LOCAL_ARTIFACT_MISMATCH")
     path = PurePosixPath(name)
     if (
         not isinstance(name, str)
@@ -141,9 +145,21 @@ def _hash_artifact(root: Path, name: str, remaining_bytes: int) -> tuple[str, in
             if metadata.st_size > remaining_bytes:
                 raise AttestationError("LOCAL_ARTIFACT_TOO_LARGE")
             digest = hashlib.sha256()
+            read_bytes = 0
             with os.fdopen(descriptor, "rb", closefd=False) as stream:
                 while chunk := stream.read(1024 * 1024):
                     digest.update(chunk)
+                    read_bytes += len(chunk)
+            # The size was measured before the read and then returned as fact,
+            # so a file grown between the two was hashed in full while only its
+            # original size was charged against the budget and the ceiling.
+            # `jev_auto/mlx_worker._hash_file` already re-checks identity after
+            # reading; this path did not. Both guard the same artifacts.
+            after = os.fstat(descriptor)
+            if (after.st_size, after.st_mtime_ns, after.st_ino, after.st_dev) != (
+                metadata.st_size, metadata.st_mtime_ns, metadata.st_ino, metadata.st_dev
+            ) or read_bytes != metadata.st_size:
+                raise AttestationError("LOCAL_ARTIFACT_MISMATCH")
             return digest.hexdigest(), metadata.st_size
         finally:
             os.close(descriptor)

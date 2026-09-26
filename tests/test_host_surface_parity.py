@@ -244,6 +244,36 @@ class DerivedPackagesAreInSync(unittest.TestCase):
                          "the Codex package is stale; run tools/build_codex_package.py\n"
                          + result.stdout + result.stderr)
 
+    def test_every_shipped_runtime_file_is_named_in_the_tamper_manifest(self):
+        """A runtime file the manifest does not name is never hash-checked.
+
+        RUNTIME_MANIFEST.json exists so a modified runtime file is refused at
+        load. It has no generator on purpose, and tools/release.py only
+        re-hashes files it ALREADY names -- so a newly added module ships
+        entirely outside the integrity check, silently. That happened while
+        this release was being built: jev_auto/provider_calibration.py went
+        into both packages and into neither manifest.
+        """
+        for name, package in _packages():
+            runtime = package / "runtime"
+            manifest = json.loads((runtime / "RUNTIME_MANIFEST.json").read_text())
+            shipped = {str(path.relative_to(runtime))
+                       for path in runtime.rglob("*.py")
+                       if "__pycache__" not in path.parts}
+            with self.subTest(package=name):
+                unnamed = sorted(shipped - set(manifest["files"]))
+                self.assertEqual(unnamed, [],
+                                 f"{name}: shipped but not hash-checked: {unnamed}")
+
+    def test_the_tamper_manifest_does_not_name_a_file_that_no_longer_ships(self):
+        for name, package in _packages():
+            runtime = package / "runtime"
+            manifest = json.loads((runtime / "RUNTIME_MANIFEST.json").read_text())
+            with self.subTest(package=name):
+                missing = sorted(entry for entry in manifest["files"]
+                                 if not (runtime / entry).is_file())
+                self.assertEqual(missing, [], f"{name}: manifest is stale: {missing}")
+
     def test_the_release_version_is_consistent_everywhere(self):
         result = subprocess.run(
             [sys.executable, str(ROOT / "tools" / "release.py"), "--check"],
