@@ -14,6 +14,28 @@ plugins/qualixar-jev-decision-layer/scripts/jev selftest
 
 That replays all 108 through the real gate offline and reports counts. From a host with the MCP tools, `jev_recipe_selftest` does the same, and `jev_recipe_selftest` with a `recipe_id` shows one case with expected against observed. This is a contract check on the shipped gate, never evidence of provider accuracy.
 
+## Install
+
+Add the marketplace once, then install the plugin from it. Neither command needs a clone of this repository — both read it from GitHub.
+
+On Codex Desktop:
+
+```sh
+codex plugin marketplace add qualixar/jev-decision-layer
+codex plugin add qualixar-jev-decision-layer@qualixar-jev-layer
+```
+
+On Claude Code:
+
+```sh
+claude plugin marketplace add qualixar/jev-decision-layer
+claude plugin install qualixar-jev-decision-layer@qualixar
+```
+
+Both packages ship the same runtime, so the two hosts get identical decision behaviour; what differs is the hook contract and the plugin manifest each host reads. Per-host detail, and how far each host has actually been verified, is in [the host guide](HOSTS.md).
+
+If the plugin is already installed and you are moving to a newer version, use the upgrade steps below instead — they quit the host first, which a fresh install does not need.
+
 ## Enrol a workspace
 
 After installing, start a new task and say: **"Set up Qualixar Jev Decision Layer for this workspace."** The agent calls `jev_setup`, which opens a private local two-step wizard for that exact project folder. No terminal command is needed and you never paste a key into chat. The same action later opens a reviewed scope-upgrade flow rather than silently widening an existing grant.
