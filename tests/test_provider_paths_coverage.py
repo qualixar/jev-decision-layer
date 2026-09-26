@@ -1492,6 +1492,15 @@ class JevkitEngineRunTests(unittest.TestCase):
         self.assertEqual(record["request_sha256"], expected_hash)
 
 
+# MacKeychain.put/get/delete call _require_macos() before reaching any
+# backend, injected or not -- a deliberate platform contract, not an
+# oversight. Tests that exercise a path BEYOND that gate cannot run off
+# Darwin, and forcing them to would mean weakening the gate itself.
+MACOS_ONLY = unittest.skipUnless(
+    sys.platform == "darwin",
+    "exercises a code path past MacKeychain's deliberate macOS gate")
+
+
 class MacKeychainPublicApiTests(unittest.TestCase):
     """MacKeychain's public API, exercised entirely through an injected fake
     backend -- the class's own supported seam. Never touches
@@ -1563,6 +1572,7 @@ class MacKeychainPublicApiTests(unittest.TestCase):
                     keychain.put("typesafe", value)
         self.assertEqual(backend.calls, [])
 
+    @MACOS_ONLY
     def test_put_get_delete_round_trip_through_the_injected_backend(self):
         from src.adl.api.keychain import MacKeychain
 
@@ -1614,6 +1624,7 @@ class MacKeychainPublicApiTests(unittest.TestCase):
         self.assertIs(keychain._native(), sentinel)
         self.assertIs(keychain._native(), sentinel)
 
+    @MACOS_ONLY
     def test_native_backend_is_constructed_lazily_when_none_is_injected(self):
         """The real production branch: no backend was injected, so _native()
         must build a real _SecurityFrameworkBackend. Constructing one is a
@@ -1658,6 +1669,7 @@ class SecurityFrameworkBackendTests(unittest.TestCase):
         backend._core = MagicMock(name="CoreFoundation")
         return backend
 
+    @MACOS_ONLY
     def test_init_loads_the_real_frameworks_and_configures_argtypes(self):
         """Loading Security.framework/CoreFoundation.framework is a pure
         in-process dlopen: it reads no keychain item and stores no secret."""

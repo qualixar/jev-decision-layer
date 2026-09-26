@@ -9,9 +9,22 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    # Two platforms on purpose.
+    #
+    # macOS is what ships: the Keychain wizard requires it and Laya requires
+    # Apple Silicon, yet until now no run had ever exercised it -- every check
+    # passed on a platform no user installs on.
+    #
+    # Linux stays because the runtime is deliberately portable. ipc.py branches
+    # on darwin for its temp root, settings.py carries an msvcrt path for
+    # Windows, and cli.py locks with fcntl. Those branches only keep working if
+    # something runs them, and Linux is what caught three tests that had
+    # quietly assumed macOS.
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         python-version: ['3.11', '3.14']
     steps:
       - uses: actions/checkout@v7
