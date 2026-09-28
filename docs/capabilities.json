@@ -14,7 +14,10 @@
   ],
   "recipe_counts": {
     "legacy_contracts": 20,
-    "additional_specifications": 38
+    "additional_specifications": 38,
+    "unique_recipes": 38,
+    "legacy_contracts_represented_in_recipes": 20,
+    "counting_note": "The 20 legacy workflow contracts map into 20 of the 38 recipe specifications; these counts are not additive."
   },
   "decision_modes": [
     {
@@ -101,7 +104,7 @@
     },
     {
       "id": "hermes",
-      "evidence": "1.0.8 source registers ten tools including offline recipe self-test and one hook; installed 1.0.7 copy awaits refresh and native turn",
+      "evidence": "1.0.8 source registers twelve tools including offline recipe self-test, verify and rerank, plus one hook; installed 1.0.7 copy awaits refresh and native turn",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,

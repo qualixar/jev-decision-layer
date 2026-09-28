@@ -23,7 +23,7 @@ _ID = re.compile(r"(?:file|skill|guidance):[A-Za-z0-9_./-]{1,200}\Z")
 _RECEIPT = re.compile(r"Receipt: [a-f0-9]{64}\Z")
 HOOK_DEADLINE_SECONDS = 25
 MAX_TOOL_ARGUMENT_BYTES = 32_768
-MAX_TOOL_RESULT_BYTES = 4_096
+MAX_TOOL_RESULT_BYTES = 16_384
 MAX_CONTEXT_WORKSPACE_PATH_CHARS = 1_024
 MAX_CONTEXT_GOAL_CHARS = 512
 MAX_CONTEXT_REDUCE_TEXT_CHARS = 20_000
@@ -215,6 +215,19 @@ _TOOL_SCHEMAS = (
                   "recipe_id": {"type": "string", "minLength": 1, "maxLength": 128},
                   "input": {"type": "object"}, "data_classification": _CLASSIFICATION},
                  ["workspace_path", "recipe_id", "input", "data_classification"]),
+    _tool_schema("jev_verify", "Check a structured extraction against its source. Returns per-field probability of being wrong and a trustworthiness result; unknown fields are not clean.",
+                 {"workspace_path": _WORKSPACE,
+                  "source_text": {"type": "string", "minLength": 1, "maxLength": 20000},
+                  "extraction": {"type": "object"}, "threshold": {"type": "number"},
+                  "data_classification": _CLASSIFICATION},
+                 ["workspace_path", "source_text", "extraction", "data_classification"]),
+    _tool_schema("jev_rerank", "Score retrieved passages against the question and decide whether any passage answers it. If should_abstain is true, do not use the top hit as an answer.",
+                 {"workspace_path": _WORKSPACE,
+                  "query": {"type": "string", "minLength": 1, "maxLength": 2000},
+                  "memories": {"type": "array", "minItems": 1, "maxItems": 12,
+                               "items": {"type": "object"}},
+                  "data_classification": _CLASSIFICATION},
+                 ["workspace_path", "query", "memories", "data_classification"]),
     _tool_schema("jev_review_diff", "Ask Jev for advisory code-review focus; tests and independent review still required.",
                  {"workspace_path": _WORKSPACE, "goal": {"type": "string"},
                   "diff": {"type": "string"}, "data_classification": _CLASSIFICATION},

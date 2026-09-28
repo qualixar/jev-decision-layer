@@ -3,10 +3,10 @@
 WHY THIS IS A DECISION, NOT A READ
 ----------------------------------
 A host that extracts structured data from a document has to decide whether to
-trust it. Doing that in host context means re-reading the source against every
-field — the most expensive way to answer a question a calibrated model settles
-in one cheap call. One Noul per field, all in a single request, and the host
-gets a per-field probability that the field is WRONG.
+trust it. This tool asks one Noul question per field in a single request and
+returns the provider-reported probability that each field is WRONG. Those
+probabilities are advisory; this repository has not established calibration,
+token savings, total cost savings, or faster accepted tasks for this path.
 
 ZERO EVIDENCE IS NOT A CLEAN BILL OF HEALTH
 -------------------------------------------

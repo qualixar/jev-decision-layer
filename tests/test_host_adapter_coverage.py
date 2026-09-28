@@ -540,9 +540,9 @@ class HermesToolBoundsOrderingTests(unittest.TestCase):
         self.assertEqual(result, {"error": "HERMES_TOOL_TOO_LARGE"})
 
     def test_an_oversized_result_is_reported_without_leaking_its_content(self):
-        from jev_auto.hermes_tool import handle
+        from jev_auto.hermes_tool import MAX_RESULT_BYTES, handle
 
-        huge = "x" * 5_000
+        huge = "x" * (MAX_RESULT_BYTES + 1)
         result = handle({"name": "jev_route", "arguments": {"task": "small"}},
                         dispatcher=lambda *_a: {"payload": huge})
         self.assertEqual(result, {"error": "HERMES_TOOL_RESULT_INVALID"})

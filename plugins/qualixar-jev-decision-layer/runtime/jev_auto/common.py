@@ -103,11 +103,17 @@ SENSITIVE = [
     ('PRIVATE_URL', re.compile(r'https?://[^\s"<>]*(?:\.internal|\.local|localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[::1\])[^\s"<>]*', re.I)),
     ('EMAIL', re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')),
     ('PRIVATE_IP', re.compile(r'\b(?:10(?:\.\d{1,3}){3}|127(?:\.\d{1,3}){3}|0\.0\.0\.0|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})\b')),
-    ('HOME_PATH', re.compile(r'(?:/Users/|/home/)[^\s"<>]+')),
+    ('HOME_PATH', re.compile(r'(?i)(?:(?:/Users/|/home/)|(?:[A-Z]:[\\/]|\\\\[^\\\s]+\\[^\\\s]+[\\/])Users[\\/])[^\s"<>]+')),
 ]
 
-def screen(value, secrets=()):
-    """Scan original strings, not escaped JSON. Return labels only, never matches."""
+_CONTEXT_FIELDS = frozenset({'EMAIL', 'HOME_PATH'})
+
+def screen(value, secrets=(), *, allow_context=False):
+    """Scan original strings, not escaped JSON. Return labels only, never matches.
+
+    Contact and workspace paths may be sent only by callers that already
+    checked an enrolled non-public data scope. Secret patterns always apply.
+    """
     canonical(value)  # reject recursive or nonfinite input before traversing
     findings=set()
     sensitive_key=re.compile(r"(?i)^(?:[a-z0-9]+[_-])*(?:api[_-]?key|password|secret|access[_-]?token|authorization|credential|private[_-]?key)$")
@@ -120,10 +126,11 @@ def screen(value, secrets=()):
             for nested in item:visit(nested)
         elif isinstance(item,str):
             for label,regex in SENSITIVE:
+                if allow_context and label in _CONTEXT_FIELDS:continue
                 if regex.search(item):findings.add(label)
             if any(secret and len(secret)>=4 and secret in item for secret in secrets):findings.add('ACTIVE_KEY')
     visit(value)
     return sorted(findings)
 
-def require_clean(value, secrets=()):
-    if screen(value, secrets): raise AutoError('SENSITIVE_PAYLOAD_NOT_SENT')
+def require_clean(value, secrets=(), *, allow_context=False):
+    if screen(value, secrets, allow_context=allow_context): raise AutoError('SENSITIVE_PAYLOAD_NOT_SENT')

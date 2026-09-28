@@ -16,6 +16,25 @@ PLUGIN = ROOT / "plugins" / "qualixar-jev-decision-layer"
 CODEX_PACKAGE = ROOT / "plugins" / "qualixar-jev-codex"
 
 
+def _runtime_package_files(runtime: Path) -> set[str]:
+    """Enumerate package files on disk, including untracked source files.
+
+    Match the package builder's cache exclusions so local Python caches do not
+    become false positives, while untracked runtime modules remain visible.
+    """
+    files: set[str] = set()
+    for path in runtime.rglob("*"):
+        relative = path.relative_to(runtime)
+        if any(part == "__pycache__" or part.startswith(".pytest_cache")
+               for part in relative.parts) or path.suffix == ".pyc":
+            continue
+        if path.is_symlink():
+            raise AssertionError(f"runtime package contains a symlink: {relative}")
+        if path.is_file() and relative.as_posix() != "RUNTIME_MANIFEST.json":
+            files.add(relative.as_posix())
+    return files
+
+
 class PluginPackageTests(unittest.TestCase):
     def test_browser_skill_uses_selective_host_agnostic_jev_routing(self):
         skill = (PLUGIN / "skills/jev-browser-choice/SKILL.md").read_text()
@@ -102,6 +121,13 @@ class PluginPackageTests(unittest.TestCase):
         self.assertEqual(schema["properties"]["schema_version"]["const"], capabilities["schema_version"])
         self.assertEqual(capabilities["recipe_counts"]["legacy_contracts"], len(list((PLUGIN / "runtime" / "fixtures").iterdir())))
         self.assertEqual(capabilities["recipe_counts"]["additional_specifications"], len(recipes["recipes"]))
+        legacy = {re.sub(r"^\d\d-", "", path.stem)
+                  for path in (PLUGIN / "runtime" / "use_cases").glob("[0-9][0-9]-*.json")}
+        public = {recipe["id"].removeprefix("qualixar.") for recipe in recipes["recipes"]}
+        self.assertEqual(capabilities["recipe_counts"]["unique_recipes"], len(public))
+        self.assertEqual(capabilities["recipe_counts"]["legacy_contracts_represented_in_recipes"],
+                         len(legacy & public))
+        self.assertIn("not additive", capabilities["recipe_counts"]["counting_note"])
         self.assertEqual({mode["id"] for mode in capabilities["decision_modes"]},
                          {"jev-public", "jev-internal", "jev-maximum", "hybrid", "laya-only"})
         self.assertFalse(capabilities["model_answer_authorizes_execution"])
@@ -167,18 +193,25 @@ class PluginPackageTests(unittest.TestCase):
         runtime = PLUGIN / "runtime"
         manifest = json.loads((runtime / "RUNTIME_MANIFEST.json").read_text())
         self.assertEqual(manifest["adapter_version"], "1.0.0")
-        prefix = "plugins/qualixar-jev-decision-layer/runtime/"
-        tracked = subprocess.check_output(
-            ["git", "ls-files", "--", prefix], cwd=ROOT, text=True
-        ).splitlines()
-        actual = {name[len(prefix):] for name in tracked if name != prefix + "RUNTIME_MANIFEST.json"}
-        self.assertFalse(any(name.endswith(".pyc") or "__pycache__" in Path(name).parts for name in actual))
+        actual = _runtime_package_files(runtime)
         self.assertEqual(actual, set(manifest["files"]))
         for name, expected in manifest["files"].items():
             with self.subTest(file=name):
                 path = runtime / name
                 self.assertFalse(path.is_symlink())
                 self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected)
+
+    def test_runtime_manifest_coverage_includes_untracked_files_and_ignores_caches(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = Path(directory)
+            (runtime / "new-untracked-module.py").write_text("runtime module\n")
+            cache = runtime / "__pycache__"
+            cache.mkdir()
+            (cache / "ignored.cpython-314.pyc").write_bytes(b"cache")
+            (runtime / "RUNTIME_MANIFEST.json").write_text("{}")
+            self.assertEqual(_runtime_package_files(runtime), {"new-untracked-module.py"})
 
     def test_upstream_notices_and_user_docs_exist(self):
         for relative in ("README.md", "LICENSE", "docs/USE_CASES.md", "docs/GETTING_STARTED.md",

@@ -32,7 +32,7 @@ Every shipped recipe is `SPECIFICATION_NOT_MODEL_EVALUATED`. Therefore, any reci
 
 No `host_action` authorizes or performs an operation. The host keeps its permissions and remains responsible for any action.
 
-**Confidence is not probability.** The selected probability describes the model's distribution; confidence is a separate value interpreted through the provider profile. The hosted route has no measured provider profile, and the Laya profile is based on a small sample explicitly marked as not calibrated. The gate applies both values where available; do not treat the top probability alone as proof that a decision is reliable.
+**Confidence summarizes the reported distribution.** TypeSafe derives Choice and Score confidence from probabilities; it is not an independent accuracy signal. The gate applies its configured confidence floor and selected/outcome probability bar as unvalidated policy settings. Laya uses the same recipe floor because this repository has no reproducible labeled provider study to justify an override. A high probability or confidence does not prove the answer is correct.
 
 **A Noul answer has no confidence field.** Its distance from 0.5 is the certainty, and the yes/no bands express it. Do not look for a confidence number on one, and do not treat its absence as low confidence.
 

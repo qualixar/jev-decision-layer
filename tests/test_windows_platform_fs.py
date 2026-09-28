@@ -7,7 +7,7 @@ import ctypes
 import sys
 import tempfile
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from unittest.mock import patch
 
 RUNTIME = Path(__file__).resolve().parents[1] / "plugins" / "qualixar-jev-decision-layer" / "runtime"
@@ -119,7 +119,7 @@ class WindowsDispatchTests(unittest.TestCase):
                              r"C:\Users\test\AppData\Local/Qualixar/JevDecisionLayer")
 
     def test_public_private_storage_apis_delegate_to_native_backend(self):
-        path = Path("C:/private/state")
+        path = PureWindowsPath("C:/private/state")
         with patch.object(platform_fs.os, "name", "nt"):
             self.assertEqual(platform_fs.ensure_private_dir(path), path)
             platform_fs.verify_private_dir(path)
@@ -134,7 +134,7 @@ class WindowsDispatchTests(unittest.TestCase):
 
     def test_windows_lock_unlocks_only_when_lock_was_acquired(self):
         with patch.object(platform_fs.os, "name", "nt"), patch.object(platform_fs.os, "close") as close:
-            with platform_fs.file_lock(Path("C:/private/state/lock"), blocking=False) as acquired:
+            with platform_fs.file_lock(PureWindowsPath("C:/private/state/lock"), blocking=False) as acquired:
                 self.assertTrue(acquired)
             self.assertIn(("lock", 73, False), self.ops.calls)
             self.assertIn(("unlock", 73), self.ops.calls)
@@ -143,7 +143,7 @@ class WindowsDispatchTests(unittest.TestCase):
     def test_nonblocking_busy_lock_is_reported_without_unlock(self):
         self.ops.lock_acquired = False
         with patch.object(platform_fs.os, "name", "nt"), patch.object(platform_fs.os, "close") as close:
-            with platform_fs.file_lock(Path("C:/private/state/lock"), blocking=False) as acquired:
+            with platform_fs.file_lock(PureWindowsPath("C:/private/state/lock"), blocking=False) as acquired:
                 self.assertFalse(acquired)
             self.assertFalse(any(call[0] == "unlock" for call in self.ops.calls))
             close.assert_called_once_with(73)
@@ -153,7 +153,7 @@ class WindowsDispatchTests(unittest.TestCase):
                 platform_fs, "_WINDOWS_OPS", None), patch.object(platform_fs, "_WindowsOps",
                                                                   side_effect=OSError("no Win32")):
             with self.assertRaisesRegex(AutoError, "WINDOWS_PRIVATE_STATE_UNVERIFIED"):
-                platform_fs.ensure_private_dir(Path("C:/private"))
+                platform_fs.ensure_private_dir(PureWindowsPath("C:/private"))
 
 
 if __name__ == "__main__":

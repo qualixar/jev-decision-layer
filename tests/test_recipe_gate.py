@@ -1,8 +1,7 @@
-"""Gate evaluation: a typed answer must arrive at the host pre-gated.
+"""Gate evaluation: a typed answer must arrive with a local policy verdict.
 
-The economy this protects: a Jev token is ~free, a host-model token is not.
-Every case here is one where the host would otherwise have to re-derive
-trust in its own expensive context.
+These tests check gate mechanics; they do not establish provider accuracy,
+calibration, or measured token and money savings.
 """
 
 from __future__ import annotations
@@ -36,7 +35,7 @@ SCORE = {"kind": "score", "min_confidence": 0.55, "min_score": 1.5,
 
 def choice(label, confidence, probability):
     return {"type": "choice", "choice": label, "confidence": confidence,
-            "probabilities": {label: probability}}
+            "probabilities": {label: probability, "other": round(1 - probability, 6)}}
 
 
 class ChoiceGate(unittest.TestCase):
@@ -46,17 +45,12 @@ class ChoiceGate(unittest.TestCase):
         self.assertEqual(out["host_action"], ACT)
         self.assertEqual(out["recommendation"], "route_to_queue")
 
-    def test_decisive_distribution_with_poor_confidence_does_not_pass(self):
-        """The measured jev-1.13 case: p=0.85 but confidence=0.45.
-
-        Probability alone would authorise this. Confidence is the signal that
-        says the answer is not trustworthy, and acting on it costs the host
-        far more than the call saved.
-        """
+    def test_reported_confidence_below_policy_floor_does_not_pass(self):
+        """Check the configured floor without claiming independent calibration."""
         out = evaluate(CHOICE, choice("technical", 0.45, 0.85))
         self.assertEqual(out["status"], "REVIEW")
         self.assertEqual(out["host_action"], VERIFY)
-        self.assertIn("not calibrated", " ".join(out["reasons"]))
+        self.assertIn("configured floor", " ".join(out["reasons"]))
 
     def test_confident_but_split_distribution_does_not_pass(self):
         out = evaluate(CHOICE, choice("billing", 0.95, 0.55))
@@ -68,10 +62,34 @@ class ChoiceGate(unittest.TestCase):
         self.assertEqual(out["host_action"], IGNORE)
 
     def test_missing_confidence_is_never_treated_as_confident(self):
-        answer = {"type": "choice", "choice": "billing", "probabilities": {"billing": 0.99}}
+        answer = {"type": "choice", "choice": "billing",
+                  "probabilities": {"billing": 0.99, "other": 0.01}}
         out = evaluate(CHOICE, answer)
         self.assertEqual(out["host_action"], VERIFY)
-        self.assertIn("probability alone is not a gate", " ".join(out["reasons"]))
+        self.assertIn("No usable reported confidence", " ".join(out["reasons"]))
+
+    def test_missing_alternatives_or_probability_mass_cannot_clear(self):
+        for probabilities in ({"billing": 0.9}, {"billing": 0.9, "other": 0.0},
+                              {"billing": 0.9, "other": 0.13}):
+            with self.subTest(probabilities=probabilities):
+                out = evaluate(CHOICE, {"choice": "billing", "confidence": 0.95,
+                                        "probabilities": probabilities})
+                self.assertEqual(out["host_action"], VERIFY)
+                self.assertIn("distribution", " ".join(out["reasons"]))
+
+    def test_small_rounding_error_is_accepted(self):
+        out = evaluate(CHOICE, {"choice": "billing", "confidence": 0.95,
+                                "probabilities": {"billing": 0.9, "other": 0.095}})
+        self.assertEqual(out["host_action"], ACT)
+
+    def test_choice_and_score_apply_the_same_configured_confidence_floor(self):
+        choice_out = evaluate(CHOICE, choice("billing", 0.72, 0.9))
+        score_out = evaluate(SCORE, {"score": 2.0, "confidence": 0.72,
+                                     "probabilities": {"0": 0.0, "1": 0.1, "2": 0.9}})
+        self.assertEqual(choice_out["host_action"], ACT)
+        self.assertEqual(score_out["host_action"], ACT)
+        self.assertFalse(choice_out["thresholds_calibrated"])
+        self.assertFalse(score_out["thresholds_calibrated"])
 
     def test_nan_confidence_cannot_slip_through(self):
         out = evaluate(CHOICE, choice("billing", float("nan"), 0.99))

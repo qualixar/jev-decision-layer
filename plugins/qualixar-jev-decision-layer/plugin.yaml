@@ -18,5 +18,7 @@ provides_tools:
   - jev_review_diff
   - jev_route
   - jev_setup
+  - jev_verify
+  - jev_rerank
 provides_hooks:
   - pre_llm_call

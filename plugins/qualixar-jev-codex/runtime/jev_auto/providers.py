@@ -4,6 +4,7 @@ import http.client
 import ssl
 import threading
 import time
+from . import __version__
 from .common import AutoError, canonical, decode, require_clean
 from .protocol import validate_response
 
@@ -21,7 +22,8 @@ class Providers:
         store=p.get('credential_store','legacy')
         if store not in ('legacy','keychain','os'):raise AutoError('CREDENTIAL_STORE')
         key=get_provider_credential(profile,credential_store=store) if store!='legacy' else get_provider_credential(profile)
-        payload={'model':model,'state':state,'questions':qs};require_clean(payload,(key,))
+        allow_context=p.get('data_classification') in ('internal-minimized','restricted')
+        payload={'model':model,'state':state,'questions':qs};require_clean(payload,(key,),allow_context=allow_context)
         data=canonical(payload);deadline=time.monotonic()+p['timeout_seconds']
         connection=getattr(self._threads,name,None)
         if connection is None:
@@ -31,7 +33,7 @@ class Providers:
         try:
             connection.timeout=p['timeout_seconds']
             if connection.sock:connection.sock.settimeout(p['timeout_seconds'])
-            connection.request('POST',path,body=data,headers={'Authorization':'Bearer '+key,'Content-Type':'application/json','User-Agent':'Qualixar-Jev-Decision-Layer/1.0.0'})
+            connection.request('POST',path,body=data,headers={'Authorization':'Bearer '+key,'Content-Type':'application/json','User-Agent':f'Qualixar-Jev-Decision-Layer/{__version__}'})
             response=connection.getresponse()
             if response.status!=200:
                 code=response.status;response.close();connection.close();setattr(self._threads,name,None)
@@ -46,7 +48,7 @@ class Providers:
                 chunks.append(part);total+=len(part)
                 if total>1_000_000:raise AutoError('PROVIDER_RESPONSE_SIZE')
             raw=decode(b''.join(chunks),1_000_000)
-            require_clean(raw,(key,))
+            require_clean(raw,(key,),allow_context=allow_context)
             result=validate_response(raw,qs,model)
             result['provenance']={'provider':name,'model_requested':model,'confidence_kind':'provider-reported'}
             return result

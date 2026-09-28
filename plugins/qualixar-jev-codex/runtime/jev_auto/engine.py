@@ -17,20 +17,31 @@ class Engine:
         selected=p.get('routes',{}).get(recipe,p['provider'])
         if selected not in ('typesafe','openrouter','laya-mlx'):raise AutoError('PROVIDER_ROUTE')
         return {**p,'provider':selected}
-    def judge(self,recipe,state,questions,p=None,*,provider_override=None,expected_policy_digest=None):
+    def judge(self,recipe,state,questions,p=None,*,provider_override=None,expected_policy_digest=None,
+              data_classification=None):
         p=p or self.policy();validate_policy(p,self.workspace)
         policy_digest=digest(p)
         if expected_policy_digest is not None and policy_digest!=expected_policy_digest:
             raise AutoError('POLICY_CHANGED')
         if policy_digest!=digest(self.policy()):raise AutoError('POLICY_CHANGED')
         if recipe not in p.get('case_ids',[]) and recipe not in p['local_recipe_ids'] and not (recipe=='generic' and p.get('generic_query_enabled') is True):raise AutoError('RECIPE_NOT_ENROLLED')
-        validate_questions(questions);require_clean({'state':state,'questions':questions})
+        request_scope=data_classification if data_classification is not None else p.get('data_classification','public')
+        if request_scope not in ('public','internal-minimized','restricted'):
+            raise AutoError('DATA_CLASSIFICATION_INVALID')
+        if data_classification is not None and request_scope=='internal-minimized' and p.get('data_classification') not in ('internal-minimized','restricted'):
+            raise AutoError('DATA_CLASSIFICATION_NOT_ENROLLED')
+        allow_context=request_scope!='public'
+        validate_questions(questions);require_clean({'state':state,'questions':questions},allow_context=allow_context)
         effective=self.effective_policy(p,recipe)
         if provider_override is not None:
             if (recipe!='generic' or provider_override!='laya-mlx'
                 or p.get('local_laya_enabled') is not True or not isinstance(p.get('mlx'),dict)):
                 raise AutoError('PROCESSOR_SWITCH_NEEDS_CONSENT')
             effective={**p,'provider':'laya-mlx'}
+        if data_classification is not None and request_scope=='restricted' and effective['provider']!='laya-mlx':
+            if p.get('data_classification')!='restricted' or p.get('decision_mode')!='jev-maximum':
+                raise AutoError('REMOTE_RESTRICTED_DATA')
+        effective={**effective,'data_classification':request_scope}
         identity={'typesafe':'jev-1.13.0','openrouter':'typesafe/jev-1.13','laya-mlx':p.get('mlx',{})}[effective['provider']]
         request={'state':state,'questions':questions,'provider':effective['provider'],'model':identity,'recipe':recipe,'policy':digest(p),'runtime':'1.0.0'}
         key=digest(request);cached=self.store.cached(key)
@@ -44,19 +55,21 @@ class Engine:
             if fresh_digest!=policy_digest or (expected_policy_digest is not None and fresh_digest!=expected_policy_digest):
                 raise AutoError('POLICY_CHANGED')
             cached=self.store.cached(key)
-            if cached:return {**cached,'cache_hit':True,'provider_usage_this_call':None}
+            if cached:
+                if digest(self.policy())!=policy_digest:raise AutoError('POLICY_CHANGED')
+                return {**cached,'cache_hit':True,'provider_usage_this_call':None}
             n=len(canonical({'state':state,'questions':questions,'model':identity}))
             if hasattr(self.providers,'ready_for_request'):self.providers.ready_for_request(effective)
-            self.store.reserve(p,n)
-            # Readiness and budget reservation can wait. All approved policy
-            # writers use this lock, so retain it through provider transport:
-            # releasing it after the check would let a revoke win the race
-            # before the request is sent. Provider calls are bounded by the
-            # enrolled timeout; a policy edit waits for an in-flight call.
+            # Readiness can wait. All approved policy writers use this lock;
+            # check the current authority before charging an attempt, then
+            # retain it through provider transport so revoke cannot win the
+            # race between the check and the request. A started transport
+            # remains charged even if it fails: the provider may have billed.
             with _policy_lock(self.workspace,self.base):
                 current_digest=digest(self.policy())
                 if current_digest!=policy_digest or (expected_policy_digest is not None and current_digest!=expected_policy_digest):
                     raise AutoError('POLICY_CHANGED')
+                self.store.reserve(p,n)
                 start=time.monotonic()
                 try:result=self.providers.evaluate(effective,state,questions)
                 except Exception as e:
@@ -67,7 +80,7 @@ class Engine:
             provider_metadata=result.get('provenance')
             result=validate_response(result,questions,identity if isinstance(identity,str) else None)
             if provider_metadata is not None:result['provider_metadata']=provider_metadata
-            require_clean(result)
+            require_clean(result,allow_context=allow_context)
             receipt={'kind':'decision','recipe':recipe,'request_digest':key,'evidence_digest':digest(state),'rubric_digest':digest(questions),
                      'provider':effective['provider'],'model_identity':identity,'recorded_at':time.time(),'result':result}
             receipt_id=self.store.put(receipt)
@@ -106,7 +119,8 @@ class Engine:
             raise AutoError('POLICY_CHANGED')
         result=self.judge('generic',state,questions,p,
                           provider_override='laya-mlx' if compiled.provider=='laya-mlx' and p['provider']!='laya-mlx' else None,
-                          expected_policy_digest=expected_policy_digest)
+                          expected_policy_digest=expected_policy_digest,
+                          data_classification=data_classification)
         if result['model']!=compiled.expected_model:raise AutoError('MODEL_MISMATCH')
         output={'status':'ADVISORY','provider':compiled.provider,'model':result['model'],
                 'answers':result['answers'],'receipt_id':result['receipt_id'],
@@ -171,7 +185,8 @@ class Engine:
                 'cache_hit':result['cache_hit'],'calibration_status':result['calibration_status'],
                 'execution_authorized':False}
     def try_recipe(self,req):
-        from .recipe_gate import ACT, VERIFY, evaluate as evaluate_recipe
+        from .recipe_fixtures import apply_recipe_status_cap
+        from .recipe_gate import evaluate as evaluate_recipe
         from .recipe_runtime import gate_policy, prepare_recipe
 
         prepared=prepare_recipe(req.get('recipe_id'),req.get('input'))
@@ -188,16 +203,8 @@ class Engine:
         answer=result.get('answers',{}).get('decision')
         if not isinstance(answer,dict) or answer.get('type')!=prepared['questions']['decision']['type']:
             raise AutoError('RECIPE_RESULT_INVALID')
-        gate=evaluate_recipe(recipe_policy,answer,result.get('provider'))
-        if gate['host_action']==ACT and prepared['status']=='SPECIFICATION_NOT_MODEL_EVALUATED':
-            # The gate policy is still a specification: it has not been
-            # validated against labelled provider answers. Keep the outcome
-            # visible as a recommendation, but require an independent check.
-            gate['host_action']=VERIFY
-            gate['status']='REVIEW'
-            gate['reasons'].append(
-                "This recipe is SPECIFICATION_NOT_MODEL_EVALUATED; an ACT recommendation is capped at VERIFY."
-            )
+        raw_gate=evaluate_recipe(recipe_policy,answer,result.get('provider'))
+        gate=apply_recipe_status_cap(raw_gate,prepared['status'])
         reason=' '.join(gate['reasons'])
         policy_receipt={
             'kind':'recipe_policy','recipe_id':prepared['recipe_id'],
@@ -211,7 +218,8 @@ class Engine:
                 'provider':result['provider'],'model':result['model'],'receipt_id':result['receipt_id'],
                 'cache_hit':result['cache_hit'],'calibration_status':result['calibration_status'],
                 'recipe_status':prepared['status'],'gate_status':gate['status'],
-                'host_action':gate['host_action'],'reason':reason,
+                'host_action':gate['host_action'],'raw_gate_action':raw_gate['host_action'],
+                'reason':reason,
                 'provider_profile':gate['provider_profile'],'recommendation':gate['recommendation'],
                 'policy_receipt_id':policy_receipt_id,'execution_authorized':False}
     def review_diff(self,req):

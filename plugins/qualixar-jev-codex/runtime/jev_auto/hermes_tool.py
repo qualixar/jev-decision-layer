@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import math
+import ntpath
+import posixpath
 import sys
+from pathlib import PureWindowsPath
 from typing import Any, Callable
 
 from .common import AutoError, canonical, decode
@@ -10,22 +14,56 @@ from .common import AutoError, canonical, decode
 ALLOWED = frozenset({
     "jev_setup", "jev_auto_status", "jev_prepare", "jev_reduce", "jev_recall",
     "jev_route", "jev_recipe_catalog", "jev_recipe_try", "jev_review_diff",
+    "jev_verify", "jev_rerank",
     # Shared baseline proof: offline and workspace-free by construction.
     "jev_recipe_selftest",
 })
 _CONTEXT_TOOLS = frozenset({"jev_prepare", "jev_reduce", "jev_recall"})
 _RECEIPT_ID = frozenset("0123456789abcdef")
 MAX_ARGUMENT_BYTES = 32_768
-MAX_RESULT_BYTES = 4_096
+MAX_RESULT_BYTES = 16_384
 MAX_WORKSPACE_PATH_CHARS = 4_096
 MAX_GOAL_CHARS = 512
 MAX_REDUCE_TEXT_CHARS = 20_000
 MAX_RECALL_LINE = 1_000_000
+_DETAILS_NOTE = (
+    "Large echoed values or passage text are omitted from this response. "
+    "Inspect the local provider receipt with jev_recall using this receipt_id."
+)
+
+
+def _canonical_workspace_path(value: Any, *, windows: bool | None = None) -> str | None:
+    """Return a bounded absolute local path in the host's native path syntax.
+
+    Windows drive paths are valid workspace identifiers on Windows; UNC and
+    device paths are excluded because context lookup must not implicitly
+    contact a remote share or a device namespace. The explicit ``windows``
+    switch keeps this branch testable on non-Windows CI.
+    """
+    if not isinstance(value, str) or not 1 <= len(value) <= MAX_WORKSPACE_PATH_CHARS or "\x00" in value:
+        return None
+    use_windows = (sys.platform == "win32") if windows is None else windows
+    if use_windows:
+        path = PureWindowsPath(value)
+        if (not path.is_absolute() or not path.drive or path.drive.startswith("\\\\")
+                or value.startswith(("\\\\?\\", "\\\\.\\"))):
+            return None
+        normalized = ntpath.normpath(value)
+        canonical = PureWindowsPath(normalized)
+        if (not canonical.is_absolute() or canonical.drive.startswith("\\\\")
+                or len(normalized) > MAX_WORKSPACE_PATH_CHARS):
+            return None
+        return normalized
+    if not value.startswith("/"):
+        return None
+    normalized = posixpath.normpath(value)
+    if not normalized.startswith("/") or len(normalized) > MAX_WORKSPACE_PATH_CHARS:
+        return None
+    return normalized
 
 
 def _is_workspace_path(value: Any) -> bool:
-    return (isinstance(value, str) and 1 <= len(value) <= MAX_WORKSPACE_PATH_CHARS
-            and value.startswith("/") and "\x00" not in value)
+    return _canonical_workspace_path(value) is not None
 
 
 def _is_positive_integer(value: Any) -> bool:
@@ -62,12 +100,69 @@ def _dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     return dispatch(name, arguments, mcp_server)
 
 
+def _finite_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _compact_oversized_result(name: str, result: dict[str, Any]) -> dict[str, Any] | None:
+    """Drop caller-controlled echoes while retaining the decision and receipt."""
+    if name == "jev_verify":
+        fields = result.get("fields")
+        if not isinstance(fields, list):
+            return None
+        compact_fields = []
+        for field in fields:
+            if not isinstance(field, dict) or not isinstance(field.get("field"), str):
+                return None
+            p_wrong = field.get("p_wrong")
+            if p_wrong is not None and not _finite_number(p_wrong):
+                return None
+            status = field.get("status")
+            if status not in {"ok", "suspect", "unknown"}:
+                return None
+            compact_fields.append({"field": field["field"], "p_wrong": p_wrong, "status": status})
+        compact = {key: value for key, value in result.items() if key != "fields"}
+        compact["fields"] = compact_fields
+        compact["details_note"] = _DETAILS_NOTE
+        return compact
+    if name == "jev_rerank":
+        memories = result.get("memories")
+        if not isinstance(memories, list):
+            return None
+        compact_memories = []
+        for memory in memories:
+            if not isinstance(memory, dict):
+                return None
+            item: dict[str, Any] = {}
+            fact_id = memory.get("fact_id")
+            if isinstance(fact_id, str) and len(fact_id) <= 128:
+                item["fact_id"] = fact_id
+            for key in ("jev_level", "jev_confidence", "retrieval_score"):
+                value = memory.get(key)
+                if value is None or _finite_number(value):
+                    item[key] = value
+            if isinstance(memory.get("usable"), bool):
+                item["usable"] = memory["usable"]
+            compact_memories.append(item)
+        compact = {key: value for key, value in result.items() if key != "memories"}
+        compact["memories"] = compact_memories
+        compact["details_note"] = _DETAILS_NOTE
+        return compact
+    return None
+
+
 def handle(message: Any, *, dispatcher: Callable[[str, dict[str, Any]], dict[str, Any]] | None = None) -> dict[str, Any]:
     if not isinstance(message, dict) or message.get("name") not in ALLOWED:
         return {"error": "HERMES_TOOL_NOT_ALLOWED"}
     arguments = message.get("arguments")
     if not isinstance(arguments, dict):
         return {"error": "HERMES_TOOL_ARGUMENTS"}
+    arguments = dict(arguments)
+    if "workspace_path" in arguments:
+        path = _canonical_workspace_path(arguments.get("workspace_path"))
+        if path is None:
+            return {"error": "HERMES_TOOL_ARGUMENTS"}
+        arguments["workspace_path"] = path
     if not _valid_context_arguments(message["name"], arguments):
         return {"error": "HERMES_TOOL_ARGUMENTS"}
     try:
@@ -76,8 +171,17 @@ def handle(message: Any, *, dispatcher: Callable[[str, dict[str, Any]], dict[str
         if len(canonical(arguments)) > MAX_ARGUMENT_BYTES:
             return {"error": "HERMES_TOOL_TOO_LARGE"}
         result = (dispatcher or _dispatch)(message["name"], arguments)
-        if not isinstance(result, dict) or len(canonical(result)) > MAX_RESULT_BYTES:
+        if not isinstance(result, dict):
             return {"error": "HERMES_TOOL_RESULT_INVALID"}
+        encoded = canonical(result)
+        if len(encoded) + 1 > MAX_RESULT_BYTES:
+            compact = _compact_oversized_result(message["name"], result)
+            if compact is None:
+                return {"error": "HERMES_TOOL_RESULT_INVALID"}
+            result = compact
+            encoded = canonical(result)
+            if len(encoded) + 1 > MAX_RESULT_BYTES:
+                return {"error": "HERMES_TOOL_RESULT_INVALID"}
         return result
     except AutoError as error:
         return {"error": str(error)}

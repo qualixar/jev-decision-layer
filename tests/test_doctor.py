@@ -127,7 +127,7 @@ class DoctorOfflineTests(unittest.TestCase):
         self.assertEqual(receipt, {"id": "receipt_index", "status": "PRESENT", "count": 1})
         self.assertNotIn("secret_like_receipt_body", json.dumps(payload))
 
-    def test_relative_xdg_state_home_can_read_an_existing_receipt_index(self):
+    def test_relative_xdg_state_home_uses_absolute_fallback_for_receipt_index(self):
         from jev_auto.common import state_dir
         from jev_auto.store import Store
 
@@ -135,14 +135,19 @@ class DoctorOfflineTests(unittest.TestCase):
             root = Path(directory)
             workspace = root / "project"
             workspace.mkdir()
+            home = root / "home"
+            home.mkdir()
             previous = Path.cwd()
             try:
                 os.chdir(root)
-                with patch.dict(os.environ, {"XDG_STATE_HOME": "relative-state"}):
+                with patch.dict(os.environ, {"XDG_STATE_HOME": "relative-state"}), patch.object(
+                        Path, "home", return_value=home):
                     Store(state_dir(workspace)).put({"kind": "decision"})
                     _code, payload, _stderr = _run(["doctor", "--workspace", str(workspace)])
             finally:
                 os.chdir(previous)
+            self.assertFalse((root / "relative-state").exists())
+            self.assertTrue((home / ".local" / "state" / "qualixar-jev-decision-layer").is_dir())
         receipt = next(check for check in payload["checks"] if check["id"] == "receipt_index")
         self.assertEqual(receipt, {"id": "receipt_index", "status": "PRESENT", "count": 1})
 

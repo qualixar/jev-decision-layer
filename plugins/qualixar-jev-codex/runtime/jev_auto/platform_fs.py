@@ -2,6 +2,11 @@
 
 Windows uses token-SID ACL validation, protected DACLs, and reparse-point checks.
 POSIX mode bits are deliberately never interpreted as Windows ACLs.
+The private leaf sits below OS-managed ancestors on Windows; its DACL cannot
+protect against an administrator or a user who can rename an ancestor. On
+POSIX, writable non-sticky ancestors are rejected. Atomic Windows replacement
+uses flushed file contents and MOVEFILE_WRITE_THROUGH; it does not promise the
+same directory-fsync semantics as POSIX after sudden power loss.
 """
 from __future__ import annotations
 
@@ -90,7 +95,6 @@ class _WindowsOps:
     OPEN_EXISTING = 3
     CREATE_NEW = 1
     OPEN_ALWAYS = 4
-    CREATE_ALWAYS = 2
     FILE_ATTRIBUTE_DIRECTORY = 0x10
     FILE_ATTRIBUTE_REPARSE_POINT = 0x400
     FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
@@ -359,10 +363,8 @@ class _WindowsOps:
         if flags & (os.O_WRONLY | os.O_RDWR | os.O_TRUNC | os.O_APPEND):
             access = self.GENERIC_WRITE if flags & os.O_WRONLY else self.GENERIC_READ | self.GENERIC_WRITE
         create = bool(flags & os.O_CREAT)
-        exclusive = bool(flags & os.O_EXCL)
-        truncate = bool(flags & os.O_TRUNC)
-        disposition = (self.CREATE_NEW if exclusive else self.CREATE_ALWAYS if truncate
-                       else self.OPEN_ALWAYS if create else self.OPEN_EXISTING)
+        exclusive = create and bool(flags & os.O_EXCL)
+        disposition = self._file_disposition(flags)
         created = create
         descriptor = self._descriptor(False) if created else None
         attrs_pointer = None
@@ -376,20 +378,20 @@ class _WindowsOps:
                 self.FILE_FLAG_OPEN_REPARSE_POINT, None)
             if handle in (None, self.INVALID_HANDLE_VALUE):
                 error = ctypes.get_last_error()
-                if create and not exclusive and not truncate and error == 183:
-                    handle = self.kernel32.CreateFileW(
-                        str(path), access, self.FILE_SHARE_ALL, None, self.OPEN_EXISTING,
-                        self.FILE_FLAG_OPEN_REPARSE_POINT, None)
-                    if handle in (None, self.INVALID_HANDLE_VALUE):
-                        raise OSError(ctypes.get_last_error())
-                else:
-                    if create and exclusive and error in (80, 183):
-                        raise FileExistsError(error, "file already exists", str(path))
-                    raise OSError(error)
+                if create and exclusive and error in (80, 183):
+                    raise FileExistsError(error, "file already exists", str(path))
+                raise OSError(error)
             return ctypes.c_void_p(handle)
         finally:
             if descriptor is not None:
                 self.kernel32.LocalFree(descriptor)
+
+    @classmethod
+    def _file_disposition(cls, flags: int) -> int:
+        """O_EXCL only has meaning with O_CREAT; truncate after handle validation."""
+        if flags & os.O_CREAT:
+            return cls.CREATE_NEW if flags & os.O_EXCL else cls.OPEN_ALWAYS
+        return cls.OPEN_EXISTING
 
     def _fd_from_handle(self, handle, flags: int) -> int:
         import msvcrt
@@ -398,6 +400,8 @@ class _WindowsOps:
             mode |= os.O_RDWR
         elif flags & os.O_WRONLY:
             mode |= os.O_WRONLY
+        elif flags & os.O_TRUNC:
+            mode |= os.O_RDWR
         else:
             mode |= os.O_RDONLY
         if flags & os.O_APPEND:
@@ -418,6 +422,8 @@ class _WindowsOps:
             raise
         try:
             self.verify_fd(fd)
+            if flags & os.O_TRUNC:
+                os.ftruncate(fd, 0)
             return fd
         except BaseException:
             os.close(fd)
@@ -512,7 +518,22 @@ def user_state_root() -> Path:
             _error("WINDOWS_PRIVATE_STATE_UNVERIFIED")
         return Path(base) / "Qualixar" / "JevDecisionLayer"
     base = os.environ.get("XDG_STATE_HOME")
-    return (Path(base).expanduser() if base else Path.home() / ".local" / "state") / "qualixar-jev-decision-layer"
+    xdg_home = Path(base) if base else None
+    root = xdg_home if xdg_home is not None and xdg_home.is_absolute() else Path.home() / ".local" / "state"
+    return root / "qualixar-jev-decision-layer"
+
+
+def _verify_posix_ancestors(path: Path) -> None:
+    """Reject ancestors another user can replace; allow root-owned sticky temp."""
+    for parent in reversed(path.parents):
+        try:
+            st = parent.stat()
+        except FileNotFoundError:
+            continue  # ensure_private_dir creates missing components with mode 0700.
+        if not stat.S_ISDIR(st.st_mode) or st.st_uid not in (0, os.getuid()):
+            _error("PRIVATE_DIRECTORY_OWNER")
+        if st.st_mode & 0o022 and not st.st_mode & stat.S_ISVTX:
+            _error("PRIVATE_DIRECTORY_OWNER")
 
 
 def ensure_private_dir(path: Path) -> Path:
@@ -526,6 +547,7 @@ def ensure_private_dir(path: Path) -> Path:
             _error("WINDOWS_PRIVATE_STATE_UNVERIFIED")
     from .common import safe_path
     p = safe_path(path)
+    _verify_posix_ancestors(p)
     p.mkdir(mode=0o700, parents=True, exist_ok=True)
     st = p.stat()
     if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid():
@@ -546,6 +568,7 @@ def verify_private_dir(path: Path) -> None:
             _error("WINDOWS_PRIVATE_STATE_UNVERIFIED")
     from .common import safe_path
     p = safe_path(path)
+    _verify_posix_ancestors(p)
     st = p.stat()
     if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid() or st.st_mode & 0o077:
         _error("PRIVATE_DIRECTORY_OWNER")
@@ -562,6 +585,7 @@ def open_private_file(path: Path, flags: int, mode: int = 0o600) -> int:
             _error("WINDOWS_PRIVATE_STATE_UNVERIFIED")
     from .common import safe_path
     p = safe_path(path)
+    _verify_posix_ancestors(p)
     fd = os.open(p, flags | getattr(os, "O_NOFOLLOW", 0), mode)
     try:
         verify_private_file_fd(fd)
@@ -607,6 +631,12 @@ def atomic_write_private(path: Path, data: bytes, *, replace: bool) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         if replace:
+            try:
+                existing = open_private_file(p, os.O_RDONLY)
+            except FileNotFoundError:
+                pass
+            else:
+                os.close(existing)
             os.replace(temporary, p)
         else:
             try:

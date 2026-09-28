@@ -150,7 +150,10 @@ def _prepare_query_with_policy(
     _bounded_shape({"state": state, "questions": questions})
     _validate_questions(questions)
     try:
-        _screened, findings = screen({"state": state, "questions": questions})
+        _screened, findings = screen(
+            {"state": state, "questions": questions},
+            allow_context=data_classification in ("internal-minimized", "restricted"),
+        )
     except RecursionError as error:
         raise QueryError("REQUEST_DEPTH_OR_SIZE") from error
     if findings:

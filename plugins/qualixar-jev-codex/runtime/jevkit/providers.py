@@ -11,6 +11,10 @@ from pathlib import Path
 from .security import SafeError, canonical, private_dir
 
 
+def _windows_legacy_storage() -> bool:
+    return os.name == "nt"
+
+
 @dataclass(frozen=True)
 class ProviderProfile:
     provider_id: str
@@ -63,6 +67,8 @@ def provider_profile(provider_id: str) -> ProviderProfile:
 
 
 def _safe_regular_file(path: Path, error: str) -> None:
+    if _windows_legacy_storage():
+        raise SafeError("LEGACY_PROVIDER_FILES_UNAVAILABLE_WINDOWS")
     for component in (path, *path.parents):
         if component.is_symlink():
             # macOS ships /var as a symlink to /private/var, so every path
@@ -88,6 +94,8 @@ def _safe_regular_file(path: Path, error: str) -> None:
 
 
 def _private_env(config_root: Path) -> dict[str, str]:
+    if _windows_legacy_storage():
+        raise SafeError("LEGACY_PROVIDER_FILES_UNAVAILABLE_WINDOWS")
     path = config_root / ".env"
     if not path.exists():
         return {}
@@ -125,6 +133,14 @@ def resolve_provider(
     provider_id: str | None = None, *, config_root: Path | None = None
 ) -> ProviderProfile:
     root = (config_root or default_config_root()).expanduser()
+    if _windows_legacy_storage():
+        # The legacy .env/provider files have no Windows handle/ACL checks.
+        # An explicit selection or process-local JEV_PROVIDER is sufficient
+        # for profile metadata; credentials still require the OS store.
+        if (root / ".env").exists() or (root / "provider").exists():
+            raise SafeError("LEGACY_PROVIDER_FILES_UNAVAILABLE_WINDOWS")
+        selected = provider_id or os.environ.get("JEV_PROVIDER", "").strip().lower()
+        return provider_profile(selected or "typesafe")
     private_values = _private_env(root)
     selected = provider_id or os.environ.get("JEV_PROVIDER", "").strip().lower()
     selection_path = root / "provider"
@@ -194,6 +210,8 @@ def get_provider_credential(
             raise SafeError("KEYCHAIN_CREDENTIAL_UNAVAILABLE") from None
     if credential_store != "legacy":
         raise SafeError("INVALID_CREDENTIAL_STORE")
+    if _windows_legacy_storage():
+        raise SafeError("LEGACY_CREDENTIALS_UNAVAILABLE_WINDOWS")
     value = os.environ.get(profile.env_var, "").strip()
     if not value:
         root = (config_root or default_config_root()).expanduser()
@@ -214,6 +232,10 @@ def get_provider_credential(
 def store_provider_credential(
     provider_id: str, key: str, *, config_root: Path | None = None
 ) -> ProviderProfile:
+    if _windows_legacy_storage():
+        # This helper writes temporary key/provider files itself. Use the OS
+        # credential store via the current jev_auto setup instead.
+        raise SafeError("LEGACY_CREDENTIALS_UNAVAILABLE_WINDOWS")
     profile = provider_profile(provider_id)
     value = validate_key(key)
     root = (config_root or default_config_root()).expanduser()

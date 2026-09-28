@@ -302,6 +302,8 @@ class EngineJudgeCoreTests(_EngineTestCase):
         self.assertFalse(worker.is_alive())
         self.assertEqual([str(error) for error in outcome], ["POLICY_CHANGED"])
         self.assertEqual(providers.calls, [])
+        self.assertEqual(engine.store.stats()["budget_rows"], [],
+                         "a revoked request must not spend a daily attempt before transport")
 
     def test_sensitive_state_is_never_sent_to_the_provider(self):
         self.enroll(case_ids=["c1"])
@@ -844,6 +846,7 @@ class LiveRecipeGateTests(_EngineTestCase):
                                   "data_classification": "public"})
 
         self.assertEqual(result["host_action"], "verify")
+        self.assertEqual(result["raw_gate_action"], "act")
         self.assertEqual(result["status"], "EXPERIMENTAL_ADVISORY")
         self.assertEqual(result["recipe_status"], "SPECIFICATION_NOT_MODEL_EVALUATED")
         self.assertIn("capped at VERIFY", result["reason"])
@@ -896,7 +899,7 @@ class LiveRecipeGateTests(_EngineTestCase):
         self.assertEqual(result["host_action"], "verify")
         self.assertIn("confidence", result["reason"].lower())
 
-    def test_laya_profile_threshold_is_used_and_uncalibrated_act_is_capped(self):
+    def test_laya_uses_unmodified_recipe_floor_until_labeled_evaluation_exists(self):
         self.enroll(generic_query_enabled=True)
         answer = {"type": "choice", "choice": "retry_unchanged", "confidence": 0.6,
                   "probabilities": {"retry_unchanged": 0.95, "retry_with_change": 0.02,
@@ -905,18 +908,18 @@ class LiveRecipeGateTests(_EngineTestCase):
         engine.evaluate_typed = lambda *a, **k: {
             "answers": {"decision": answer}, "provider": "laya-mlx", "model": "local-test",
             "receipt_id": "b" * 64, "cache_hit": False,
-            "calibration_status": "MEASURED_SMALL_SAMPLE_NOT_CALIBRATED",
+            "calibration_status": "NOT_EVALUATED",
         }
         result = engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.retry-decision",
                                   "input": {"failure": "timeout", "attempts_so_far": "one",
                                             "available_actions": "retry or escalate"},
                                   "data_classification": "public"})
         self.assertEqual(result["host_action"], "verify")
-        self.assertIn("capped at VERIFY", result["reason"])
+        self.assertIn("below the configured floor", result["reason"])
         receipt = engine.recall(result["policy_receipt_id"])["detail"]
         self.assertEqual(receipt["gate"]["provider_profile"]["provider"], "laya-mlx")
-        self.assertEqual(receipt["gate"]["thresholds_applied"]["min_confidence"], 0.5)
-        self.assertEqual(receipt["gate"]["recommendation"], "route_to_queue")
+        self.assertEqual(receipt["gate"]["thresholds_applied"]["min_confidence"], 0.7)
+        self.assertIsNone(receipt["gate"]["recommendation"])
 
     def test_provider_failure_does_not_create_a_policy_receipt(self):
         self.enroll(generic_query_enabled=True)
@@ -926,6 +929,8 @@ class LiveRecipeGateTests(_EngineTestCase):
                              "input": {"query": "plain", "candidate": "clear"},
                              "data_classification": "public"})
         self.assertEqual(str(ctx.exception), "DECISION_FAILED_OR_UNAVAILABLE")
+        self.assertEqual(engine.store.stats()["budget_rows"][0]["reserved_attempts"], 1,
+                         "a failed transport may still have been billed and remains an attempt")
 
     def test_secret_like_recipe_input_is_blocked_before_provider_and_receipt(self):
         self.enroll(generic_query_enabled=True)

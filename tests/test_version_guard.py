@@ -49,6 +49,7 @@ class _Repo:
         for relative in (PLUGIN_JSON,
                          Path("plugins/qualixar-jev-codex/runtime/x.py"),
                          Path("plugins/qualixar-jev-decision-layer/hooks.json"),
+                         Path(".agents/plugins/marketplace.json"),
                          Path(".claude-plugin/marketplace.json"),
                          Path("docs/GETTING_STARTED.md")):
             target = self.path / relative
@@ -89,6 +90,7 @@ class VersionGuard(unittest.TestCase):
         """The defect this exists for: two trees, one version number."""
         for shipped in ("plugins/qualixar-jev-decision-layer/hooks.json",
                         "plugins/qualixar-jev-codex/runtime/x.py",
+                        ".agents/plugins/marketplace.json",
                         ".claude-plugin/marketplace.json"):
             with self.subTest(shipped=shipped):
                 self.repo.write(shipped, "changed\n")
@@ -207,6 +209,15 @@ class EveryHostIsCovered(unittest.TestCase):
                             for rule in shipped),
                         f"{host}: {entry} is outside {shipped}, so that host can "
                         f"take a silent same-version change")
+
+    def test_both_marketplace_files_are_watched(self):
+        shipped = self._shipped()
+        for entry in (".agents/plugins/marketplace.json",
+                      ".claude-plugin/marketplace.json"):
+            with self.subTest(entry=entry):
+                self.assertTrue((ROOT / entry).is_file(), f"missing marketplace: {entry}")
+                self.assertIn(entry, shipped,
+                              f"{entry} resolves a host install but is outside version_guard")
 
     def test_all_five_supported_hosts_are_listed_here(self):
         """Adding a sixth host without listing it leaves it unguarded."""

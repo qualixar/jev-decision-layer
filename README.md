@@ -56,7 +56,7 @@ Synthetic request + supplied candidates
 | A direct Jev call gives you | This layer adds |
 |---|---|
 | A typed answer from the selected provider | One shared runtime with host-specific adapters |
-| A question you define for one call | 20 reusable MCP contracts and 38 data-only recipe specifications |
+| A question you define for one call | 20 reusable legacy workflow contracts plus a catalog of 38 data-only recipe specifications; the 20 legacy workflows correspond to 20 of those 38 recipes, so these counts are not additive |
 | Provider output | Workspace/provider scope, request limits, local `act / verify / ignore` gate, and a receipt |
 | A hosted decision route | An optional, separately installed local Laya-MLX route for eligible decisions |
 | Whatever validation you build around that call | 114 synthetic offline fixtures that exercise the shipped local gate, without a provider call |
@@ -69,7 +69,7 @@ A manager can compare a work item against a rubric and priorities they provide. 
 
 ## Jev, local Laya, or hybrid?
 
-Use hosted Jev for a reviewed decision whose data scope permits a provider call. OpenRouter is a separate hosted provider route. The 1.0.8 target supports hosted use on macOS, Linux, and Windows; macOS has live-path evidence; native Windows and Linux CI remain release gates before those platforms are described as verified. Windows host registration remains manual-plan-only, with writes blocked. Use optional local Laya-MLX only on a supported Apple-Silicon Mac after local attestation. Hybrid mode follows the workspace policy you reviewed. Provider behavior is not assumed to be interchangeable; see the [small-sample observation](#a-small-laya-mlx-sample-informed-a-threshold-hypothesis).
+Use hosted Jev for a reviewed decision whose data scope permits a provider call. OpenRouter is a separate hosted provider route. The 1.0.8 target supports hosted use on macOS, Linux, and Windows; macOS has live-path evidence; native Windows and Linux CI remain release gates before those platforms are described as verified. Windows host registration remains manual-plan-only, with writes blocked. Use optional local Laya-MLX only on a supported Apple-Silicon Mac after local attestation. Hybrid mode follows the workspace policy you reviewed. Provider behavior is not assumed to be interchangeable; see [provider thresholds and evidence](#provider-thresholds-and-evidence).
 
 ## What can an agent actually do with it?
 
@@ -90,7 +90,7 @@ Use hosted Jev for a reviewed decision whose data scope permits a provider call.
 | A structured extraction | Check every field against the source and return the probability each one is wrong | Decide what to do with a suspect field; re-extract or escalate |
 | A set of retrieved passages | Score them absolutely and say whether they answer the question at all | Read the sources; abstain honestly when told to |
 
-The package has **20 original workflow contracts and 38 data-only recipe specifications**. The two new recipes include work-item prioritization for managers and content-format selection for creators. This is a catalog of bounded use cases, not a claim that Jev is accurate on every user's data. Browse [everyday examples and recipe families](docs/USE_CASES.md), or ask the agent for `jev_recipe_catalog`.
+The package has **38 distinct data-only recipe specifications**. Its 20 original workflow contracts correspond to 20 of those recipes; they are not 20 additional recipes. The two new recipes include work-item prioritization for managers and content-format selection for creators. This is a catalog of bounded use cases, not a claim that Jev is accurate on every user's data. Browse [everyday examples and recipe families](docs/USE_CASES.md), or ask the agent for `jev_recipe_catalog`.
 
 ### Prove it before you spend anything
 
@@ -116,7 +116,7 @@ For a live `jev_recipe_try`, the packaged gate evaluates the typed answer and re
 
 The `jev_recipe_try` response is marked `EXPERIMENTAL_ADVISORY`. Its policy receipt records the recipe status, provider receipt ID, provider/model, and local gate result. The answer and receipt do not prove provider accuracy, authorize an operation, or execute anything. A below-threshold or malformed answer remains `verify`; an explicit `unknown` may return `ignore`.
 
-**Confidence is not probability.** A distribution can look decisive while the answer is not calibrated, and gating on probability alone passes answers the model is not actually sure of. The gate applies both. A Noul answer carries no confidence field at all — its distance from 0.5 is the certainty.
+**Confidence is a summary of the distribution, not independent accuracy evidence.** [TypeSafe derives Choice and Score confidence from their reported probabilities](https://docs.typesafe.ai/confidence). The recipe gate applies both its configured confidence floor and probability bar as conservative policy settings; neither is calibrated on this repository's tasks. A Noul answer carries no confidence field, so its yes/no bands apply directly to its value.
 
 **The gate fails closed.** A threshold that is missing, malformed, or out of range is a broken gate, not an absent one, and degrades to `verify` rather than `act`. So does a value outside its own domain, a label the model ranked below another, and an `act` that would carry no recommendation.
 
@@ -160,17 +160,9 @@ The first-run wizard shows the exact folder, provider, text scope, expiry, and d
 
 The secret screen is best-effort, **not comprehensive data-loss prevention**. Jev maximum requires an extra hosted-data confirmation, but that cannot grant permission to disclose somebody else's client or confidential information. Do not submit credentials or material you are not permitted to share. The provider key is entered only in the private setup page and stored by the platform credential store; do not paste it into chat, a repository file, or a shell argument. Availability and native verification differ by operating system; see [host and platform evidence](docs/HOSTS.md).
 
-## A small Laya-MLX sample informed a threshold hypothesis
+## Provider thresholds and evidence
 
-A prior small Laya-MLX study recorded fourteen typed decisions from **laya-mlx 0.2.0** (`aac6fef/laya-mlx`, ModernBERT-large, 421M), run through this package's twenty decision contracts:
-
-| Measurement | Observed in this sample |
-|---|---:|
-| Confidence | min 0.0085 · **median 0.2861** · max 0.7872 |
-| Probability minus that confidence | min +0.1078 · **median +0.2832** · max +0.4214 |
-| Answers correct or honestly abstaining | **13 of 14** |
-
-In that small sample, one tested threshold cleared **1 of 10** real answers, while a lower floor cleared **5**. That observation motivated a provider-specific threshold hypothesis and keeping unmeasured providers on a stricter default. It is a small measurement, **not calibration**: every recipe still carries `UNVALIDATED_DEMONSTRATION_DEFAULT`, and provider profiles report `NOT_CALIBRATED`. It does not establish general Laya accuracy or equivalent confidence behavior across providers.
+The shipped recipe floors are demonstration policy settings. The repository does not contain a reproducible, labeled provider evaluation sufficient to tune separate TypeSafe and Laya thresholds, so the local Laya route currently uses each recipe's unchanged floor. Its provider profile reports `UNVALIDATED_DEMONSTRATION_DEFAULT` with zero qualifying evaluation samples. The 114 offline fixtures check the local contract against hand-authored answers; they do not measure provider correctness, calibration, cost saved, or latency saved. Provider-specific thresholds require a labeled test set, a documented model revision, and held-out validation before they can be claimed.
 
 ## Install
 

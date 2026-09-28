@@ -7,7 +7,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .security import private_dir, screen
+from .security import SafeError, private_dir, screen
+
+
+def _windows_legacy_storage() -> bool:
+    return os.name == "nt"
 
 
 POLICY_MODES = ("off", "assist")
@@ -70,6 +74,10 @@ def policy_mode(config_root: Path | None = None) -> str:
     if override is not None:
         return _advisory_mode(override)
     path = (config_root or _config_root()) / "policy-mode"
+    if _windows_legacy_storage():
+        if path.exists():
+            raise SafeError("LEGACY_POLICY_STORAGE_UNAVAILABLE_WINDOWS")
+        return DEFAULT_POLICY_MODE
     try:
         candidate = path.read_text().strip().lower()
     except (OSError, UnicodeError):
@@ -78,6 +86,8 @@ def policy_mode(config_root: Path | None = None) -> str:
 
 
 def write_policy_mode(mode: str, config_root: Path | None = None, *, overwrite: bool = True) -> Path:
+    if _windows_legacy_storage():
+        raise SafeError("LEGACY_POLICY_STORAGE_UNAVAILABLE_WINDOWS")
     candidate = mode.strip().lower()
     if candidate not in POLICY_MODES:
         raise ValueError("INVALID_POLICY_MODE")

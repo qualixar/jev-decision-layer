@@ -1,0 +1,7 @@
+# The runtime manifest hashes source bytes, so Windows checkouts must preserve
+# the canonical LF bytes used by the release package.
+*.py text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf

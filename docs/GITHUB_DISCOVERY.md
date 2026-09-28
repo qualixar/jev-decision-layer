@@ -49,7 +49,7 @@ Use these terms naturally in the title, opening, headings, and explanatory text 
 - MCP, tool selection, retry decisions, context selection, and output relevance;
 - local policy gate, `act / verify / ignore`, workspace scope, and receipts.
 
-The first screen should show one bounded decision, explain what the layer adds beyond a direct Jev call, and state that host permissions remain authoritative. Link the host evidence table beside any five-host claim. Keep the small Laya-MLX sample under the first-use explanation and label it as a measurement, not calibration.
+The first screen should show one bounded decision, explain what the layer adds beyond a direct Jev call, and state that host permissions remain authoritative. Link the host evidence table beside any five-host claim. Do not lead with the earlier Laya-MLX threshold sample: its labeled rows and reproduction script are absent from this repository, so it cannot justify a provider-specific gate floor.
 
 ## Working article title
 
@@ -64,7 +64,7 @@ Keep [`llms.txt`](../llms.txt) as a reading index for agents. It is not a rankin
 ## Claim boundaries
 
 - Say **one shared runtime with adapters for five hosts**; do not say all five are equally verified.
-- Describe thresholds as unvalidated defaults or explicit small-sample observations; never imply calibration.
+- Describe shipped thresholds as unvalidated defaults; do not imply provider calibration or an independently measured confidence signal.
 - Treat 114 offline fixtures as tests of the shipped local gate contract, not provider-accuracy evidence.
 - Do not claim token, subscription-cost, API-cost, or task-time savings without matched accepted-task trials.
 - Say the model returns advice and local policy metadata; the host retains execution authority.

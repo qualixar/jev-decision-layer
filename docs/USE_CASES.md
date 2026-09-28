@@ -16,7 +16,7 @@ For a live `jev_recipe_try` in 1.0.8, the packaged local gate evaluates the prov
 
 A below-threshold or malformed answer remains `verify`. The policy receipt records the recipe status, provider receipt ID, provider/model, and gate result. It is evidence of the local policy result, not evidence that a provider is accurate or that an action was performed.
 
-**Confidence is not probability.** A distribution can look decisive while the answer is not calibrated. The gate applies both, so do not second-guess it from the top probability alone. A Noul answer has no confidence field at all — its distance from 0.5 is the certainty, and the yes/no bands express it.
+**Confidence summarizes the probability distribution.** [TypeSafe computes Choice and Score confidence from their reported probabilities](https://docs.typesafe.ai/confidence); it is not an independent accuracy measurement. The gate applies its configured confidence floor and probability bar as unvalidated policy settings, and a live passing recipe remains capped to `verify`. A Noul answer has no confidence field; its yes/no bands apply to its value.
 
 ## For managers and team leads
 

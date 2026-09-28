@@ -1300,8 +1300,10 @@ class SelftestPartialFailureResilienceTests(unittest.TestCase):
         healthy_id = "qualixar.catalog-quality"
         healthy_fixture = next(e for e in CATALOG["fixtures"] if e["id"] == healthy_id)
         healthy_gate = next(g for g in CATALOG["gates"] if g["id"] == healthy_id)
+        healthy_recipe = next(r for r in CATALOG["recipes"] if r["id"] == healthy_id)
         orphan_entry = _valid_entry("test.synthetic-orphan-fixture")
-        fake_document = {"fixtures": [healthy_fixture, orphan_entry], "gates": [healthy_gate]}
+        fake_document = {"recipes": [healthy_recipe], "fixtures": [healthy_fixture, orphan_entry],
+                         "gates": [healthy_gate]}
 
         with patch("jev_auto.recipe_fixtures.catalog_document", return_value=fake_document):
             result = selftest()
