@@ -1,9 +1,9 @@
 <p align="center"><img src="docs/assets/jev-mark.svg" alt="Qualixar Jev Decision Layer mark" width="56" height="56"></p>
 
-<h1 align="center">Qualixar Jev Decision Layer</h1>
+<h1 align="center">Qualixar Jev Decision Layer for AI Agents</h1>
 
-<p align="center"><strong>Typed decisions for coding agents. Execution stays with the agent.</strong><br>
-Route bounded task, tool, skill, and review choices through TypeSafe Jev, with optional local Laya.</p>
+<p align="center"><strong>Fast, typed decisions for agent harnesses. Local gates and receipts for every choice.</strong><br>
+Route tasks, tools, skills, tests, and reviews through TypeSafe Jev, with optional local Laya-MLX on Apple Silicon.</p>
 
 <p align="center">
 <a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.8"><img src="https://img.shields.io/badge/version-1.0.8-7655d9?style=flat-square" alt="Version 1.0.8"></a>
@@ -13,17 +13,19 @@ Route bounded task, tool, skill, and review choices through TypeSafe Jev, with o
 <img src="https://img.shields.io/badge/license-MIT-f97316?style=flat-square" alt="MIT license">
 </p>
 
-<p align="center"><a href="#60-second-example">See a bounded decision</a> · <a href="#why-add-a-layer-instead-of-calling-jev-directly">Why a layer?</a> · <a href="#install">Install</a> · <a href="#supported-hosts">Host evidence</a> · <a href="docs/USE_CASES.md">Use cases</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="LICENSE">MIT license</a></p>
+<p align="center"><a href="#60-second-example">See a bounded decision</a> · <a href="#why-an-ai-agent-decision-layer-instead-of-a-direct-jev-call">Why a layer?</a> · <a href="#install">Install</a> · <a href="#supported-hosts">Host evidence</a> · <a href="docs/USE_CASES.md">Use cases</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="LICENSE">MIT license</a></p>
 
-<p align="center"><img src="docs/assets/hero.svg" alt="Qualixar Jev Decision Layer: typed decisions for coding-agent workflows" width="820"></p>
+<p align="center"><img src="docs/assets/hero.svg" alt="Qualixar Jev AI agent decision layer: TypeSafe Jev routing, local gates, and receipts across five agent harnesses" width="820"></p>
 
 <p align="center"><strong>Not every decision inside a coding agent needs another chat-model turn.</strong></p>
 
-Qualixar Jev Decision Layer gives a coding agent a typed way to make a **bounded choice**—for example, which supplied tool, skill, file, retry path, or review target fits the current state. It routes eligible questions to hosted [TypeSafe Jev](https://docs.typesafe.ai/introduction/coding-agents) or an optional, separately installed [local Laya-MLX](https://github.com/mizorewww/laya-mlx), then applies local policy and records a receipt. The agent and its host still perform and verify the work.
+**Qualixar Jev Decision Layer is an open-source MCP decision layer for AI agent harnesses.** It routes bounded choices—task routing, tool selection, skill choice, file ranking, test selection, and review priority—to hosted [TypeSafe Jev](https://docs.typesafe.ai/introduction/coding-agents) or optional [local Laya-MLX](https://github.com/mizorewww/laya-mlx). A local policy gate checks the typed answer and records a receipt. The agent's host keeps permission to execute and verify the work.
+
+**Why Jev for the decision step?** TypeSafe's [published System One workflow comparisons](https://typesafe.ai/blog/introducing-system-one-models-and-jev) report Jev at **193.6× faster and 444.6× cheaper** than the LLM reference on those workflows. Its [model pricing](https://docs.typesafe.ai/models) lists **$0.042 per million input tokens**, with output tokens free. Qualixar connects that fast decision primitive to reusable agent recipes, local gates, workspace controls, and evidence you can inspect.
 
 One shared runtime has adapters for **Codex, Claude Code, VS Code, Hermes, and Antigravity**. Those adapters do not have equal live-verification evidence; the [host table](#supported-hosts) states what has and has not been run.
 
-**Why use a layer instead of calling Jev directly?** The model call is only one part of a coding-agent workflow. This repository adds reusable decision contracts, workspace scope and request controls, a local answer gate, receipts, optional local routing, and host-specific adapters behind one shared runtime. Direct Jev is a reasonable choice when you need only a single provider call; use this layer when you need those surrounding controls across harnesses.
+**Why use a layer instead of calling Jev directly?** The model call is one step in an agent workflow. This repository adds reusable decision contracts, workspace scope and request controls, a local answer gate, receipts, optional local routing, and host-specific adapters behind one shared runtime.
 
 **The model recommends; the host retains execution authority.** A Jev or Laya answer does not grant shell, file, browser, deployment, or publishing permission. Host support is not equally verified; see the [evidence and boundary table](#supported-hosts).
 
@@ -37,7 +39,7 @@ Install the plugin, complete the reviewed workspace setup, then ask your agent:
 
 > Route this synthetic duplicate-charge request between `billing` and `engineering`. Show the selected candidate, provider, model, route status, and receipt ID.
 
-The prompt supplies a closed choice. A live result should identify the provider/model, route status, and receipt; the selected candidate may vary. This route example does not return the recipe-specific `host_action`. This README does not present a recorded live provider result; see [first use](docs/GETTING_STARTED.md) for setup and verification. The animation in [What can an agent actually do with it?](#what-can-an-agent-actually-do-with-it) is an **illustration of the answer flow**, not a provider recording.
+The prompt supplies a closed choice. A live result identifies the provider/model, route status, and receipt; the selected candidate may vary. This route example does not return the recipe-specific `host_action`. The animation in [What can an agent actually do with it?](#what-can-an-agent-actually-do-with-it) illustrates the answer flow.
 
 ```text
 Synthetic request + supplied candidates
@@ -51,7 +53,7 @@ Synthetic request + supplied candidates
       Host decides what to do
 ```
 
-## Why add a layer instead of calling Jev directly?
+## Why an AI agent decision layer instead of a direct Jev call?
 
 | A direct Jev call gives you | This layer adds |
 |---|---|
@@ -234,7 +236,7 @@ Support is **not uniform**, and this table separates what has been observed from
 
 | Host | Evidence | Boundary |
 |---|---|---|
-| **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on macOS; native Codex hook is a separate reviewed capability | Does not establish Linux operation, automatic-hook coverage, or savings; Windows hosted runtime is disabled in 1.0.8 |
+| **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on macOS; native Codex hook is a separate reviewed capability | Linux operation and automatic-hook coverage require separate host checks; Windows hosted runtime is disabled in 1.0.8 |
 | **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; seven commands and three skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly and stays silent on an unenrolled workspace | A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are **not yet verified**. In the desktop app's **Code tab**, the plugin-provided MCP server does not load at all — see the install note above |
 | **Hermes** | Staged plugin doctor registers the declared tools and hook; installed copy awaits refresh | Native model/tool turn still needs verification |
 | **Antigravity** | Packaged PreInvocation advisory hook and skills; this adapter does not request PreToolUse authority | Native model/tool turn and portable MCP registration still need verification |
@@ -247,6 +249,24 @@ The optional Laya worker has completed local synthetic inference and macOS sandb
 ## Measure each decision
 
 The broker reports provider calls and bytes, and the decision receipt lets you inspect what happened for a bounded choice. For task-level token, cost, and speed comparisons, use paired runs with the same host and an independently checked outcome. Recipe thresholds are configurable starting points; validate them against your own tasks before relying on an automatic action.
+
+## Frequently asked questions
+
+### What is Qualixar Jev Decision Layer?
+
+It is an open-source MCP decision layer that connects agent harnesses to TypeSafe Jev for typed, bounded choices. It adds reusable recipes, workspace controls, local policy gates, and receipts around the model call. Codex, Claude Code, Hermes, Antigravity, and VS Code use host-specific adapters to reach the shared runtime.
+
+### Can Jev reduce AI agent token costs?
+
+For a narrow choice that Jev handles directly, an agent can reserve its general-purpose model for generation and execution instead of using another chat-model answer for the decision. TypeSafe publishes [workflow speed and cost comparisons](https://typesafe.ai/blog/introducing-system-one-models-and-jev); the local receipt shows the decision used in your own workflow.
+
+### Does this replace Codex, Claude Code, or the agent's main LLM?
+
+No. Jev returns a typed recommendation for a bounded question. The host still controls file changes, shell commands, browser actions, approvals, and the final artifact. The local gate can return `act`, `verify`, or `ignore` as policy metadata; it does not grant execution permission.
+
+### Can a manager or content creator use it without writing MCP JSON?
+
+Yes. The local [recipe workbench](docs/GETTING_STARTED.md#let-a-non-developer-explore-a-recipe) presents forms and offline examples. A manager can compare a work item against supplied priorities; a creator can select a format from supplied options. Both review the recommendation before acting.
 
 ## Build on it
 
