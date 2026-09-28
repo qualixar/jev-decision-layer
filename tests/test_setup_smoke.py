@@ -163,18 +163,22 @@ class SetupSmokeTests(unittest.TestCase):
             self.assertEqual(saved["provider"], "typesafe")
             self.assertEqual(keychain.get("typesafe"), "synthetic-key-123456")
 
-    def test_real_keychain_setup_fails_early_off_macos(self):
+    def test_setup_fails_closed_when_linux_secret_tool_is_missing(self):
         from src.adl.api.setup_controller import SetupChoice, SetupController, SetupError
+        from src.adl.api.credential_store import LinuxSecretService
 
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory) / "project"
             project.mkdir()
-            controller = SetupController(project, bridge=lambda *_: None, start=lambda *_: None)
             choice = SetupChoice("typesafe", "public", 1, 20, 20000,
                                  generic_query_enabled=True, decision_mode="jev-public")
-            with patch("src.adl.api.setup_controller.platform.system", return_value="Linux"):
-                with self.assertRaisesRegex(SetupError, "GUIDED_SETUP_MACOS_ONLY"):
+            with patch("src.adl.api.setup_controller.credential_store_for_platform",
+                       return_value=LinuxSecretService()) as factory, \
+                 patch("src.adl.api.credential_store.shutil.which", return_value=None):
+                controller = SetupController(project, bridge=lambda *_: None, start=lambda *_: None)
+                with self.assertRaisesRegex(SetupError, "SECRET_SERVICE_DEPENDENCY_MISSING"):
                     controller.preview(choice)
+            factory.assert_called_once_with(interactive=True)
 
     def test_jev_maximum_requires_separate_hosted_scope_confirmation(self):
         from src.adl.api.setup_controller import SetupController

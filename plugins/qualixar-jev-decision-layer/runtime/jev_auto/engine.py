@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from .common import AutoError, canonical, digest, require_clean, state_dir, workspace
 from .protocol import validate_questions, validate_response, compact_receipt
-from .settings import load_policy, validate_policy
+from .settings import _policy_lock, load_policy, validate_policy
 from .store import Store,SingleFlight
 from .providers import Providers
 
@@ -17,41 +17,70 @@ class Engine:
         selected=p.get('routes',{}).get(recipe,p['provider'])
         if selected not in ('typesafe','openrouter','laya-mlx'):raise AutoError('PROVIDER_ROUTE')
         return {**p,'provider':selected}
-    def judge(self,recipe,state,questions,p=None,*,provider_override=None):
+    def judge(self,recipe,state,questions,p=None,*,provider_override=None,expected_policy_digest=None,
+              data_classification=None):
         p=p or self.policy();validate_policy(p,self.workspace)
-        if digest(p)!=digest(self.policy()):raise AutoError('POLICY_CHANGED')
+        policy_digest=digest(p)
+        if expected_policy_digest is not None and policy_digest!=expected_policy_digest:
+            raise AutoError('POLICY_CHANGED')
+        if policy_digest!=digest(self.policy()):raise AutoError('POLICY_CHANGED')
         if recipe not in p.get('case_ids',[]) and recipe not in p['local_recipe_ids'] and not (recipe=='generic' and p.get('generic_query_enabled') is True):raise AutoError('RECIPE_NOT_ENROLLED')
-        validate_questions(questions);require_clean({'state':state,'questions':questions})
+        request_scope=data_classification if data_classification is not None else p.get('data_classification','public')
+        if request_scope not in ('public','internal-minimized','restricted'):
+            raise AutoError('DATA_CLASSIFICATION_INVALID')
+        if data_classification is not None and request_scope=='internal-minimized' and p.get('data_classification') not in ('internal-minimized','restricted'):
+            raise AutoError('DATA_CLASSIFICATION_NOT_ENROLLED')
+        allow_context=request_scope!='public'
+        validate_questions(questions);require_clean({'state':state,'questions':questions},allow_context=allow_context)
         effective=self.effective_policy(p,recipe)
         if provider_override is not None:
             if (recipe!='generic' or provider_override!='laya-mlx'
                 or p.get('local_laya_enabled') is not True or not isinstance(p.get('mlx'),dict)):
                 raise AutoError('PROCESSOR_SWITCH_NEEDS_CONSENT')
             effective={**p,'provider':'laya-mlx'}
+        if data_classification is not None and request_scope=='restricted' and effective['provider']!='laya-mlx':
+            if p.get('data_classification')!='restricted' or p.get('decision_mode')!='jev-maximum':
+                raise AutoError('REMOTE_RESTRICTED_DATA')
+        effective={**effective,'data_classification':request_scope}
         identity={'typesafe':'jev-1.13.0','openrouter':'typesafe/jev-1.13','laya-mlx':p.get('mlx',{})}[effective['provider']]
         request={'state':state,'questions':questions,'provider':effective['provider'],'model':identity,'recipe':recipe,'policy':digest(p),'runtime':'1.0.0'}
         key=digest(request);cached=self.store.cached(key)
-        if cached:return {**cached,'cache_hit':True,'provider_usage_this_call':None}
+        if cached:
+            if digest(self.policy())!=policy_digest:raise AutoError('POLICY_CHANGED')
+            return {**cached,'cache_hit':True,'provider_usage_this_call':None}
         def work():
             # Re-read authority immediately before reserving the request.
             fresh=self.policy()
-            if digest(fresh)!=digest(p):raise AutoError('POLICY_CHANGED')
+            fresh_digest=digest(fresh)
+            if fresh_digest!=policy_digest or (expected_policy_digest is not None and fresh_digest!=expected_policy_digest):
+                raise AutoError('POLICY_CHANGED')
             cached=self.store.cached(key)
-            if cached:return {**cached,'cache_hit':True,'provider_usage_this_call':None}
+            if cached:
+                if digest(self.policy())!=policy_digest:raise AutoError('POLICY_CHANGED')
+                return {**cached,'cache_hit':True,'provider_usage_this_call':None}
             n=len(canonical({'state':state,'questions':questions,'model':identity}))
             if hasattr(self.providers,'ready_for_request'):self.providers.ready_for_request(effective)
-            self.store.reserve(p,n)
-            start=time.monotonic()
-            try:result=self.providers.evaluate(effective,state,questions)
-            except Exception as e:
-                self.store.event('provider_failure',{'recipe':recipe,'provider':effective['provider'],'elapsed_ms':round((time.monotonic()-start)*1000,2)})
-                if isinstance(e,AutoError):raise
-                raise AutoError('DECISION_FAILED_OR_UNAVAILABLE') from None
-            if digest(self.policy())!=digest(p):raise AutoError('POLICY_CHANGED_DURING_REQUEST')
+            # Readiness can wait. All approved policy writers use this lock;
+            # check the current authority before charging an attempt, then
+            # retain it through provider transport so revoke cannot win the
+            # race between the check and the request. A started transport
+            # remains charged even if it fails: the provider may have billed.
+            with _policy_lock(self.workspace,self.base):
+                current_digest=digest(self.policy())
+                if current_digest!=policy_digest or (expected_policy_digest is not None and current_digest!=expected_policy_digest):
+                    raise AutoError('POLICY_CHANGED')
+                self.store.reserve(p,n)
+                start=time.monotonic()
+                try:result=self.providers.evaluate(effective,state,questions)
+                except Exception as e:
+                    self.store.event('provider_failure',{'recipe':recipe,'provider':effective['provider'],'elapsed_ms':round((time.monotonic()-start)*1000,2)})
+                    if isinstance(e,AutoError):raise
+                    raise AutoError('DECISION_FAILED_OR_UNAVAILABLE') from None
+                if digest(self.policy())!=policy_digest:raise AutoError('POLICY_CHANGED_DURING_REQUEST')
             provider_metadata=result.get('provenance')
             result=validate_response(result,questions,identity if isinstance(identity,str) else None)
             if provider_metadata is not None:result['provider_metadata']=provider_metadata
-            require_clean(result)
+            require_clean(result,allow_context=allow_context)
             receipt={'kind':'decision','recipe':recipe,'request_digest':key,'evidence_digest':digest(state),'rubric_digest':digest(questions),
                      'provider':effective['provider'],'model_identity':identity,'recorded_at':time.time(),'result':result}
             receipt_id=self.store.put(receipt)
@@ -75,16 +104,23 @@ class Engine:
                 'policy':decision,'cache_hit':result['cache_hit'],'provider_receipt':result['receipt_id']}
         record['record_sha256']=self.store.put(record)
         return compact_receipt(record)
-    def evaluate_typed(self,state,questions,provider,data_classification):
+    def evaluate_typed(self,state,questions,provider,data_classification,expected_policy_digest=None):
         from src.adl.queries.typed import QueryError,prepare_query
+
+        p=self.policy()
+        if expected_policy_digest is not None and digest(p)!=expected_policy_digest:
+            raise AutoError('POLICY_CHANGED')
         try:
             compiled=prepare_query(self.workspace,state,questions,provider=provider,data_classification=data_classification,base=getattr(self,'base',None))
         except QueryError as error:
             raise AutoError(str(error)) from None
-        p=self.policy()
-        if compiled.policy_sha256!=digest(p):raise AutoError('POLICY_CHANGED')
+        policy_digest=digest(p)
+        if compiled.policy_sha256!=policy_digest or (expected_policy_digest is not None and policy_digest!=expected_policy_digest):
+            raise AutoError('POLICY_CHANGED')
         result=self.judge('generic',state,questions,p,
-                          provider_override='laya-mlx' if compiled.provider=='laya-mlx' and p['provider']!='laya-mlx' else None)
+                          provider_override='laya-mlx' if compiled.provider=='laya-mlx' and p['provider']!='laya-mlx' else None,
+                          expected_policy_digest=expected_policy_digest,
+                          data_classification=data_classification)
         if result['model']!=compiled.expected_model:raise AutoError('MODEL_MISMATCH')
         output={'status':'ADVISORY','provider':compiled.provider,'model':result['model'],
                 'answers':result['answers'],'receipt_id':result['receipt_id'],
@@ -149,22 +185,43 @@ class Engine:
                 'cache_hit':result['cache_hit'],'calibration_status':result['calibration_status'],
                 'execution_authorized':False}
     def try_recipe(self,req):
-        from .recipe_runtime import prepare_recipe
+        from .recipe_fixtures import apply_recipe_status_cap
+        from .recipe_gate import evaluate as evaluate_recipe
+        from .recipe_runtime import gate_policy, prepare_recipe
 
         prepared=prepare_recipe(req.get('recipe_id'),req.get('input'))
+        recipe_policy=gate_policy(prepared['recipe_id'])
         enrolled=self.policy()
+        expected_policy_digest=req.get('expected_policy_digest')
+        if expected_policy_digest is not None and digest(enrolled)!=expected_policy_digest:
+            raise AutoError('POLICY_CHANGED')
         provider=('laya-mlx' if req.get('data_classification')=='restricted'
                   and enrolled.get('local_laya_enabled') is True and isinstance(enrolled.get('mlx'),dict)
                   else self.effective_policy(enrolled,'generic')['provider'])
-        result=self.evaluate_typed(prepared['state'],prepared['questions'],provider,req.get('data_classification'))
+        result=self.evaluate_typed(prepared['state'],prepared['questions'],provider,
+                                   req.get('data_classification'),expected_policy_digest=expected_policy_digest)
         answer=result.get('answers',{}).get('decision')
         if not isinstance(answer,dict) or answer.get('type')!=prepared['questions']['decision']['type']:
             raise AutoError('RECIPE_RESULT_INVALID')
+        raw_gate=evaluate_recipe(recipe_policy,answer,result.get('provider'))
+        gate=apply_recipe_status_cap(raw_gate,prepared['status'])
+        reason=' '.join(gate['reasons'])
+        policy_receipt={
+            'kind':'recipe_policy','recipe_id':prepared['recipe_id'],
+            'recipe_status':prepared['status'],'provider_receipt_id':result['receipt_id'],
+            'provider':result['provider'],'model':result['model'],
+            'gate_policy_digest':digest(recipe_policy),'gate':gate,
+        }
+        policy_receipt_id=self.store.put(policy_receipt)
         return {'status':'EXPERIMENTAL_ADVISORY','recipe_id':prepared['recipe_id'],
                 'title':prepared['title'],'audience':prepared['audience'],'answer':answer,
                 'provider':result['provider'],'model':result['model'],'receipt_id':result['receipt_id'],
                 'cache_hit':result['cache_hit'],'calibration_status':result['calibration_status'],
-                'execution_authorized':False}
+                'recipe_status':prepared['status'],'gate_status':gate['status'],
+                'host_action':gate['host_action'],'raw_gate_action':raw_gate['host_action'],
+                'reason':reason,
+                'provider_profile':gate['provider_profile'],'recommendation':gate['recommendation'],
+                'policy_receipt_id':policy_receipt_id,'execution_authorized':False}
     def review_diff(self,req):
         from .review import compile_review
 

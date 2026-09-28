@@ -40,6 +40,21 @@ _SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; form-action 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'",
 }
 
+_SETUP_ERROR_HELP = {
+    "SECRET_SERVICE_DEPENDENCY_MISSING": (
+        "Linux hosted setup requires libsecret's secret-tool and an active user D-Bus Secret Service session. "
+        "Install the system tool or start the desktop keyring, then reopen setup."
+    ),
+    "SECRET_SERVICE_UNAVAILABLE": (
+        "The current user's Secret Service session is unavailable. Start or reconnect the desktop keyring, then retry setup."
+    ),
+    "SECRET_SERVICE_LOCKED": (
+        "The current user's Secret Service is locked or did not answer in time. Unlock the desktop keyring and retry setup."
+    ),
+    "CREDENTIAL_STORE_UNAVAILABLE": "The operating system credential manager is unavailable. Check the signed-in user session, then retry setup.",
+    "CREDENTIAL_STORE_UNSUPPORTED": "Hosted credential storage is not supported on this operating system.",
+}
+
 
 def _safe(value: object) -> str:
     return html.escape(str(value), quote=True)
@@ -117,7 +132,9 @@ class _SetupHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _error(self, status: int, code: str) -> None:
-        self._send(status, _page("Setup needs attention", f"<p role='alert'>{_safe(code)}</p>"))
+        help_text = _SETUP_ERROR_HELP.get(code)
+        guidance = f"<p>{_safe(help_text)}</p>" if help_text else ""
+        self._send(status, _page("Setup needs attention", f"<p role='alert'>{_safe(code)}</p>{guidance}"))
 
     def _host_ok(self) -> bool:
         return self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}"
@@ -230,7 +247,9 @@ class _SetupHandler(BaseHTTPRequestHandler):
             f"<label>Hosted Jev provider (unused for Laya-only) <select name='provider'>{provider_options}</select></label>"
             + ("" if local_available else "<p class='hint'>Laya local requires a verified model before it can be selected. Jev setup is available now.</p>")
             +
-            "<p class='hint'>Guided hosted setup currently requires macOS Keychain. Optional Laya needs a verified Apple-Silicon installation.</p>"
+            "<p class='hint'>Hosted setup uses the device's credential manager: macOS Keychain, Linux Secret Service "
+            "(libsecret's secret-tool plus an active user D-Bus session), or Windows Credential Manager. "
+            "Optional Laya needs a verified Apple-Silicon installation.</p>"
             f"<label>Advisory Jev tools <select name='generic'>{generic_options}</select></label>"
             f"<label>Automatic Jev prompt guidance <select name='auto_prepare'>{auto_options}</select>. Turning this on sends minimized prompt terms and candidate titles to your selected provider and uses your daily call budget; it never executes a tool. Laya-only makes no Jev call.</label>"
             "<p class='hint'>The next screen shows your exact choices before saving.</p>"
@@ -349,11 +368,11 @@ class _SetupHandler(BaseHTTPRequestHandler):
                     credential_field = "<p>No provider key needed for local Laya. Its model must be prepared and verified before setup can finish.</p>"
                 elif plan["upgrade"]:
                     credential_step = "<p class='hint'>Step 2 of 2 · Review the existing workspace permission change.</p>"
-                    credential_field = "<p>The existing provider key stays in macOS Keychain; this review does not replace it.</p>"
+                    credential_field = "<p>The existing provider key stays in the device credential manager; this review does not replace it.</p>"
                 else:
                     credential_step = "<p class='hint'>Step 2 of 2 · Check the scope and add your provider key.</p>"
                     credential_field = (
-                        "<label>Provider key (leave blank only if already stored in Keychain) "
+                        "<label>Provider key (leave blank only if already stored in the device credential manager) "
                         "<input name='credential' type='password' autocomplete='new-password'></label>"
                     )
                 external_scope_field = (
@@ -405,7 +424,9 @@ class _SetupHandler(BaseHTTPRequestHandler):
             self.server.applied = True
         except SetupError as error:
             code = str(error)
-            status = 409 if code == "EXISTING_POLICY_REVIEW_REQUIRED" else 503 if code.startswith(("SETUP_PARTIAL", "KEYCHAIN_")) else 400
+            status = 409 if code == "EXISTING_POLICY_REVIEW_REQUIRED" else 503 if code.startswith((
+                "SETUP_PARTIAL", "KEYCHAIN_", "CREDENTIAL_STORE_", "CREDENTIAL_", "SECRET_SERVICE_"
+            )) else 400
             self._error(status, code)
             return
         except Exception:
@@ -421,6 +442,8 @@ def build_controller(workspace: Path) -> SetupController:
 
 
 def main() -> None:
+    if os.name == "nt":
+        raise SystemExit("WINDOWS_UNSUPPORTED_IN_1_0_8")
     parser = argparse.ArgumentParser(description="Open private Qualixar setup in your browser")
     parser.add_argument("--workspace", type=Path, required=True)
     args = parser.parse_args()

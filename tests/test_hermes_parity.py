@@ -1,4 +1,4 @@
-"""Hermes exposes the bounded, explicit Codex context-tool contracts."""
+"""Hermes exposes the shared bounded baseline and declared optional tools."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def load_plugin():
 
 
 class HermesParityTests(unittest.TestCase):
-    def test_plugin_registers_context_tools_with_the_codex_mcp_contract(self):
+    def test_plugin_registers_common_baseline_with_exact_mcp_schemas(self):
         from jev_auto.mcp import definitions
 
         class FakeContext:
@@ -46,34 +46,41 @@ class HermesParityTests(unittest.TestCase):
         hermes = {tool["name"]: tool["schema"] for tool in context.tools}
         codex = {tool["name"]: tool for tool in definitions(SimpleNamespace(tools=lambda **_kwargs: []))}
 
-        for name in ("jev_prepare", "jev_reduce", "jev_recall"):
+        baseline = {"jev_recipe_catalog", "jev_recipe_selftest", "jev_setup",
+                    "jev_route", "jev_recipe_try", "jev_recall", "jev_verify", "jev_rerank"}
+        self.assertTrue(baseline <= set(hermes))
+        for name in baseline:
             with self.subTest(name=name):
-                self.assertIn(name, hermes)
-                actual = hermes[name]["parameters"]
-                expected = codex[name]["inputSchema"]
-                self.assertEqual(actual["type"], expected["type"])
-                self.assertEqual(actual["required"], expected["required"])
-                self.assertEqual(actual["additionalProperties"], expected["additionalProperties"])
-                self.assertEqual(set(actual["properties"]), set(expected["properties"]))
-                for property_name, expected_property in expected["properties"].items():
-                    with self.subTest(property_name=property_name):
-                        self.assertEqual(actual["properties"][property_name]["type"], expected_property["type"])
-        self.assertLess(hermes["jev_reduce"]["parameters"]["properties"]["text"]["maxLength"],
-                        codex["jev_reduce"]["inputSchema"]["properties"]["text"]["maxLength"])
+                self.assertEqual(hermes[name]["parameters"], codex[name]["inputSchema"])
 
     def test_plugin_manifest_advertises_all_context_tools(self):
         manifest = (PLUGIN / "plugin.yaml").read_text()
-        for name in ("jev_prepare", "jev_reduce", "jev_recall"):
+        expected = {tool["name"] for tool in self._registered_tools()}
+        advertised = set()
+        inside = False
+        for line in manifest.splitlines():
+            if line == "provides_tools:":
+                inside = True
+            elif inside and line.startswith("provides_hooks:"):
+                break
+            elif inside and line.strip().startswith("- "):
+                advertised.add(line.strip()[2:])
+        self.assertEqual(advertised, expected)
+        for name in ("jev_recipe_catalog", "jev_recipe_selftest", "jev_setup",
+                     "jev_route", "jev_recipe_try", "jev_recall", "jev_verify", "jev_rerank"):
             with self.subTest(name=name):
                 self.assertIn(f"  - {name}", manifest)
 
-    def test_native_bridge_dispatches_all_context_tools(self):
+    def test_native_bridge_dispatches_route_recipe_try_and_recall(self):
         from jev_auto.hermes_tool import handle
 
         cases = (
-            ("jev_prepare", {"workspace_path": "/synthetic", "goal": "Prepare focused context"}),
-            ("jev_reduce", {"workspace_path": "/synthetic", "goal": "Reduce safely", "text": "Synthetic text"}),
             ("jev_recall", {"workspace_path": "/synthetic", "receipt_id": "a" * 64}),
+            ("jev_route", {"workspace_path": "/synthetic", "kind": "task", "task": "Choose a task",
+                           "candidates": [{"id": "a"}, {"id": "b"}],
+                           "data_classification": "public"}),
+            ("jev_recipe_try", {"workspace_path": "/synthetic", "recipe_id": "invoice-triage",
+                                "input": {"invoice": "synthetic"}, "data_classification": "public"}),
         )
         seen = []
 
@@ -85,6 +92,73 @@ class HermesParityTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertEqual(handle({"name": name, "arguments": arguments}, dispatcher=dispatcher)["status"], "ADVISORY")
         self.assertEqual([name for name, _arguments in seen], [name for name, _arguments in cases])
+
+    def test_native_bridge_dispatches_shared_verify_and_rerank_contracts(self):
+        from jev_auto.hermes_tool import handle
+
+        cases = (
+            ("jev_verify", {"workspace_path": "/synthetic", "source_text": "Amount: 42",
+                            "extraction": {"amount": 42}, "data_classification": "public"}),
+            ("jev_rerank", {"workspace_path": "/synthetic", "query": "What is the amount?",
+                            "memories": [{"text": "Amount: 42"}], "data_classification": "public"}),
+        )
+        seen = []
+
+        def dispatcher(name, arguments):
+            seen.append((name, arguments))
+            return {"status": "ADVISORY", "execution_authorized": False}
+
+        for name, arguments in cases:
+            with self.subTest(name=name):
+                self.assertEqual(handle({"name": name, "arguments": arguments}, dispatcher=dispatcher),
+                                 {"status": "ADVISORY", "execution_authorized": False})
+        self.assertEqual([name for name, _arguments in seen], [name for name, _arguments in cases])
+
+    def test_offline_recipe_selftest_runs_without_enrollment_or_provider_calls(self):
+        from jev_auto import mcp
+        from jev_auto.hermes_tool import handle
+
+        with patch.object(mcp, "ensure", side_effect=AssertionError("self-test must not enroll")), \
+             patch.object(mcp, "request", side_effect=AssertionError("self-test must not call a provider")):
+            result = handle({"name": "jev_recipe_selftest", "arguments": {}})
+        self.assertIsInstance(result, dict)
+        self.assertNotIn("error", result)
+        self.assertTrue(result)
+
+    def test_registration_bridge_and_manifest_have_no_unregistered_tools(self):
+        from jev_auto.hermes_tool import ALLOWED
+
+        registered = {tool["name"] for tool in self._registered_tools()}
+        manifest = (PLUGIN / "plugin.yaml").read_text()
+        advertised = {line.strip()[2:] for line in manifest.splitlines()
+                      if line.startswith("  - ") and line.strip()[2:] != "pre_llm_call"}
+        self.assertEqual(registered, ALLOWED)
+        self.assertEqual(registered, advertised)
+        self.assertNotIn("jev_typed_decide", registered)
+
+    def test_route_and_recipe_try_are_advisory_and_return_receipt(self):
+        from jev_auto.hermes_tool import handle
+
+        receipt = "b" * 64
+        calls = []
+
+        def dispatcher(name, arguments):
+            calls.append((name, arguments))
+            return {"status": "ADVISORY", "receipt_id": receipt, "execution_authorized": False}
+
+        route = {"workspace_path": "/synthetic", "kind": "tool", "task": "Find a review tool",
+                 "candidates": [{"id": "read"}, {"id": "search"}],
+                 "data_classification": "public"}
+        recipe = {"workspace_path": "/synthetic", "recipe_id": "invoice-triage",
+                  "input": {"invoice": "synthetic"}, "data_classification": "public"}
+        expected = {"status": "ADVISORY", "receipt_id": receipt, "execution_authorized": False}
+        for name, args in (("jev_route", route), ("jev_recipe_try", recipe)):
+            with self.subTest(name=name):
+                self.assertEqual(handle({"name": name, "arguments": args}, dispatcher=dispatcher), expected)
+        self.assertEqual([name for name, _ in calls], ["jev_route", "jev_recipe_try"])
+        descriptions = {tool["name"]: tool["schema"]["description"] for tool in self._registered_tools()}
+        self.assertIn("Does not execute it", descriptions["jev_route"])
+        self.assertIn("advisory only", descriptions["jev_recipe_try"])
 
     def test_native_bridge_keeps_untrusted_context_tool_input_out_of_the_dispatcher(self):
         from jev_auto.hermes_tool import handle
@@ -107,8 +181,48 @@ class HermesParityTests(unittest.TestCase):
                                  {"error": "HERMES_TOOL_ARGUMENTS"})
         self.assertEqual(seen, [])
 
+    def test_workspace_paths_are_canonicalized_for_each_native_platform(self):
+        from jev_auto.hermes_tool import _canonical_workspace_path
+
+        self.assertEqual(_canonical_workspace_path(r"C:\Users\Varun\repo\..\repo", windows=True),
+                         r"C:\Users\Varun\repo")
+        self.assertEqual(_canonical_workspace_path(r"C:/Users/Varun/repo", windows=True),
+                         r"C:\Users\Varun\repo")
+        for invalid in (r"C:relative\repo", r"\\server\share\repo", r"\\?\C:\repo",
+                        r"\\.\PhysicalDrive0", "relative/repo", r"C:\x" + "\x00" + "repo"):
+            with self.subTest(path=invalid):
+                self.assertIsNone(_canonical_workspace_path(invalid, windows=True))
+        self.assertEqual(_canonical_workspace_path("/tmp/work/../repo", windows=False), "/tmp/repo")
+        self.assertIsNone(_canonical_workspace_path("relative/repo", windows=False))
+
+    def test_windows_workspace_path_is_canonicalized_before_dispatch(self):
+        from jev_auto import hermes_tool
+
+        seen = []
+        arguments = {"workspace_path": r"C:\Users\Varun\repo\..\repo", "goal": "Prepare focused context"}
+        with patch.object(hermes_tool.sys, "platform", "win32"):
+            result = hermes_tool.handle(
+                {"name": "jev_prepare", "arguments": arguments},
+                dispatcher=lambda _name, args: seen.append(args) or {"status": "ADVISORY"},
+            )
+        self.assertEqual(result, {"status": "ADVISORY"})
+        self.assertEqual(seen[0]["workspace_path"], r"C:\Users\Varun\repo")
+        self.assertEqual(arguments["workspace_path"], r"C:\Users\Varun\repo\..\repo")
+
     def test_bridge_retains_serialized_argument_and_result_caps(self):
+        from jev_auto import hermes_tool
         from jev_auto.hermes_tool import handle
+        plugin = load_plugin()
+
+        self.assertEqual(hermes_tool.MAX_RESULT_BYTES, plugin.MAX_TOOL_RESULT_BYTES)
+        # A valid advisory carrying several ranked passage summaries can exceed
+        # 4 KiB; the still-bounded bridge must not turn it into a false error.
+        large_valid_result = {"summary": "x" * 6_000}
+        self.assertEqual(
+            handle({"name": "jev_recipe_catalog", "arguments": {}},
+                   dispatcher=lambda *_args: large_valid_result),
+            large_valid_result,
+        )
 
         self.assertEqual(
             handle({"name": "jev_route", "arguments": {"task": "x" * 33_000}},
@@ -118,9 +232,92 @@ class HermesParityTests(unittest.TestCase):
         self.assertEqual(
             handle({"name": "jev_recall", "arguments": {
                 "workspace_path": "/synthetic", "receipt_id": "a" * 64,
-            }}, dispatcher=lambda *_args: {"text": "x" * 5_000}),
+            }}, dispatcher=lambda *_args: {"text": "x" * 17_000}),
             {"error": "HERMES_TOOL_RESULT_INVALID"},
         )
+
+    def test_max_valid_verify_response_compacts_echoes_and_preserves_decision(self):
+        from jev_auto.common import canonical
+        from jev_auto.hermes_tool import MAX_RESULT_BYTES, handle
+        from jev_auto.verify import compile_verify, summarise
+
+        extraction = {f"field_{index:02d}": "v" * 1_900 for index in range(15)}
+        compile_verify("source", extraction)  # verifies this is a valid maximum-sized extraction
+        answers = {f"f{index}": {"type": "noul", "noul": 0.1} for index in range(15)}
+        provider_result = summarise(extraction, answers)
+        provider_result.update({"provider": "typesafe", "model": "jev-test", "receipt_id": "a" * 64})
+
+        result = handle(
+            {"name": "jev_verify", "arguments": {
+                "workspace_path": "/synthetic", "source_text": "source", "extraction": extraction,
+                "data_classification": "public",
+            }},
+            dispatcher=lambda *_args: provider_result,
+        )
+
+        self.assertEqual(result["status"], "ADVISORY")
+        self.assertTrue(result["trustworthy"])
+        self.assertEqual(result["receipt_id"], "a" * 64)
+        self.assertFalse(result["execution_authorized"])
+        self.assertIn("jev_recall", result["details_note"])
+        self.assertEqual(len(result["fields"]), 15)
+        self.assertEqual(result["fields"][0], {"field": "field_00", "p_wrong": 0.1, "status": "ok"})
+        self.assertTrue(all("value" not in item for item in result["fields"]))
+        self.assertLessEqual(len(canonical(result)) + 1, MAX_RESULT_BYTES)
+
+    def test_result_wire_cap_includes_the_newline(self):
+        from jev_auto.common import canonical
+        from jev_auto.hermes_tool import MAX_RESULT_BYTES, handle
+
+        empty = {"text": ""}
+        exact = {"text": "x" * (MAX_RESULT_BYTES - len(canonical(empty)) - 1)}
+        self.assertEqual(len(canonical(exact)) + 1, MAX_RESULT_BYTES)
+        self.assertEqual(handle({"name": "jev_recipe_catalog", "arguments": {}},
+                                dispatcher=lambda *_args: exact), exact)
+        over = {"text": exact["text"] + "x"}
+        self.assertEqual(handle({"name": "jev_recipe_catalog", "arguments": {}},
+                                dispatcher=lambda *_args: over),
+                         {"error": "HERMES_TOOL_RESULT_INVALID"})
+
+    def test_windows_workspace_paths_reject_remote_and_device_namespaces_for_every_tool(self):
+        from jev_auto import hermes_tool
+
+        def sample(spec):
+            if "enum" in spec:
+                return spec["enum"][0]
+            kind = spec.get("type")
+            if kind == "string":
+                if spec.get("pattern") == "^[a-f0-9]{64}$":
+                    return "a" * 64
+                return "x" * max(1, spec.get("minLength", 1))
+            if kind == "object":
+                return {}
+            if kind == "array":
+                return [sample(spec.get("items", {"type": "object"}))
+                        for _ in range(max(1, spec.get("minItems", 1)))]
+            if kind == "integer":
+                return max(1, spec.get("minimum", 1))
+            if kind == "number":
+                return 0.5
+            raise AssertionError(f"Unhandled schema type: {kind}")
+
+        tested = []
+        with patch.object(hermes_tool.sys, "platform", "win32"):
+            for tool in self._registered_tools():
+                schema = tool["schema"]["parameters"]
+                properties = schema["properties"]
+                if "workspace_path" not in properties:
+                    continue
+                arguments = {name: sample(properties[name]) for name in schema["required"]}
+                arguments["workspace_path"] = r"\\server\share\workspace"
+                with self.subTest(tool=tool["name"]):
+                    self.assertEqual(
+                        hermes_tool.handle({"name": tool["name"], "arguments": arguments},
+                                           dispatcher=lambda *_args: {"unexpected": True}),
+                        {"error": "HERMES_TOOL_ARGUMENTS"},
+                    )
+                tested.append(tool["name"])
+        self.assertGreaterEqual(len(tested), 10)
 
     def test_usable_ascii_reduce_request_passes_bridge_validation(self):
         from jev_auto.hermes_tool import handle
@@ -219,49 +416,34 @@ if __name__ == "__main__":
 
 
 class HostParity(unittest.TestCase):
-    """Hermes keeps its own allow-list, so it drifts every time a tool ships.
+    """Hermes has an explicit common baseline and exact exposure accounting."""
 
-    Every other host spawns `scripts/launch-jev` and therefore gets the whole
-    surface for free. Hermes filters, and `jev_verify` and `jev_rerank` were
-    both missed when they shipped — reachable from four hosts and invisible
-    from the fifth, with nothing failing. This pins the exclusions so adding a
-    tool forces a decision instead of relying on memory.
-    """
+    BASELINE = {"jev_recipe_catalog", "jev_recipe_selftest", "jev_setup", "jev_route",
+                "jev_recipe_try", "jev_recall", "jev_verify", "jev_rerank"}
 
-    # Excluded on purpose, with the reason. Anything not listed here must be
-    # exposed: a bounded advisory tool is part of the product on every host.
-    DELIBERATELY_EXCLUDED = {
-        "jev_catalog": "legacy jevkit surface; Hermes uses the recipe catalog",
-        "jev_describe": "legacy jevkit surface",
-        "jev_evaluate": "legacy jevkit surface",
-        "jev_health": "legacy jevkit surface; jev_auto_status is the modern check",
-        "jev_policy_check": "legacy advisory classifier",
-        "jev_policy_status": "legacy local policy mode, not workspace authority",
-        "jev_run_fixture": "legacy fixture runner; jev_recipe_selftest replaces it",
-        "jev_typed_decide": "accepts arbitrary question sets; the bounded tools are preferred",
-    }
-
-    def test_hermes_exposes_every_tool_it_does_not_deliberately_exclude(self):
-        from jev_auto.hermes_tool import ALLOWED
+    def test_all_baseline_tools_exist_in_the_shared_server_and_hermes(self):
         from jev_auto.mcp import definitions
         from jevkit import mcp_server
 
         served = {tool["name"] for tool in definitions(mcp_server)}
-        expected = served - set(self.DELIBERATELY_EXCLUDED)
-        missing = expected - ALLOWED
-        self.assertEqual(missing, set(),
-                         f"reachable from every other host but not Hermes: {sorted(missing)}")
+        registered = {tool["name"] for tool in HermesParityTests._registered_tools()}
+        self.assertTrue(self.BASELINE <= served)
+        self.assertTrue(self.BASELINE <= registered)
 
-    def test_the_exclusion_list_does_not_name_a_tool_that_no_longer_exists(self):
-        from jev_auto.mcp import definitions
-        from jevkit import mcp_server
-
-        served = {tool["name"] for tool in definitions(mcp_server)}
-        stale = set(self.DELIBERATELY_EXCLUDED) - served
-        self.assertEqual(stale, set(), f"exclusion list is stale: {sorted(stale)}")
-
-    def test_verification_and_reranking_reach_hermes(self):
+    def test_registered_tools_exactly_match_bridge_allow_list_and_manifest(self):
         from jev_auto.hermes_tool import ALLOWED
 
-        self.assertIn("jev_verify", ALLOWED)
-        self.assertIn("jev_rerank", ALLOWED)
+        registered = {tool["name"] for tool in HermesParityTests._registered_tools()}
+        manifest = (PLUGIN / "plugin.yaml").read_text()
+        advertised = set()
+        inside = False
+        for line in manifest.splitlines():
+            if line == "provides_tools:":
+                inside = True
+            elif inside and line.startswith("provides_hooks:"):
+                break
+            elif inside and line.strip().startswith("- "):
+                advertised.add(line.strip()[2:])
+        self.assertEqual(registered, ALLOWED)
+        self.assertEqual(registered, advertised)
+        self.assertNotIn("jev_typed_decide", registered)

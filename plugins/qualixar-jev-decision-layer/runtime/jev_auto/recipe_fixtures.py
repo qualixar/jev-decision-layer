@@ -7,15 +7,15 @@ gate actually hold? Answering it by running live recipes costs provider calls
 and, far worse, costs host-model context to read and judge the results.
 
 Every recipe ships three hand-authored cases — nominal, uncertain, adversarial
-— each with the typed answer a provider would plausibly return and the gate
+— each with the typed answer a provider would plausibly return and the raw gate
 verdict that answer must produce. `selftest()` replays all of them through the
-real gate and returns a count. Nothing is inferred, nothing is generated, no
-token is spent on either side.
+real gate and returns a count. It also reports the live host action after the
+recipe-status cap. Nothing is inferred, nothing is generated, no token is spent.
 
 The three variants pin the three ways the layer earns its keep:
 
-    nominal      a clear-cut input the gate must clear, so the host acts once
-                 and does not re-derive the judgment it paid for.
+    nominal      a clear-cut input the raw gate must clear. Experimental
+                 recipes still require host verification before any action.
     uncertain    a genuinely ambiguous input. The gate must NOT clear it. This
                  is the expensive failure to prevent: a host that acts on a
                  poorly-calibrated answer pays again to undo it.
@@ -47,7 +47,7 @@ from __future__ import annotations
 from typing import Any
 
 from .common import AutoError
-from .recipe_gate import ACT, evaluate, validate_gates
+from .recipe_gate import ACT, VERIFY, evaluate, validate_gates
 from .recipe_runtime import catalog_document, prepare_recipe
 
 VARIANTS = ("nominal", "uncertain", "adversarial")
@@ -61,6 +61,24 @@ _REQUIRED = {
     "fixture_id", "variant", "data_classification", "state", "mock_answer",
     "expected_status", "expected_host_action", "expected_recommendation", "disclaimer",
 }
+
+
+def apply_recipe_status_cap(gate: dict[str, Any], recipe_status: str) -> dict[str, Any]:
+    """Translate a raw gate verdict into the action a live host may take.
+
+    The input gate is never mutated: the offline proof still tests whether its
+    threshold can distinguish nominal from uncertain cases, while the same
+    cap used by Engine.try_recipe prevents experimental specs from authorizing
+    a host action.
+    """
+    effective = {**gate, "reasons": list(gate["reasons"])}
+    if recipe_status == "SPECIFICATION_NOT_MODEL_EVALUATED" and gate["host_action"] == ACT:
+        effective["host_action"] = VERIFY
+        effective["status"] = "REVIEW"
+        effective["reasons"].append(
+            "This recipe is SPECIFICATION_NOT_MODEL_EVALUATED; an ACT recommendation is capped at VERIFY."
+        )
+    return effective
 
 
 def validate_fixtures(entries: Any) -> list[dict[str, Any]]:
@@ -94,7 +112,7 @@ def validate_fixtures(entries: Any) -> list[dict[str, Any]]:
 
 def _document() -> dict[str, Any]:
     data = catalog_document()
-    if not isinstance(data, dict) or "fixtures" not in data or "gates" not in data:
+    if not isinstance(data, dict) or "recipes" not in data or "fixtures" not in data or "gates" not in data:
         raise AutoError("RECIPE_FIXTURES_UNAVAILABLE")
     validate_fixtures(data["fixtures"])
     validate_gates(data["gates"])  # _gate below indexes these; do not trust them unchecked
@@ -110,6 +128,8 @@ def _gate(data: dict[str, Any], recipe_id: str) -> dict[str, Any]:
 
 
 def _outcome(case: dict[str, Any], recipe_id: str, variant: str, result: dict[str, Any] | None,
+             live_result: dict[str, Any] | None = None,
+             recipe_status: str | None = None,
              error: str | None = None) -> dict[str, Any]:
     description, holds = INTENT[variant]
     action = result["host_action"] if result else None
@@ -118,27 +138,47 @@ def _outcome(case: dict[str, Any], recipe_id: str, variant: str, result: dict[st
         and result["host_action"] == case["expected_host_action"]
         and result["recommendation"] == case["expected_recommendation"])
     intent_held = bool(result) and holds(action)
+    capped = (recipe_status == "SPECIFICATION_NOT_MODEL_EVALUATED"
+              and case["expected_host_action"] == ACT)
+    expected_live_action = VERIFY if capped else case["expected_host_action"]
+    expected_live_status = "REVIEW" if capped else case["expected_status"]
+    live_matched = bool(live_result) and (
+        live_result["host_action"] == expected_live_action
+        and live_result["status"] == expected_live_status
+        and live_result["recommendation"] == case["expected_recommendation"])
     return {
         "mode": "fixture",
         "data_classification": "synthetic",
         "fixture_id": case.get("fixture_id"),
         "recipe_id": recipe_id,
         "variant": variant,
-        "passed": matched and intent_held,
+        "passed": matched and intent_held and live_matched,
         "matched": matched,
+        "live_matched": live_matched,
         "intent": description,
         "intent_held": intent_held,
         "error": error,
-        "expected": {
+        "expected_raw_gate": {
             "status": case.get("expected_status"),
             "host_action": case.get("expected_host_action"),
             "recommendation": case.get("expected_recommendation"),
         },
-        "observed": None if result is None else {
+        "expected_live": {
+            "status": expected_live_status,
+            "host_action": expected_live_action,
+            "recommendation": case.get("expected_recommendation"),
+        },
+        "raw_gate": None if result is None else {
             "status": result["status"],
             "host_action": result["host_action"],
             "recommendation": result["recommendation"],
             "reasons": result["reasons"],
+        },
+        "observed": None if live_result is None else {
+            "status": live_result["status"],
+            "host_action": live_result["host_action"],
+            "recommendation": live_result["recommendation"],
+            "reasons": live_result["reasons"],
         },
         "disclaimer": case.get("disclaimer"),
     }
@@ -160,8 +200,13 @@ def run_fixture(recipe_id: str, variant: str = "nominal") -> dict[str, Any]:
         # not a pass.
         prepare_recipe(recipe_id, case["state"])
     except AutoError as error:
-        return _outcome(case, recipe_id, variant, None, str(error))
-    return _outcome(case, recipe_id, variant, evaluate(policy, case["mock_answer"]))
+        return _outcome(case, recipe_id, variant, None, error=str(error))
+    raw_gate = evaluate(policy, case["mock_answer"])
+    recipe = next((item for item in data["recipes"] if item["id"] == recipe_id), None)
+    if not isinstance(recipe, dict) or not isinstance(recipe.get("status"), str):
+        raise AutoError("RECIPE_NOT_FOUND")
+    return _outcome(case, recipe_id, variant, raw_gate,
+                    apply_recipe_status_cap(raw_gate, recipe["status"]), recipe["status"])
 
 
 def selftest() -> dict[str, Any]:
@@ -189,5 +234,5 @@ def selftest() -> dict[str, Any]:
         "passed": total - len(failures),
         "failures": failures,
         "all_passed": not failures,
-        "disclaimer": "Offline contract check of the local gate. Not a provider accuracy benchmark.",
+        "disclaimer": "Offline synthetic gate contract check, with the experimental live-action cap shown separately. Not provider accuracy, cost, or latency evidence.",
     }

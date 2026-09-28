@@ -42,7 +42,10 @@ RULES = [
             r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})\b"
         ),
     ),
-    ("HOME_PATH", re.compile(r'(?:/Users/|/home/)[^\s"<>]+')),
+    (
+        "HOME_PATH",
+        re.compile(r'(?i)(?:(?:/Users/|/home/)|(?:[A-Z]:[\\/]|\\\\[^\\\s]+\\[^\\\s]+[\\/])Users[\\/])[^\s"<>]+'),
+    ),
     ("PHONE", re.compile(r"(?<!\w)\+\d[\d ()-]{8,}\d(?!\w)")),
     (
         "CREDENTIAL_ASSIGNMENT",
@@ -61,7 +64,16 @@ SENSITIVE_KEYS = re.compile(
 )
 
 
-def screen(value: Any, secrets: tuple[str, ...] = ()) -> tuple[Any, list[str]]:
+_CONTEXT_FIELDS = frozenset({"EMAIL", "HOME_PATH"})
+
+
+def screen(value: Any, secrets: tuple[str, ...] = (), *, allow_context: bool = False) -> tuple[Any, list[str]]:
+    """Screen secrets, with a scoped allowance for reviewed contact/path context.
+
+    Callers may set ``allow_context`` only after checking an enrolled
+    non-public data scope. This does not relax credentials or private network
+    endpoint checks and is not comprehensive DLP.
+    """
     found: set[str] = set()
 
     def visit(item):
@@ -84,6 +96,8 @@ def screen(value: Any, secrets: tuple[str, ...] = ()) -> tuple[Any, list[str]]:
                 found.add("API_KEY")
                 item = item.replace(secret, "[REDACTED:API_KEY]")
         for label, regex in RULES:
+            if allow_context and label in _CONTEXT_FIELDS:
+                continue
             if regex.search(item):
                 found.add(label)
                 item = regex.sub("[REDACTED:" + label + "]", item)
@@ -129,7 +143,22 @@ def validate_private_path(path: Path) -> None:
             raise SafeError("UNSAFE_PATH: symlink in private directory")
 
 
+def _windows_private_storage() -> bool:
+    return os.name == "nt"
+
+
 def private_dir(path: Path) -> None:
+    if _windows_private_storage():
+        # POSIX chmod is not a Windows access control check. Use the same
+        # handle-verified, protected-DACL directory backend as jev_auto.
+        from jev_auto.common import AutoError
+        from jev_auto.platform_fs import ensure_private_dir
+
+        try:
+            ensure_private_dir(path)
+        except AutoError as exc:
+            raise SafeError(str(exc)) from None
+        return
     validate_private_path(path)
     original = path.absolute()
     original.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -137,6 +166,17 @@ def private_dir(path: Path) -> None:
 
 
 def private_json(path: Path, value: Any, *, no_clobber: bool = False) -> None:
+    if _windows_private_storage():
+        from jev_auto.common import AutoError
+        from jev_auto.platform_fs import atomic_write_private
+
+        try:
+            atomic_write_private(path, canonical(value) + b"\n", replace=not no_clobber)
+        except AutoError as exc:
+            if no_clobber and str(exc) == "WORKSPACE_ALREADY_ENROLLED":
+                raise FileExistsError(path) from None
+            raise SafeError(str(exc)) from None
+        return
     private_dir(path.parent)
     if path.is_symlink():
         raise SafeError("UNSAFE_PATH: refusing symlink")

@@ -24,6 +24,7 @@ CODEX_MCP = ROOT / "tools" / "host_mcp" / "codex.json"
 # file differently the copied manifest would point at a file that is not there.
 # `.mcp.json` is Claude's in the portable package and cannot be shared.
 CODEX_MCP_NAME = Path("mcp.json")
+LEGACY_CODEX_HOOK_NAME = Path("hooks/hooks.json")
 
 # Belongs to another host and must not ship here. A Claude hook file inside the
 # Codex package is the same shape as the `${CLAUDE_PLUGIN_ROOT}` descriptor that
@@ -59,6 +60,10 @@ def build(*, check: bool) -> None:
         print(f"Codex package verified: {len(expected)} files, no root portable manifest.")
         return
     TARGET.mkdir(parents=True, exist_ok=True)
+    # The portable source now names Codex's hook file explicitly. Remove the
+    # old default-discovery name from an existing generated package so Claude
+    # cannot load the Codex hook descriptor when both packages share a root.
+    (TARGET / LEGACY_CODEX_HOOK_NAME).unlink(missing_ok=True)
     for directory in DIRECTORIES:
         shutil.copytree(SOURCE / directory, TARGET / directory, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache",

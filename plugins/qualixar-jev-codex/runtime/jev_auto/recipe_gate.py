@@ -1,53 +1,17 @@
-"""Local gate evaluation for recipe answers.
+"""Fail-closed local policy checks for typed recipe answers.
 
-WHY THIS EXISTS
----------------
-The product's whole economy is: a Jev token is ~free, a host-model token
-(Claude Code, Codex, Antigravity) is expensive. The layer earns its keep only
-when it stops the host model doing work.
+The returned action describes whether a demonstration gate cleared. It is not
+model accuracy evidence or permission to execute a recommendation. The live
+recipe path further caps every unevaluated recipe to review.
 
-Before this module, a recipe's `policy` block was authored in the source
-recipe, stripped by the catalog builder, and read by nothing. The host model
-received a typed answer with **no gate**, so it had to decide for itself
-whether to trust that answer — re-deriving, in expensive host context, the
-exact judgment the cheap model was called to settle. The calibration was paid
-for and thrown away.
+TypeSafe defines Choice and Score ``confidence`` as a statistic derived from
+the reported probability distribution, not an independent belief or a
+calibration measurement: https://docs.typesafe.ai/confidence . The configured
+confidence floor and selected/outcome probability threshold are policy
+statistics. A Noul answer has no confidence field; its yes/no bands are used.
 
-This evaluates the gate locally and hands the host a `host_action` it can obey
-without re-reasoning:
-
-    act     -> the answer cleared every threshold. Use it. Do not re-derive.
-    verify  -> the answer is a starting point, not a conclusion. Cheaper to
-               check than to redo from nothing.
-    ignore  -> below the floor, or explicitly `unknown`. Decide normally; the
-               call cost ~nothing and removed a bad option.
-
-THE GATE FAILS CLOSED. ALWAYS.
-------------------------------
-An earlier version treated an unreadable threshold as an absent one: a policy
-with `min_confidence: "high"` silently dropped the floor and returned `act` on
-a confidence of 0.1. That is the single worst behaviour this module can have.
-`act` is a promise that the host need not think again, so anything it cannot
-positively verify must degrade to `verify`, never to `act`.
-
-Concretely, every one of these now refuses to clear the gate rather than
-waving it through: a threshold that is missing, malformed, or out of range; a
-value outside its own domain (a Noul of 1.5, a confidence of 999, a
-probability of -0.5); a selected label that is not a string, or not the most
-probable option in its own distribution; a distribution whose mass exceeds
-one; and an `act` that would carry no recommendation for the host to act on.
-
-CONFIDENCE IS NOT PROBABILITY
------------------------------
-Measured against jev-1.13: a Choice returned `technical` at probability 0.85
-with confidence 0.77. Probability says WHICH; confidence says how much the
-answer can be trusted at all. Gating on probability alone passes answers the
-model is not actually sure of, which is the expensive failure — the host acts,
-is wrong, and pays again to undo it.
-
-**A Noul has NO confidence field.** Only Choice and Score carry one, so only
-those recipes declare `min_confidence`. For a Noul, distance from 0.5 IS the
-certainty and the yes/no bands already express it.
+Malformed thresholds or answers cannot clear the gate. In particular, a
+Choice or Score distribution must contain approximately one unit of mass.
 """
 
 from __future__ import annotations
@@ -65,33 +29,12 @@ _KINDS = {"choice", "score", "noul"}
 # incomplete, and an incomplete gate is not a gate.
 _REQUIRED_THRESHOLDS = {
     "choice": ("min_confidence", "min_selected_probability"),
-    "score": ("min_confidence", "min_score"),
+    "score": ("min_confidence", "min_score", "min_selected_probability"),
     "noul": ("yes", "no"),
 }
-# Tolerance on a distribution's total mass. Providers round; they do not
-# invent half a unit of probability.
-_MASS_TOLERANCE = 1.01
-
-# How far a model's own confidence may sit below the certainty its
-# distribution asserts before the answer is treated as self-contradictory.
-#
-# A distribution and a confidence are different quantities, so a gap is
-# normal. A LARGE gap is not: it means the distribution is sharper than the
-# model's own belief, which is what a miscalibrated temperature produces.
-# laya-mlx records that the shipped `choice:11+` calibration temperature of
-# 0.1006 "would sharpen logits ~10x and report a coin flip as near-certainty",
-# and clamps it away for exactly this reason.
-#
-# Measured against this gate: a genuine coin flip (honest p 0.574) sharpened at
-# that temperature reports probability 0.9518 while an honestly calibrated
-# confidence stays 0.5744 -- a shortfall of 0.377. Before this check the gate
-# returned `act` on it, because 0.9518 cleared the probability bar and 0.5744
-# cleared the confidence floor. Neither number alone was wrong. Their
-# disagreement was the only evidence, and nothing was reading it.
-#
-# The shipped fixtures' confident answers sit at probability 0.98 against
-# confidence 0.95, a shortfall of 0.03, so the bar is far above normal.
-_MAX_CONFIDENCE_SHORTFALL = 0.20
+# Accept limited rounding while refusing omitted alternatives. This bound is
+# a structural check, not a guarantee that provider probabilities are accurate.
+_MASS_TOLERANCE = 0.01
 
 
 def _number(value: Any) -> float | None:
@@ -156,13 +99,14 @@ def _probability_of(answer: dict[str, Any], label: Any) -> float | None:
     """The selected label's share, if the distribution is coherent.
 
     Returns None — meaning "do not clear the gate" — when the distribution is
-    malformed, when a value is outside [0, 1], when the total mass exceeds
-    one, or when the selected label is not the most probable option. A model
+    malformed, when a value is outside [0, 1], when total mass differs from
+    one beyond rounding tolerance, or when the selected label is not the most
+    probable option. A model
     that picks a label it scored below another has contradicted itself, and a
     self-contradictory answer is not one to act on.
     """
     probabilities = answer.get("probabilities")
-    if not isinstance(probabilities, dict) or not probabilities:
+    if not isinstance(probabilities, dict) or not 2 <= len(probabilities) <= 128:
         return None
     try:
         selected = probabilities.get(label)
@@ -174,7 +118,7 @@ def _probability_of(answer: dict[str, Any], label: Any) -> float | None:
         if unit is None:
             return None
         values.append(unit)
-    if sum(values) > _MASS_TOLERANCE:
+    if abs(sum(values) - 1.0) > _MASS_TOLERANCE + 1e-9:
         return None
     chosen = _unit(selected)
     if chosen is None or chosen < max(values):
@@ -182,16 +126,52 @@ def _probability_of(answer: dict[str, Any], label: Any) -> float | None:
     return chosen
 
 
+def _score_outcome_probability(answer: dict[str, Any], min_score: float, positive: bool) -> float | None:
+    """Mass supporting the score outcome selected by ``min_score``.
+
+    Score probabilities are keyed by their ordinal level ("0", "1", ...).
+    A positive score outcome means mass on levels >= min_score; the negative
+    outcome means mass on levels < min_score. Requiring a contiguous level map
+    and near-unit total catches missing, malformed, and unreadable distributions
+    before either outcome can clear the gate. Values are provider-reported,
+    not recalibrated here; the provider protocol validates the score against
+    its distribution before this local policy check.
+    """
+    probabilities = answer.get("probabilities")
+    if not isinstance(probabilities, dict) or not probabilities or len(probabilities) > 128:
+        return None
+
+    levels: dict[int, float] = {}
+    for key, value in probabilities.items():
+        # Provider JSON uses canonical decimal level labels. Reject aliases
+        # such as "01" so duplicate semantic levels cannot distort the mass.
+        if not isinstance(key, str) or not key.isdigit() or str(int(key)) != key:
+            return None
+        level = int(key)
+        probability = _unit(value)
+        if probability is None:
+            return None
+        levels[level] = probability
+
+    if set(levels) != set(range(len(levels))):
+        return None
+
+    total = sum(levels.values())
+    # Jev reports two-decimal level probabilities; at most 0.005 rounding
+    # error per level can move their sum away from one.
+    if abs(total - 1.0) > len(levels) * 0.005 + 1e-9:
+        return None
+
+    return sum(probability for level, probability in levels.items()
+               if (level >= min_score) == positive)
+
+
 def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
     """Apply one recipe's policy to one typed answer. Never raises on content.
 
-    `provider` selects a calibration profile. Confidence does not mean the
-    same thing in two models: measured on this package's own contracts, a
-    floor tuned for the hosted route cleared one of ten real laya-mlx answers
-    where a lower floor cleared five, and nine of the ten were correct or an
-    honest abstention. Omitting it, or naming a provider with no profile,
-    keeps the recipe's own thresholds -- an unrecognised provider never
-    loosens the gate.
+    `provider` selects a named profile for disclosure. All profiles currently
+    use the recipe's unvalidated thresholds; none is calibrated or allowed to
+    loosen a threshold from unlabeled samples.
     """
     from .provider_calibration import profile_for
 
@@ -204,6 +184,7 @@ def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
         "recommendation": None,
         "confidence": None,
         "probability": None,
+        "outcome_probability": None,
         "thresholds_applied": {},
         "thresholds_calibrated": False,
         "provider_profile": {"provider": calibration.provider_id or "(default)",
@@ -276,26 +257,22 @@ def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
             return finish("REVIEW", VERIFY, "The answer distribution was unusable or did not "
                                             "rank the selected option highest.")
         if confidence is None:
-            return finish("REVIEW", VERIFY, "No usable confidence was returned; probability alone is not a gate.")
+            return finish("REVIEW", VERIFY, "No usable reported confidence was returned.")
         if confidence < floor:
             return finish("REVIEW", VERIFY,
-                          f"Confidence {confidence} is below {floor}; the distribution looks decisive "
-                          "but the answer is not calibrated.")
+                          f"Reported confidence {confidence} is below the configured floor {floor}.")
         if probability < min_probability:
             return finish("REVIEW", VERIFY, f"Selected probability {probability} is below {min_probability}.")
-        if probability - confidence > calibration.max_confidence_shortfall:
-            return finish("REVIEW", VERIFY,
-                          f"The distribution asserts {probability} for the selected option while the "
-                          f"model reports confidence {confidence}. A distribution sharper than the "
-                          "model's own belief is not a basis to act.")
         return finish("RECOMMEND", ACT, "Cleared both the confidence floor and the probability bar.",
                       policy.get("positive_outcome"))
 
     score = _number(answer.get("score"))
     min_score = _number(policy.get("min_score"))
+    min_probability = _unit(policy.get("min_selected_probability"))
     result["probability"] = score
-    result["thresholds_applied"] = {"min_confidence": floor, "min_score": min_score}
-    if floor is None or min_score is None:
+    result["thresholds_applied"] = {"min_confidence": floor, "min_score": min_score,
+                                    "min_selected_probability": min_probability}
+    if floor is None or min_score is None or min_probability is None:
         return finish("REVIEW", VERIFY, "This recipe's thresholds are missing or unreadable; "
                                         "an ungated answer is not an authorised one.")
     if score is None:
@@ -304,6 +281,19 @@ def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
         return finish("REVIEW", VERIFY, "No usable confidence was returned; a score alone is not a gate.")
     if confidence < floor:
         return finish("REVIEW", VERIFY, f"Confidence {confidence} is below {floor}.")
+    positive = score >= min_score
+    outcome_probability = _score_outcome_probability(answer, min_score, positive)
+    result["outcome_probability"] = outcome_probability
+    if outcome_probability is None:
+        return finish("REVIEW", VERIFY, "The score probability distribution was missing, malformed, "
+                                        "or did not sum to one within reporting precision.")
+    if outcome_probability < min_probability:
+        direction = "positive" if positive else "negative"
+        return finish("REVIEW", VERIFY,
+                      f"Probability mass for the {direction} score outcome {outcome_probability} "
+                      f"is below {min_probability}.")
     if score < min_score:
-        return finish("RECOMMEND", ACT, "Below the score bar.", policy.get("negative_outcome"))
-    return finish("RECOMMEND", ACT, "At or above the score bar.", policy.get("positive_outcome"))
+        return finish("RECOMMEND", ACT, "Below the score bar and cleared its probability bar.",
+                      policy.get("negative_outcome"))
+    return finish("RECOMMEND", ACT, "At or above the score bar and cleared its probability bar.",
+                  policy.get("positive_outcome"))

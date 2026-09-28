@@ -600,7 +600,7 @@ class McpAutoDispatchOpCoverageTests(unittest.TestCase):
         with patch.object(mcp, "ensure", side_effect=AssertionError("ensure() must not run for offline tools")), \
              patch.object(mcp, "request", side_effect=AssertionError("request() must not run for offline tools")):
             catalog = mcp.dispatch("jev_recipe_catalog", {}, legacy)
-            self.assertEqual(len(catalog["recipes"]), 36)
+            self.assertEqual(len(catalog["recipes"]), 38)
 
             report = mcp.dispatch("jev_recipe_selftest", {}, legacy)
             self.assertEqual(report["mode"], "fixture")
@@ -626,6 +626,39 @@ class McpAutoDispatchOpCoverageTests(unittest.TestCase):
         self.assertEqual(result, {"legacy": True})
         self.assertEqual(calls, [{"name": "jev_health", "args": {}, "scope": "global-hybrid"}])
 
+    def test_declared_pattern_and_array_bounds_reject_before_broker(self):
+        from jev_auto import mcp
+
+        legacy, _calls = _fake_legacy()
+        bad = (
+            ("jev_recall", {"workspace_path": "/w", "receipt_id": "z" * 64}),
+            ("jev_route", {"workspace_path": "/w", "kind": "task", "task": "choose",
+                           "candidates": [{"id": "one"}], "data_classification": "public"}),
+            ("jev_route", {"workspace_path": "/w", "kind": "task", "task": "choose",
+                           "candidates": [{"id": str(i)} for i in range(13)],
+                           "data_classification": "public"}),
+            ("jev_rerank", {"workspace_path": "/w", "query": "choose", "memories": [],
+                            "data_classification": "public"}),
+            ("jev_rerank", {"workspace_path": "/w", "query": "choose",
+                            "memories": [{"id": i} for i in range(13)],
+                            "data_classification": "public"}),
+        )
+        for name, args in bad:
+            with self.subTest(name=name, args=args):
+                with self.assertRaisesRegex(mcp.AutoError, "MCP_ARGUMENT_TYPE"):
+                    mcp.dispatch(name, args, legacy,
+                                 caller=lambda _request: self.fail("invalid request reached broker"))
+
+    def test_valid_receipt_id_passes_pattern_check(self):
+        from jev_auto import mcp
+
+        legacy, _calls = _fake_legacy()
+        rid = "a" * 64
+        seen = []
+        mcp.dispatch("jev_recall", {"workspace_path": "/w", "receipt_id": rid}, legacy,
+                     caller=lambda request: seen.append(request) or {})
+        self.assertEqual(seen, [{"op": "recall", "receipt_id": rid, "start": 1, "end": 120}])
+
 
 class _FakeSetupProcess:
     """Stands in for the subprocess.Popen handle _open_setup() reads its
@@ -638,12 +671,16 @@ class _FakeSetupProcess:
         os.close(write_fd)
         self.stdout = os.fdopen(read_fd, "rb")
         self.pid = 999999
+        self.kill_calls = 0
 
     def poll(self):
         return None
 
     def wait(self, timeout=None):
         return 0
+
+    def kill(self):
+        self.kill_calls += 1
 
 
 class McpSetupWizardTests(unittest.TestCase):
@@ -739,6 +776,63 @@ class McpSetupWizardTests(unittest.TestCase):
                     _open_setup(directory)
         killed.assert_called_once_with(process.pid, signal.SIGKILL)
 
+    def test_windows_setup_uses_running_python_and_preserves_required_base_env(self):
+        from jev_auto import mcp
+
+        process = _FakeSetupProcess(self.GOOD_LINE)
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(mcp, "_IS_WINDOWS", True), \
+                 patch.object(mcp, "workspace", side_effect=lambda value: Path(value)), \
+                 patch.object(mcp.subprocess, "Popen", return_value=process) as popen, \
+                 patch.object(mcp.selectors, "DefaultSelector",
+                              side_effect=AssertionError("Windows cannot select pipe handles")), \
+                 patch.dict(os.environ, {"LOCALAPPDATA": directory, "SystemRoot": "C:\\Windows",
+                                      "USERPROFILE": directory}):
+                result = mcp._open_setup(directory)
+        self.assertEqual(result["status"], "SETUP_WIZARD_OPEN")
+        command = popen.call_args.args[0]
+        self.assertEqual(command[:4], [sys.executable, "-I", "-S", "-B"])
+        self.assertEqual(command[-1], directory)
+        self.assertEqual(popen.call_args.kwargs["env"]["SystemRoot"], "C:\\Windows")
+        self.assertEqual(popen.call_args.kwargs["env"]["LOCALAPPDATA"], directory)
+        self.assertFalse(popen.call_args.kwargs["start_new_session"])
+
+    def test_windows_setup_bad_line_kills_child_with_fixed_error(self):
+        from jev_auto import mcp
+
+        process = _FakeSetupProcess(self.BAD_LINE)
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(mcp, "_IS_WINDOWS", True), \
+                 patch.object(mcp, "workspace", side_effect=lambda value: Path(value)), \
+                 patch.object(mcp.subprocess, "Popen", return_value=process), \
+                 patch.object(mcp.os, "killpg", side_effect=AssertionError("POSIX cleanup on Windows")):
+                with self.assertRaisesRegex(mcp.AutoError, "SETUP_START_FAILED"):
+                    mcp._open_setup(directory)
+        self.assertEqual(process.kill_calls, 1)
+
+    def test_windows_setup_timeout_kills_child_with_fixed_error(self):
+        from jev_auto import mcp
+
+        class NeverReadyQueue:
+            def __init__(self, maxsize):
+                pass
+
+            def put(self, line):
+                pass
+
+            def get(self, timeout):
+                raise mcp.queue.Empty
+
+        process = _FakeSetupProcess()
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(mcp, "_IS_WINDOWS", True), \
+                 patch.object(mcp, "workspace", side_effect=lambda value: Path(value)), \
+                 patch.object(mcp.subprocess, "Popen", return_value=process), \
+                 patch.object(mcp.queue, "Queue", NeverReadyQueue):
+                with self.assertRaisesRegex(mcp.AutoError, "SETUP_START_FAILED"):
+                    mcp._open_setup(directory)
+        self.assertEqual(process.kill_calls, 1)
+
 
 class AutoMcpServeLoopTests(unittest.TestCase):
     """jev_auto/mcp.py's serve() is the process boundary for the bounded
@@ -762,6 +856,20 @@ class AutoMcpServeLoopTests(unittest.TestCase):
 
     def test_an_oversized_line_without_a_trailing_newline_is_rejected(self):
         replies = self._run(b"x" * 512_001)
+        self.assertEqual(len(replies), 1)
+        self.assertEqual(replies[0]["error"]["message"], "MCP_MESSAGE_SIZE")
+
+    def test_oversized_line_drains_then_next_request_remains_aligned(self):
+        payload = b"x" * 600_000 + b"\n" + self._lines({"jsonrpc": "2.0", "id": 9,
+                                                          "method": "initialize"})
+        replies = self._run(payload)
+        self.assertEqual(len(replies), 2)
+        self.assertEqual(replies[0]["error"]["message"], "MCP_MESSAGE_SIZE")
+        self.assertEqual(replies[1]["id"], 9)
+        self.assertIn("result", replies[1])
+
+    def test_unbounded_oversized_line_stops_after_single_error(self):
+        replies = self._run(b"x" * 5_000_000)
         self.assertEqual(len(replies), 1)
         self.assertEqual(replies[0]["error"]["message"], "MCP_MESSAGE_SIZE")
 

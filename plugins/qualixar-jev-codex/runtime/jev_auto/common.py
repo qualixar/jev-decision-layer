@@ -5,9 +5,7 @@ import json
 import math
 import os
 import re
-import stat
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -46,22 +44,15 @@ def safe_path(path: Path) -> Path:
     return p
 
 def private_dir(path: Path) -> Path:
-    p = safe_path(path)
-    p.mkdir(mode=0o700, parents=True, exist_ok=True)
-    st = p.stat()
-    if not stat.S_ISDIR(st.st_mode) or (hasattr(os, 'getuid') and st.st_uid != os.getuid()):
-        raise AutoError('PRIVATE_DIRECTORY_OWNER')
-    p.chmod(0o700)
-    return p
+    from .platform_fs import ensure_private_dir
+    return ensure_private_dir(path)
 
 def read_private(path: Path, limit=512_000):
-    p = safe_path(path)
-    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
-    fd = os.open(p, flags)
+    from .platform_fs import open_private_file
+    fd = open_private_file(path, os.O_RDONLY)
     try:
         st = os.fstat(fd)
-        if (not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_mode & 0o077
-            or (hasattr(os, 'getuid') and st.st_uid != os.getuid()) or st.st_size > limit):
+        if st.st_size > limit:
             raise AutoError('UNSAFE_PRIVATE_FILE')
         with os.fdopen(fd, 'rb', closefd=False) as f:
             return decode(f.read(limit + 1), limit)
@@ -69,15 +60,8 @@ def read_private(path: Path, limit=512_000):
         os.close(fd)
 
 def write_private(path: Path, value):
-    p = safe_path(path); private_dir(p.parent)
-    fd, name = tempfile.mkstemp(prefix='.auto-', dir=p.parent)
-    try:
-        os.fchmod(fd, 0o600)
-        with os.fdopen(fd, 'wb') as f:
-            f.write(canonical(value) + b'\n'); f.flush(); os.fsync(f.fileno())
-        os.replace(name, p)
-    finally:
-        if os.path.exists(name): os.unlink(name)
+    from .platform_fs import atomic_write_private
+    atomic_write_private(path, canonical(value) + b'\n', replace=True)
 
 def workspace(path: str | Path) -> Path:
     # A host can hand us any string. An embedded NUL makes lstat raise a bare
@@ -105,9 +89,8 @@ def workspace_id(path: str | Path) -> str:
     return digest({'path': str(p), 'device': st.st_dev, 'inode': st.st_ino})[:24]
 
 def home_root() -> Path:
-    # Operational storage; this is not an OS isolation boundary against the same UID.
-    base = os.environ.get('XDG_STATE_HOME')
-    return (Path(base).expanduser() if base else Path.home()/'.local'/'state')/'qualixar-jev-decision-layer'
+    from .platform_fs import user_state_root
+    return user_state_root()
 
 def state_dir(path: str | Path, base: Path | None = None) -> Path:
     return (base or home_root()) / workspace_id(path)
@@ -120,11 +103,17 @@ SENSITIVE = [
     ('PRIVATE_URL', re.compile(r'https?://[^\s"<>]*(?:\.internal|\.local|localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[::1\])[^\s"<>]*', re.I)),
     ('EMAIL', re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')),
     ('PRIVATE_IP', re.compile(r'\b(?:10(?:\.\d{1,3}){3}|127(?:\.\d{1,3}){3}|0\.0\.0\.0|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})\b')),
-    ('HOME_PATH', re.compile(r'(?:/Users/|/home/)[^\s"<>]+')),
+    ('HOME_PATH', re.compile(r'(?i)(?:(?:/Users/|/home/)|(?:[A-Z]:[\\/]|\\\\[^\\\s]+\\[^\\\s]+[\\/])Users[\\/])[^\s"<>]+')),
 ]
 
-def screen(value, secrets=()):
-    """Scan original strings, not escaped JSON. Return labels only, never matches."""
+_CONTEXT_FIELDS = frozenset({'EMAIL', 'HOME_PATH'})
+
+def screen(value, secrets=(), *, allow_context=False):
+    """Scan original strings, not escaped JSON. Return labels only, never matches.
+
+    Contact and workspace paths may be sent only by callers that already
+    checked an enrolled non-public data scope. Secret patterns always apply.
+    """
     canonical(value)  # reject recursive or nonfinite input before traversing
     findings=set()
     sensitive_key=re.compile(r"(?i)^(?:[a-z0-9]+[_-])*(?:api[_-]?key|password|secret|access[_-]?token|authorization|credential|private[_-]?key)$")
@@ -137,10 +126,11 @@ def screen(value, secrets=()):
             for nested in item:visit(nested)
         elif isinstance(item,str):
             for label,regex in SENSITIVE:
+                if allow_context and label in _CONTEXT_FIELDS:continue
                 if regex.search(item):findings.add(label)
             if any(secret and len(secret)>=4 and secret in item for secret in secrets):findings.add('ACTIVE_KEY')
     visit(value)
     return sorted(findings)
 
-def require_clean(value, secrets=()):
-    if screen(value, secrets): raise AutoError('SENSITIVE_PAYLOAD_NOT_SENT')
+def require_clean(value, secrets=(), *, allow_context=False):
+    if screen(value, secrets, allow_context=allow_context): raise AutoError('SENSITIVE_PAYLOAD_NOT_SENT')

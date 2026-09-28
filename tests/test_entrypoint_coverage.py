@@ -278,7 +278,7 @@ class CliSelftestCommandTests(unittest.TestCase):
         result = json.loads(out)
         self.assertEqual(rc, 0)
         self.assertTrue(result["all_passed"])
-        self.assertEqual(result["recipes"], 36)
+        self.assertEqual(result["recipes"], 38)
 
     def test_single_recipe_and_variant(self):
         rc, out, _err = _run_cli(["selftest", "--recipe", "qualixar.brief-fit", "--variant", "nominal"])
@@ -716,6 +716,15 @@ class CliMcpAndArgparseTests(unittest.TestCase):
         self.assertEqual((out, err), ("", ""))
         serve_mock.assert_called_once_with()
 
+    def test_mcp_command_fails_closed_on_windows_for_108(self):
+        import jev_auto.mcp as mcp
+
+        with patch("jev_auto.cli.os.name", "nt"), patch.object(mcp, "serve") as serve_mock:
+            rc, _out, err = _run_cli(["mcp"])
+        self.assertEqual(rc, 2)
+        self.assertIn("WINDOWS_UNSUPPORTED_IN_1_0_8", err)
+        serve_mock.assert_not_called()
+
     def test_missing_subcommand_exits_two(self):
         import jev_auto.cli as cli
 
@@ -986,23 +995,18 @@ class ServerHandlerTests(unittest.TestCase):
         self.assertNotIn(b"leaky", raw)
 
     def test_peer_uid_check_branch_is_exercised_and_still_fails_closed(self):
-        """SO_PEERCRED does not exist on this Darwin test host, so the `if
-        hasattr(socket, 'SO_PEERCRED')` guard is normally always False here
-        and that branch's body never runs in this environment. Forcing the
-        attribute to exist (with an option number Darwin's getsockopt does
-        not actually support) exercises that line deliberately: getsockopt
-        raises OSError, which the handler's own `except Exception` still
-        turns into the same safe, non-leaking response."""
+        """A failed native peer check must never reach decision dispatch."""
+        from jev_auto.common import AutoError
         a, b = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             engine = SimpleNamespace(dispatch=lambda req: {"should": "not-be-reached"})
             b.sendall(b'{"op":"x"}\n')
-            with patch.object(socket, "SO_PEERCRED", 2, create=True):
+            with patch("jev_auto.server.authenticate_unix_peer", side_effect=AutoError("IPC_PEER_UNVERIFIED")):
                 _make_handler(a, engine).handle()
             response = json.loads(b.recv(65536).decode())
         finally:
             a.close(); b.close()
-        self.assertEqual(response, {"ok": False, "error": "BROKER_INTERNAL_ERROR"})
+        self.assertEqual(response, {"ok": False, "error": "IPC_PEER_UNVERIFIED"})
 
     def test_broken_pipe_on_sendall_is_swallowed_not_raised(self):
         a, b = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -1116,6 +1120,14 @@ class ServerServeLifecycleTests(unittest.TestCase):
     our own TemporaryDirectory in every test that gets past the lock, so no
     socket file is ever created under the shared /private/tmp broker
     directory."""
+
+    def test_windows_broker_entrypoint_refuses_the_unverified_108_path(self):
+        import jev_auto.server as server
+        from jev_auto.common import AutoError
+
+        with patch("jev_auto.server.os.name", "nt"):
+            with self.assertRaisesRegex(AutoError, "WINDOWS_UNSUPPORTED_IN_1_0_8"):
+                server.serve("unused-workspace")
 
     def test_returns_immediately_when_another_broker_already_holds_the_lock(self):
         import jev_auto.server as server
@@ -1314,7 +1326,7 @@ class ClaudeHookHandleTests(unittest.TestCase):
         exist, which would prove the wrong thing)."""
         from jev_auto.claude_hook import handle
 
-        for name in ("Stop", "PostToolUse", "SomethingNew", None):
+        for name in ("Stop", "PostToolUse", "PreToolUse", "SubagentStart", "SomethingNew", None):
             with self.subTest(name=name):
                 seen = []
                 result = handle({"hook_event_name": name, "cwd": "/x"},
@@ -1363,7 +1375,7 @@ class ClaudeHookHandleTests(unittest.TestCase):
             self.assertEqual(handle({"hook_event_name": "UserPromptSubmit", "cwd": directory},
                                      policy_loader=lambda _p: {}), "")
 
-    def test_enrolled_session_start_and_subagent_start_return_the_session_hint(self):
+    def test_enrolled_session_start_returns_the_session_hint(self):
         """`cwd` must be a real, existing directory: handle() resolves it
         through common.workspace() BEFORE calling policy_loader, and that
         resolution raises (silently, fail-open) for a path that does not
@@ -1373,11 +1385,9 @@ class ClaudeHookHandleTests(unittest.TestCase):
         from jev_auto.claude_hook import _SESSION_HINT, handle
 
         with tempfile.TemporaryDirectory() as directory:
-            for name in ("SessionStart", "SubagentStart"):
-                with self.subTest(name=name):
-                    result = handle({"hook_event_name": name, "cwd": directory},
-                                     policy_loader=lambda _p: {"enabled": True})
-                    self.assertEqual(result, _SESSION_HINT)
+            result = handle({"hook_event_name": "SessionStart", "cwd": directory},
+                             policy_loader=lambda _p: {"enabled": True})
+        self.assertEqual(result, _SESSION_HINT)
 
     def test_enrolled_user_prompt_submit_returns_the_prompt_hint(self):
         from jev_auto.claude_hook import _PROMPT_HINT, handle
@@ -1387,16 +1397,18 @@ class ClaudeHookHandleTests(unittest.TestCase):
                              policy_loader=lambda _p: {"enabled": True})
         self.assertEqual(result, _PROMPT_HINT)
 
-    def test_enrolled_pretooluse_stays_silent_it_must_never_gain_authority(self):
-        """HARD RULE from the module docstring: PreToolUse must never emit a
-        permissionDecision or block anything, so this version stays silent
-        even when enrolled."""
+    def test_unregistered_pretooluse_is_ignored_before_policy_loading(self):
+        """PreToolUse stays out of the manifest until a native event run
+        confirms its permission semantics. A stale/copied config must not
+        activate dormant behavior in this runtime."""
         from jev_auto.claude_hook import handle
 
         with tempfile.TemporaryDirectory() as directory:
+            seen = []
             result = handle({"hook_event_name": "PreToolUse", "cwd": directory},
-                             policy_loader=lambda _p: {"enabled": True})
+                             policy_loader=lambda _p: seen.append(True) or {"enabled": True})
         self.assertEqual(result, "")
+        self.assertEqual(seen, [])
 
     def test_workspace_path_is_resolved_through_the_shared_workspace_helper(self):
         """Only the documented `cwd` field is accepted, and it is passed

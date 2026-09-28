@@ -2,23 +2,35 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-No release states measured token, cost or time savings, because none has been measured.
+## [1.0.8] — 2026-09-29
+
+This release strengthens the live recipe gate, adds a local workbench, and gives managers and creators two more bounded decision recipes. Platform and host evidence is recorded in [the host guide](docs/HOSTS.md).
+
+### Added
+
+- **Two audience-specific recipes**, taking the source catalog to 38 recipes and 114 synthetic fixtures: `qualixar.work-item-priority` helps a manager compare one item against an explicit rubric and supplied priorities; `qualixar.content-repurpose` selects among creator-provided content formats. Both return advice for a human or host to review.
+- **A local recipe workbench** with form-based recipe inputs, offline synthetic examples, and a separately reviewed live path. It runs on loopback and does not execute recommendations.
+- **Supported platform scope:** 1.0.8 is supported and verified on macOS. Linux remains experimental and unverified. Windows hosted runtime entry points fail closed because the native private-state contract did not pass CI; the Windows CI lane has been removed until that contract is deliberately revalidated. Local Laya-MLX stays Apple-Silicon macOS only.
+
+### Changed
+
+- **Live recipe answers are now evaluated by the packaged local policy gate.** `jev_recipe_try` returns the gate outcome, `host_action`, and a `policy_receipt_id` linked to the provider receipt. The response is advisory and sets `execution_authorized` to false.
+- **Every would-be passing recipe answer is capped to `VERIFY`** while its status is `SPECIFICATION_NOT_MODEL_EVALUATED`. An explicit `unknown` can return `IGNORE`; malformed or below-threshold answers remain `VERIFY`. This does not establish provider accuracy.
+- **Score gates now check probability mass on the side of the configured score threshold**, rather than accepting an unrelated distribution summary.
+- **Choice gates now reject truncated probability distributions**, including missing alternatives or a total mass outside a small rounding tolerance. The Laya-specific confidence-floor override and the cross-field confidence-shortfall rule from 1.0.7 were removed: the repository does not ship the labeled evidence needed to justify that override, and TypeSafe defines confidence as a statistic derived from the same distribution. Every provider now uses the recipe's unvalidated floor; no profile claims calibrated thresholds.
+- **Host adapter documentation distinguishes each native surface and its evidence.** Codex hook configuration is separate from Claude hook configuration; Antigravity remains PreInvocation advisory only; Hermes exposes its explicit tool allow-list; VS Code registers an MCP server. The adapters do not claim equal native verification.
+- **Hermes now registers `jev_verify` and `jev_rerank` and accepts validated Windows local-drive workspace paths.** The earlier 1.0.4 changelog entry described those tools as fixed, but the shipped Hermes allow-list and manifest still omitted them; this candidate repairs that actual installed surface and tests schema parity.
+
+### Platform and host notes
+
+- Linux hosted support remains experimental until native Secret Service, broker, host, and provider integration is verified. Windows hosted support remains disabled until native private-state and broker contracts pass CI.
+- Native model/tool turns remain host-specific evidence; a staged manifest, plugin validator, or MCP handshake alone is not a live-turn verification.
 
 ## [1.0.7] — 2026-09-26
 
 ### Added
 
-- **Per-provider gate thresholds, from the first provider measurement this project has ever made.** Every threshold was applied to every provider identically, which held only while nothing had been measured. Driving **laya-mlx 0.2.0** (`aac6fef/laya-mlx`, ModernBERT-large, 421M) through this package's own twenty decision contracts produced 14 typed answers: confidence median **0.2861**, and a gap between the selected probability and the model's own confidence with a median of **+0.2832**.
-
-  Laya's confidence runs structurally far below its distribution. That is a different calibration, not a fault — but a floor chosen for a hosted model cleared **1 of 10** real Laya answers where a lower floor cleared **5**, and nine of the ten were correct or an honest abstention. Sending nearly every clean answer to review is the defect 1.0.1 fixed in another form.
-
-  The floor now belongs to the provider. An unrecognised provider always gets the strict default: a name nobody has measured never buys a weaker gate. The result reports which profile decided it.
-
-  **This is a measurement, not a calibration.** Fourteen samples on one checkpoint. Every profile carries its sample size and says `MEASURED_SMALL_SAMPLE_NOT_CALIBRATED` or `UNVALIDATED_DEMONSTRATION_DEFAULT`, and a test refuses any profile claiming otherwise.
-
-- **A confidence-shortfall check.** An answer whose distribution asserts more certainty than the model's own confidence is refused rather than acted on. Measured against the gate: a coin flip (honest probability 0.574) sharpened by the `choice:11+` calibration temperature of **0.1006** that the Laya checkpoint ships — and that laya-mlx clamps at load, reporting it as uncalibrated — reads as probability 0.9518. With the old floor, both an inflated confidence and an **honest** one cleared the gate and returned `act`. Every individual check behaved as specified; the two thresholds were not independent and nothing read their disagreement.
-
-  **Documented limitation:** under the local profile this check is close to inert, because a large shortfall is ordinary for Laya. The defence there is upstream, where the temperature is clamped. A test pins that rather than implying the gate catches it.
+- **Provider-specific threshold override and a confidence-shortfall rule** were introduced in this release. This entry is retained to describe the historical code, not to endorse its evidence: a later audit found only ten unlabeled probability/confidence pairs in the repository, rather than a reproducible labeled set for the earlier fourteen-sample and correctness claims. It also found that TypeSafe computes confidence from the reported distribution, so treating their difference as two independent signals was wrong. Both rules are removed in the 1.0.8 candidate above.
 
 - **Nine defects found while raising test coverage**, each reproduced before being fixed: a bare `ValueError` escaping the typed-error contract on a malformed workspace path; a config write that crashed instead of refusing when its directory was unwritable; a recipe fallback that could never run because the module it imported has never existed; falsy rubric values silently replaced by boilerplate, so the model read a different question than the author wrote; a size check that a file could grow past between measurement and read; a credential store that wrote a key file it then refused to read back; a type guard that ran after the code it guarded; `--state-base` ignored by every typed tool; and `UNKNOWN_CASE` masked as an internal broker error.
 

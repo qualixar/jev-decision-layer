@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="jev-csrf" content="">
+  <meta name="color-scheme" content="light">
+  <title>Jev Recipe Workbench</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Jev workbench home"><span class="brand-mark" aria-hidden="true">J</span><span>Jev <span class="brand-light">Decision Layer</span></span></a>
+    <span class="local-badge"><span class="pulse" aria-hidden="true"></span> Runs on this computer</span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="page-title">
+      <div class="eyebrow">THE LOCAL RECIPE WORKBENCH</div>
+      <h1 id="page-title">One small decision.<br><span>Checked before you act.</span></h1>
+      <p class="intro-copy">Choose a recipe, see a synthetic example, then decide whether to review one real request. Jev gives advice and records a local receipt. You stay in control of what happens next.</p>
+      <div class="principles" aria-label="What this workbench does">
+        <div><span class="principle-icon violet" aria-hidden="true">01</span><span><strong>Choose</strong><small>A decision recipe</small></span></div>
+        <div><span class="principle-icon amber" aria-hidden="true">02</span><span><strong>Check</strong><small>A local gate reviews it</small></span></div>
+        <div><span class="principle-icon coral" aria-hidden="true">03</span><span><strong>Decide</strong><small>You take the next step</small></span></div>
+      </div>
+    </section>
+
+    <div class="workspace-grid">
+      <aside class="recipe-panel" aria-labelledby="recipes-heading">
+        <div class="panel-heading">
+          <div><div class="eyebrow" id="recipe-total">DECISION RECIPES</div><h2 id="recipes-heading">Start with a use case</h2></div>
+          <span id="recipe-count" class="count-pill">Loading</span>
+        </div>
+        <label class="search-label" for="recipe-search">Find a recipe</label>
+        <input id="recipe-search" class="search-input" type="search" placeholder="Search decisions…" autocomplete="off">
+        <div id="recipe-list" class="recipe-list" aria-label="Recipe list" aria-live="polite"></div>
+      </aside>
+
+      <section id="detail-panel" class="detail-panel" aria-live="polite" aria-labelledby="detail-title">
+        <div class="empty-state">
+          <div class="guide-orb" aria-hidden="true"><span></span><i></i></div>
+          <div class="eyebrow">YOUR DECISION GUIDE</div>
+          <h2>Pick a recipe to begin</h2>
+          <p>Try a synthetic example first. It stays on this computer and makes no model call.</p>
+        </div>
+      </section>
+    </div>
+    <footer><span>Local workbench · No account or provider key is collected here</span><span>Recipes are specifications; provider accuracy is not established by the examples.</span></footer>
+  </main>
+</body>
+</html>

@@ -38,10 +38,11 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .common import AutoError
 
@@ -56,13 +57,86 @@ class Target:
     include_type: bool
     workspace_relative: Path | None = None
     user_path: Path | None = None
+    user_path_resolver: Callable[[], Path] | None = None
+    windows_only: bool = False
 
     def config_path(self, workspace: Path | None) -> Path:
         if self.workspace_relative is not None:
             if workspace is None:
                 raise AutoError("HOST_MCP_WORKSPACE_REQUIRED")
             return Path(workspace) / self.workspace_relative
-        return Path(self.user_path).expanduser()
+        if self.user_path is not None:
+            return self.user_path.expanduser()
+        if self.user_path_resolver is not None:
+            return self.user_path_resolver().expanduser()
+        raise AutoError("HOST_MCP_CONFIG_UNREADABLE")
+
+
+def _is_windows() -> bool:
+    return os.name == "nt"
+
+
+def _launcher_filename(platform: str | None = None) -> str:
+    """Return the checked-in launcher for the current (or requested) OS."""
+    return "launch-jev.cmd" if (platform or ("nt" if _is_windows() else "posix")) == "nt" else "launch-jev"
+
+
+def _claude_desktop_config_path(platform: str | None = None, home: Path | None = None) -> Path:
+    """Resolve Claude Desktop's config path for the current host OS."""
+    if (platform or ("nt" if _is_windows() else "posix")) == "nt":
+        return (home or Path.home()) / "AppData" / "Roaming" / "Claude" / "claude_desktop_config.json"
+    return Path("~/Library/Application Support/Claude/claude_desktop_config.json")
+
+
+def _codex_cli_config_path() -> Path:
+    configured_home = os.environ.get("CODEX_HOME")
+    base = Path(configured_home).expanduser() if configured_home else Path.home() / ".codex"
+    return base / "config.toml"
+
+
+def _claude_code_cli_config_path() -> Path:
+    configured_home = os.environ.get("CLAUDE_CONFIG_DIR")
+    return ((Path(configured_home).expanduser() / ".claude.json") if configured_home
+            else Path.home() / ".claude.json")
+
+
+def _python_mcp_entry() -> dict[str, Any]:
+    """Launch through the interpreter already running Jev; do not resolve PATH."""
+    interpreter = Path(sys.executable).resolve()
+    runtime = Path(__file__).resolve().parents[1]
+    if not interpreter.is_absolute() or not interpreter.is_file() or interpreter.suffix.lower() != ".exe":
+        raise AutoError("HOST_MCP_PYTHON_INTERPRETER_INVALID")
+    # Isolated mode deliberately drops the plugin runtime from sys.path. Pass
+    # both paths as argv values (never interpolate them into source) and add
+    # only this packaged runtime before executing its entry point.
+    bootstrap = (
+        "import runpy,sys;"
+        "runtime,entry=sys.argv[1:3];"
+        "sys.path.insert(0,runtime);"
+        "sys.argv=sys.argv[2:];"
+        "runpy.run_path(entry,run_name='__main__')"
+    )
+    return {
+        "command": str(interpreter),
+        "args": [
+            "-I", "-S", "-B", "-c", bootstrap,
+            str(runtime), str(runtime / "auto_entry.py"), "mcp",
+        ],
+        "env": {},
+    }
+
+
+def _codex_manual_config_snippet(entry: dict[str, Any]) -> str:
+    """Produce an exact manual TOML block; this is never written by Jev."""
+    return "\n".join((
+        f"[mcp_servers.{json.dumps(SERVER_NAME)}]",
+        f"command = {json.dumps(entry['command'], ensure_ascii=False)}",
+        f"args = {json.dumps(entry['args'], ensure_ascii=False)}",
+    )) + "\n"
+
+
+def _json_manual_config_snippet(target: Target, entry: dict[str, Any]) -> str:
+    return json.dumps({target.key: {SERVER_NAME: entry}}, indent=2, ensure_ascii=False) + "\n"
 
 
 TARGETS = {
@@ -70,13 +144,17 @@ TARGETS = {
     "antigravity": Target("antigravity", "mcpServers", False,
                           user_path=Path("~/.gemini/config/mcp_config.json")),
     "claude-desktop": Target("claude-desktop", "mcpServers", False,
-                             user_path=Path("~/Library/Application Support/Claude/claude_desktop_config.json")),
+                             user_path_resolver=_claude_desktop_config_path),
+    "claude-code-cli": Target("claude-code-cli", "mcpServers", False,
+                              user_path_resolver=_claude_code_cli_config_path, windows_only=True),
+    "codex-cli": Target("codex-cli", "mcp_servers", False,
+                        user_path_resolver=_codex_cli_config_path, windows_only=True),
 }
 
 
 def launcher_path() -> Path:
     """The stdio entry point, resolved absolutely: no host expands our variables."""
-    path = Path(__file__).resolve().parents[2] / "scripts" / "launch-jev"
+    path = Path(__file__).resolve().parents[2] / "scripts" / _launcher_filename()
     if not path.is_file():
         raise AutoError("HOST_MCP_LAUNCHER_MISSING")
     return path
@@ -86,12 +164,22 @@ def _target(host: str) -> Target:
     target = TARGETS.get(host)
     if target is None:
         raise AutoError("HOST_MCP_TARGET_UNKNOWN")
+    if target.windows_only and not _is_windows():
+        raise AutoError("HOST_MCP_WINDOWS_ONLY")
     return target
 
 
 def server_entry(host: str, launcher: Path | None = None) -> dict[str, Any]:
     target = _target(host)
-    entry: dict[str, Any] = {"command": str(launcher or launcher_path()), "args": [], "env": {}}
+    if _is_windows():
+        # Launch with the interpreter already running the registration command.
+        # This avoids cmd.exe argument parsing and PATH-based interpreter lookup.
+        entry = _python_mcp_entry()
+        if target.include_type:
+            entry = {"type": "stdio", **entry}
+        return entry
+    command = launcher or launcher_path()
+    entry: dict[str, Any] = {"command": str(command), "args": [], "env": {}}
     if target.include_type:
         entry = {"type": "stdio", **entry}
     return entry
@@ -119,7 +207,7 @@ def _read(config: Path) -> dict[str, Any] | None:
 
 
 def merge(host: str, existing: dict[str, Any] | None, launcher: Path | None = None) -> dict[str, Any]:
-    """Add or update exactly one server. Every other key is carried through."""
+    """Add one server, or leave an identical entry untouched; never replace conflicts."""
     target = _target(host)
     if existing is not None and not isinstance(existing, dict):
         raise AutoError("HOST_MCP_CONFIG_UNPARSEABLE")
@@ -130,29 +218,52 @@ def merge(host: str, existing: dict[str, Any] | None, launcher: Path | None = No
     if not isinstance(servers, dict):
         raise AutoError("HOST_MCP_CONFIG_UNPARSEABLE")
     servers = dict(servers)
-    servers[SERVER_NAME] = server_entry(host, launcher)
+    proposed = server_entry(host, launcher)
+    current = servers.get(SERVER_NAME)
+    if current is not None and current != proposed:
+        raise AutoError("HOST_MCP_ENTRY_CONFLICT")
+    servers[SERVER_NAME] = proposed
     document[target.key] = servers
     return document
 
 
 def plan(host: str, workspace: Path | None = None, launcher: Path | None = None) -> dict[str, Any]:
-    """What a write would do. Reads the config; changes nothing."""
+    """Preview registration; Windows returns a manual snippet without opening host config."""
     target = _target(host)
     config = target.config_path(workspace)
+    if _is_windows():
+        entry = server_entry(host, launcher)
+        outcome = {
+            "host": host,
+            "config_path": str(config),
+            "config_key": target.key,
+            "config_exists": None,
+            "action": "manual-registration-required",
+            "preserved_servers": [],
+            "replaced_entry": None,
+            "entry": entry,
+            "written": False,
+            "registration": "manual",
+        }
+        if host == "codex-cli":
+            outcome["manual_config_snippet"] = _codex_manual_config_snippet(entry)
+        else:
+            outcome["manual_config_snippet"] = _json_manual_config_snippet(target, entry)
+        return outcome
     existing = _read(config)
     proposed = merge(host, existing, launcher)     # validates the key before anything reads it
     present = (existing or {}).get(target.key, {}) if existing else {}
     current = present.get(SERVER_NAME) if isinstance(present, dict) else None
     entry = proposed[target.key][SERVER_NAME]
+    action = "unchanged" if current == entry else "update" if current is not None else "create" if existing is None else "add"
+    preserved = sorted(set(present) - {SERVER_NAME}) if isinstance(present, dict) else []
     return {
         "host": host,
         "config_path": str(config),
         "config_key": target.key,
         "config_exists": existing is not None,
-        "action": "unchanged" if current == entry
-                  else "update" if current is not None
-                  else "create" if existing is None else "add",
-        "preserved_servers": sorted(set(present) - {SERVER_NAME}) if isinstance(present, dict) else [],
+        "action": action,
+        "preserved_servers": preserved,
         # Anything under our own name is about to be discarded. Surfacing it
         # lets a caller show the user what they are losing before it happens.
         "replaced_entry": _redacted(current) if current != entry else None,
@@ -176,12 +287,14 @@ def _redacted(entry: Any) -> Any:
 
 
 def install(host: str, workspace: Path | None = None, launcher: Path | None = None) -> dict[str, Any]:
-    """Apply the plan. Creates the parent directory; never follows a symlink."""
+    """Apply a native POSIX config update. Windows hosts require manual review."""
     outcome = plan(host, workspace, launcher)
-    config = Path(outcome["config_path"])
     if outcome["action"] == "unchanged":
         return outcome
-    document = merge(host, _read(config), launcher)
+    target = _target(host)
+    if _is_windows():
+        raise AutoError("HOST_MCP_WINDOWS_NATIVE_CONFIG_REQUIRED")
+    config = Path(outcome["config_path"])
     directory = config.parent
     if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
         raise AutoError("HOST_MCP_CONFIG_UNREADABLE")
@@ -191,6 +304,7 @@ def install(host: str, workspace: Path | None = None, launcher: Path | None = No
         raise AutoError("HOST_MCP_CONFIG_UNREADABLE") from None
     if config.is_symlink():
         raise AutoError("HOST_MCP_CONFIG_UNREADABLE")
+    document = merge(host, _read(config), launcher)
     _write_atomically(config, json.dumps(document, indent=2, sort_keys=True) + "\n")
     return {**outcome, "written": True}
 

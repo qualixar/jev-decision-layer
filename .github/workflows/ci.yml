@@ -9,17 +9,8 @@ permissions:
 
 jobs:
   verify:
-    # Two platforms on purpose.
-    #
-    # macOS is what ships: the Keychain wizard requires it and Laya requires
-    # Apple Silicon, yet until now no run had ever exercised it -- every check
-    # passed on a platform no user installs on.
-    #
-    # Linux stays because the runtime is deliberately portable. ipc.py branches
-    # on darwin for its temp root, settings.py carries an msvcrt path for
-    # Windows, and cli.py locks with fcntl. Those branches only keep working if
-    # something runs them, and Linux is what caught three tests that had
-    # quietly assumed macOS.
+    # macOS is the supported 1.0.8 platform. Linux runs generic tests and its
+    # disposable Secret Service check as an experimental, unverified path.
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -47,3 +38,9 @@ jobs:
         run: python3 -m unittest discover -s tests -q
       - name: Verify existing-tab browser bridge
         run: node --test tests/jev_browser.test.mjs
+      - name: Verify native Linux Secret Service session with a disposable fixture
+        if: runner.os == 'Linux' && matrix.python-version == '3.11'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes dbus-x11 gnome-keyring libsecret-tools
+          dbus-run-session -- bash -lc 'printf "%s" "jev-ci-keyring-password-fixture" | gnome-keyring-daemon --unlock --components=secrets >/dev/null; JEV_RUN_NATIVE_SECRET_SERVICE=1 python3 -m unittest discover -s tests -p test_credential_store_linux_native.py -v'

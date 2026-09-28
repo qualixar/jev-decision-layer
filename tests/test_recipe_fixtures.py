@@ -11,12 +11,14 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
 sys.path.insert(0, str(RUNTIME))
 
 from jev_auto.common import AutoError  # noqa: E402
+from jev_auto import recipe_fixtures  # noqa: E402
 from jev_auto.recipe_fixtures import VARIANTS, run_fixture, selftest, validate_fixtures  # noqa: E402
 from jev_auto.recipe_gate import ACT, evaluate  # noqa: E402
 
@@ -34,8 +36,8 @@ class ShippedFixtures(unittest.TestCase):
     def test_the_whole_suite_replays_clean(self):
         result = selftest()
         self.assertTrue(result["all_passed"], result["failures"])
-        self.assertEqual(result["cases"], 108)
-        self.assertEqual(result["passed"], 108)
+        self.assertEqual(result["cases"], 114)
+        self.assertEqual(result["passed"], 114)
 
     def test_fixtures_are_not_shipped_inside_the_model_facing_recipes(self):
         for recipe in CATALOG["recipes"]:
@@ -51,15 +53,20 @@ class ShippedFixtures(unittest.TestCase):
 class VariantsMeanSomething(unittest.TestCase):
     """A variant label that does not constrain the verdict is decoration."""
 
-    def test_a_clear_cut_input_is_cleared_so_the_host_acts_once(self):
+    def test_a_clear_cut_input_clears_raw_gate_but_live_action_requires_verification(self):
         for entry in CATALOG["fixtures"]:
             with self.subTest(entry["id"]):
-                self.assertEqual(run_fixture(entry["id"], "nominal")["observed"]["host_action"], ACT)
+                outcome = run_fixture(entry["id"], "nominal")
+                self.assertEqual(outcome["raw_gate"]["host_action"], ACT)
+                self.assertEqual(outcome["observed"]["host_action"], "verify")
+                self.assertEqual(outcome["observed"]["status"], "REVIEW")
 
     def test_an_ambiguous_input_is_never_cleared(self):
         for entry in CATALOG["fixtures"]:
             with self.subTest(entry["id"]):
-                self.assertNotEqual(run_fixture(entry["id"], "uncertain")["observed"]["host_action"], ACT)
+                outcome = run_fixture(entry["id"], "uncertain")
+                self.assertNotEqual(outcome["raw_gate"]["host_action"], ACT)
+                self.assertNotEqual(outcome["observed"]["host_action"], ACT)
 
     def test_an_embedded_instruction_never_buys_authorisation(self):
         for entry in CATALOG["fixtures"]:
@@ -67,6 +74,23 @@ class VariantsMeanSomething(unittest.TestCase):
                 observed = run_fixture(entry["id"], "adversarial")["observed"]
                 self.assertNotEqual(observed["host_action"], ACT)
                 self.assertEqual(observed["status"], "REVIEW")
+
+    def test_experimental_cap_does_not_mutate_raw_gate_result(self):
+        from jev_auto.recipe_fixtures import apply_recipe_status_cap
+
+        raw = {"status": "RECOMMEND", "host_action": ACT, "reasons": ["threshold cleared"]}
+        live = apply_recipe_status_cap(raw, "SPECIFICATION_NOT_MODEL_EVALUATED")
+        self.assertEqual(raw, {"status": "RECOMMEND", "host_action": ACT,
+                               "reasons": ["threshold cleared"]})
+        self.assertEqual(live["host_action"], "verify")
+        self.assertEqual(live["status"], "REVIEW")
+
+    def test_selftest_fails_if_live_cap_stops_applying(self):
+        with patch.object(recipe_fixtures, "apply_recipe_status_cap", lambda gate, status: gate):
+            outcome = run_fixture("qualixar.task-routing", "nominal")
+        self.assertTrue(outcome["matched"], "raw fixture gate still clears")
+        self.assertFalse(outcome["live_matched"], "effective host action must be verified")
+        self.assertFalse(outcome["passed"])
 
 
 class CleanCostsTheHostNothing(unittest.TestCase):
@@ -103,7 +127,10 @@ class CleanCostsTheHostNothing(unittest.TestCase):
             if policy["positive_outcome"] not in {"mark_check_passed", "select_candidates"}:
                 continue
             with self.subTest(gate["id"]):
-                result = evaluate(policy, {"type": "score", "score": 3.0, "confidence": 0.84})
+                result = evaluate(policy, {
+                    "type": "score", "score": 3.0, "confidence": 0.95,
+                    "probabilities": {"0": 0.01, "1": 0.01, "2": 0.03, "3": 0.95},
+                })
                 self.assertEqual(result["host_action"], ACT)
                 self.assertNotEqual(result["recommendation"], "request_review")
 

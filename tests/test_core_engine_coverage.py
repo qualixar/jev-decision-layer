@@ -220,24 +220,90 @@ class EngineJudgeCoreTests(_EngineTestCase):
             engine.judge("c1", {"x": 1}, {"q": {"type": "noul", "instructions": "x"}}, policy)
         self.assertEqual(str(ctx.exception), "POLICY_CHANGED")
 
-    def test_a_policy_edit_landing_while_the_provider_call_is_in_flight_is_rejected(self):
-        # Distinct from the stale-snapshot case above: here the policy is
-        # edited *during* the provider call (after budget reservation, before
-        # the receipt is written), which judge()'s post-call re-check must
-        # still catch even though the pre-call snapshot was fresh.
-        self.enroll(case_ids=["c1"])
-        project = self.project
+    def test_policy_writer_waits_until_provider_transport_finishes(self):
+        policy = self.enroll(case_ids=["c1"])
+        entered_transport = threading.Event()
+        release_transport = threading.Event()
+        writer_started = threading.Event()
+        writer_finished = threading.Event()
 
-        class ChangesPolicyMidFlight(FakeProviders):
+        class WaitingProviders(FakeProviders):
             def evaluate(self, p, state, questions):
-                save_policy(project, {**load_policy(project), "max_calls_per_day":
-                                       load_policy(project)["max_calls_per_day"] + 1})
+                entered_transport.set()
+                if not release_transport.wait(5):
+                    raise RuntimeError("provider test timed out")
                 return super().evaluate(p, state, questions)
 
-        engine = self.build_engine(ChangesPolicyMidFlight())
-        with self.assertRaises(AutoError) as ctx:
-            engine.judge("c1", {"a": 1}, {"q": {"type": "noul", "instructions": "x"}})
-        self.assertEqual(str(ctx.exception), "POLICY_CHANGED_DURING_REQUEST")
+        providers = WaitingProviders()
+        engine = self.build_engine(providers)
+        outcome = []
+
+        def decide():
+            try:
+                outcome.append(engine.judge("c1", {"a": 1}, {"q": {"type": "noul", "instructions": "x"}}))
+            except Exception as error:
+                outcome.append(error)
+
+        def change_policy():
+            writer_started.set()
+            save_policy(self.project, {**policy, "provider": "openrouter"})
+            writer_finished.set()
+
+        decision_thread = threading.Thread(target=decide)
+        decision_thread.start()
+        self.assertTrue(entered_transport.wait(5))
+        writer_thread = threading.Thread(target=change_policy)
+        writer_thread.start()
+        try:
+            self.assertTrue(writer_started.wait(5))
+            self.assertFalse(writer_finished.wait(0.1))
+            self.assertEqual(load_policy(self.project)["provider"], "typesafe")
+        finally:
+            release_transport.set()
+            decision_thread.join(5)
+            writer_thread.join(5)
+        self.assertFalse(decision_thread.is_alive())
+        self.assertFalse(writer_thread.is_alive())
+        self.assertEqual(len(providers.calls), 1)
+        self.assertEqual(len(outcome), 1)
+        self.assertIsInstance(outcome[0], dict)
+        self.assertTrue(writer_finished.is_set())
+        self.assertEqual(load_policy(self.project)["provider"], "openrouter")
+
+    def test_policy_swap_while_provider_readiness_waits_never_calls_provider(self):
+        policy = self.enroll(case_ids=["c1"])
+        entered_readiness = threading.Event()
+        resume_readiness = threading.Event()
+
+        class WaitingProviders(FakeProviders):
+            def ready_for_request(self, effective_policy):
+                entered_readiness.set()
+                if not resume_readiness.wait(5):
+                    raise RuntimeError("readiness test timed out")
+
+        providers = WaitingProviders()
+        engine = self.build_engine(providers)
+        outcome = []
+
+        def decide():
+            try:
+                engine.judge("c1", {"a": 1}, {"q": {"type": "noul", "instructions": "x"}}, policy)
+            except Exception as error:
+                outcome.append(error)
+
+        worker = threading.Thread(target=decide)
+        worker.start()
+        try:
+            self.assertTrue(entered_readiness.wait(5))
+            save_policy(self.project, {**policy, "provider": "openrouter"})
+        finally:
+            resume_readiness.set()
+            worker.join(5)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual([str(error) for error in outcome], ["POLICY_CHANGED"])
+        self.assertEqual(providers.calls, [])
+        self.assertEqual(engine.store.stats()["budget_rows"], [],
+                         "a revoked request must not spend a daily attempt before transport")
 
     def test_sensitive_state_is_never_sent_to_the_provider(self):
         self.enroll(case_ids=["c1"])
@@ -765,6 +831,157 @@ class EngineEvaluateTypedFamilyTests(_EngineTestCase):
         self.assertEqual(result["focus"], "correctness")
         self.assertEqual(result["status"], "ADVISORY_NOT_REVIEW_VERDICT")
         self.assertIn("independent_code_review", result["required_followup"])
+
+
+class LiveRecipeGateTests(_EngineTestCase):
+    """A provider answer must pass the packaged recipe gate before reaching a host."""
+
+    def test_live_recipe_result_exposes_gated_fields_and_binds_local_receipt(self):
+        self.enroll(generic_query_enabled=True)
+        answer = {"type": "score", "score": 2, "confidence": 0.95,
+                  "probabilities": {"0": 0.0, "1": 0.0, "2": 1.0}}
+        engine = self.build_engine(FakeProviders(answers={"decision": answer}))
+        result = engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.brief-fit",
+                                  "input": {"query": "private-query-unique", "candidate": "private-candidate-unique"},
+                                  "data_classification": "public"})
+
+        self.assertEqual(result["host_action"], "verify")
+        self.assertEqual(result["raw_gate_action"], "act")
+        self.assertEqual(result["status"], "EXPERIMENTAL_ADVISORY")
+        self.assertEqual(result["recipe_status"], "SPECIFICATION_NOT_MODEL_EVALUATED")
+        self.assertIn("capped at VERIFY", result["reason"])
+        self.assertTrue(result["policy_receipt_id"])
+        self.assertFalse(result["execution_authorized"])
+        receipt = engine.recall(result["policy_receipt_id"])["detail"]
+        self.assertEqual(receipt["provider_receipt_id"], result["receipt_id"])
+        self.assertEqual(receipt["recipe_id"], "qualixar.brief-fit")
+        self.assertEqual(receipt["gate"]["host_action"], "verify")
+        self.assertNotIn("private-query-unique", json.dumps(receipt))
+        self.assertNotIn("private-candidate-unique", json.dumps(receipt))
+
+    def test_low_confidence_live_answer_stays_verify(self):
+        self.enroll(generic_query_enabled=True)
+        answer = {"type": "score", "score": 2, "confidence": 0.1,
+                  "probabilities": {"0": 0.0, "1": 0.0, "2": 1.0}}
+        engine = self.build_engine(FakeProviders(answers={"decision": answer}))
+        result = engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.brief-fit",
+                                  "input": {"query": "plain", "candidate": "clear"},
+                                  "data_classification": "public"})
+        self.assertEqual(result["host_action"], "verify")
+        self.assertIn("below", result["reason"].lower())
+
+    def test_unknown_choice_keeps_ignore_for_a_failing_gate(self):
+        self.enroll(generic_query_enabled=True)
+        answer = {"type": "choice", "choice": "unknown", "confidence": 0.99,
+                  "probabilities": {"retry_unchanged": 0.0, "retry_with_change": 0.0,
+                                    "stop": 0.0, "escalate": 0.0, "unknown": 1.0}}
+        engine = self.build_engine(FakeProviders(answers={"decision": answer}))
+        result = engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.retry-decision",
+                                  "input": {"failure": "timeout", "attempts_so_far": "one",
+                                            "available_actions": "retry or escalate"},
+                                  "data_classification": "public"})
+        self.assertEqual(result["host_action"], "ignore")
+        self.assertIn("unknown", result["reason"].lower())
+
+    def test_malformed_answer_fails_closed_to_verify(self):
+        self.enroll(generic_query_enabled=True)
+        engine = self.build_engine()
+        engine.evaluate_typed = lambda *a, **k: {
+            "answers": {"decision": {"type": "score", "score": 2,
+                                      "confidence": float("nan"),
+                                      "probabilities": {"0": 0.0, "1": 0.0, "2": 1.0}}},
+            "provider": "typesafe", "model": "jev-1.13.0", "receipt_id": "a" * 64,
+            "cache_hit": False, "calibration_status": "NOT_EVALUATED",
+        }
+        result = engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.brief-fit",
+                                  "input": {"query": "plain", "candidate": "clear"},
+                                  "data_classification": "public"})
+        self.assertEqual(result["host_action"], "verify")
+        self.assertIn("confidence", result["reason"].lower())
+
+    def test_laya_uses_unmodified_recipe_floor_until_labeled_evaluation_exists(self):
+        self.enroll(generic_query_enabled=True)
+        answer = {"type": "choice", "choice": "retry_unchanged", "confidence": 0.6,
+                  "probabilities": {"retry_unchanged": 0.95, "retry_with_change": 0.02,
+                                    "stop": 0.01, "escalate": 0.01, "unknown": 0.01}}
+        engine = self.build_engine()
+        engine.evaluate_typed = lambda *a, **k: {
+            "answers": {"decision": answer}, "provider": "laya-mlx", "model": "local-test",
+            "receipt_id": "b" * 64, "cache_hit": False,
+            "calibration_status": "NOT_EVALUATED",
+        }
+        result = engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.retry-decision",
+                                  "input": {"failure": "timeout", "attempts_so_far": "one",
+                                            "available_actions": "retry or escalate"},
+                                  "data_classification": "public"})
+        self.assertEqual(result["host_action"], "verify")
+        self.assertIn("below the configured floor", result["reason"])
+        receipt = engine.recall(result["policy_receipt_id"])["detail"]
+        self.assertEqual(receipt["gate"]["provider_profile"]["provider"], "laya-mlx")
+        self.assertEqual(receipt["gate"]["thresholds_applied"]["min_confidence"], 0.7)
+        self.assertIsNone(receipt["gate"]["recommendation"])
+
+    def test_provider_failure_does_not_create_a_policy_receipt(self):
+        self.enroll(generic_query_enabled=True)
+        engine = self.build_engine(FakeProviders(raises=RuntimeError("offline")))
+        with self.assertRaises(AutoError) as ctx:
+            engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.brief-fit",
+                             "input": {"query": "plain", "candidate": "clear"},
+                             "data_classification": "public"})
+        self.assertEqual(str(ctx.exception), "DECISION_FAILED_OR_UNAVAILABLE")
+        self.assertEqual(engine.store.stats()["budget_rows"][0]["reserved_attempts"], 1,
+                         "a failed transport may still have been billed and remains an attempt")
+
+    def test_secret_like_recipe_input_is_blocked_before_provider_and_receipt(self):
+        self.enroll(generic_query_enabled=True)
+        fake = FakeProviders()
+        engine = self.build_engine(fake)
+        evidence_before = engine.store.stats()["evidence_records"]
+        with self.assertRaises(AutoError) as ctx:
+            engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.brief-fit",
+                             "input": {"query": "api_key=super-secret-value", "candidate": "clear"},
+                             "data_classification": "public"})
+        self.assertEqual(str(ctx.exception), "INPUT_DATA_BLOCKED")
+        self.assertEqual(fake.calls, [])
+        self.assertEqual(engine.store.stats()["evidence_records"], evidence_before)
+
+    def test_catalog_document_rejects_recipe_gate_id_mismatch(self):
+        from jev_auto import recipe_runtime
+
+        payload = json.loads((RUNTIME / "recipe_catalog.json").read_text())
+        payload["gates"][0]["id"] = "qualixar.no-matching-recipe"
+        with tempfile.TemporaryDirectory() as tmp:
+            fake_runtime = Path(tmp) / "runtime"
+            (fake_runtime / "jev_auto").mkdir(parents=True)
+            fake_file = fake_runtime / "jev_auto" / "recipe_runtime.py"
+            (fake_runtime / "recipe_catalog.json").write_text(json.dumps(payload))
+            with patch.object(recipe_runtime, "__file__", str(fake_file)):
+                with self.assertRaises(AutoError):
+                    recipe_runtime.catalog_document()
+
+    def test_expected_policy_change_from_local_laya_to_hosted_aborts_before_provider(self):
+        from jev_auto.common import digest
+
+        policy_a = self.enroll(generic_query_enabled=True, data_classification="restricted",
+                               local_laya_enabled=True, mlx={"repository": "local/test-model"})
+        fake = FakeProviders()
+        engine = self.build_engine(fake)
+        original_evaluate_typed = engine.evaluate_typed
+
+        def swap_to_hosted_after_facade_preflight(*args, **kwargs):
+            policy_b = {**policy_a, "provider": "typesafe", "local_laya_enabled": False,
+                        "data_classification": "public", "mlx": None}
+            save_policy(self.project, policy_b)
+            return original_evaluate_typed(*args, **kwargs)
+
+        engine.evaluate_typed = swap_to_hosted_after_facade_preflight
+        with self.assertRaises(AutoError) as ctx:
+            engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.brief-fit",
+                             "input": {"query": "plain", "candidate": "clear"},
+                             "data_classification": "restricted",
+                             "expected_policy_digest": digest(policy_a)})
+        self.assertEqual(str(ctx.exception), "POLICY_CHANGED")
+        self.assertEqual(fake.calls, [])
 
 
 class EngineResultShapeGuardTests(_EngineTestCase):

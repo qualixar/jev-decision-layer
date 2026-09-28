@@ -1,6 +1,7 @@
 """Compatibility facade: existing tools stay available; automatic calls return compact data."""
 from __future__ import annotations
 import json
+import math
 import sys
 import os
 import re
@@ -8,12 +9,14 @@ import selectors
 import signal
 import subprocess
 import threading
+import queue
 from pathlib import Path
 from . import __version__
 from .common import AutoError,canonical,decode,workspace
 from .ipc import ensure,request
 
 VERSIONS=('2025-11-25','2025-06-18','2025-03-26','2024-11-05')
+_IS_WINDOWS=os.name=='nt'
 _SETUP_LINE=re.compile(rb'Qualixar setup: (http://127\.0\.0\.1:[0-9]{2,5}/setup)\. Enter keys only in the local browser, never in chat\.\r?\n?\Z')
 
 def _extract_setup_url(line):
@@ -24,20 +27,44 @@ def _extract_setup_url(line):
 def _open_setup(path):
     """Open only the packaged loopback wizard, never a caller-supplied command."""
     project=workspace(path)
-    script=Path(__file__).resolve().parents[2]/'scripts'/'open-setup'
+    plugin_root=Path(__file__).resolve().parents[2]
+    script=plugin_root/'scripts'/('open-setup.cmd' if _IS_WINDOWS else 'open-setup')
     if not script.is_file() or script.is_symlink():raise AutoError('SETUP_LAUNCHER_MISSING')
-    environment={name:os.environ[name] for name in ('PATH','HOME','XDG_STATE_HOME','XDG_CONFIG_HOME') if name in os.environ}
+    allowed={'PATH','HOME','XDG_STATE_HOME','XDG_CONFIG_HOME'}
+    if _IS_WINDOWS:
+        allowed.update({'LOCALAPPDATA','USERPROFILE','SYSTEMROOT','WINDIR','TEMP','TMP',
+                        'APPDATA','PROGRAMFILES','PROGRAMFILES(X86)','RUNNER_TOOL_CACHE'})
+    environment={name:value for name,value in os.environ.items() if name.upper() in allowed}
+    command=[str(script),str(project)]
+    if _IS_WINDOWS:
+        # Batch files parse arguments through cmd.exe even with shell=False.
+        # Use the running Python executable so a workspace path cannot become
+        # a batch command, while still requiring the packaged launcher.
+        command=[sys.executable,'-I','-S','-B','-c',
+                 'import runpy,sys; sys.path.insert(0,sys.argv[1]); '
+                 'sys.argv=["src.adl.api.setup_server","--workspace",sys.argv[2]]; '
+                 'runpy.run_module("src.adl.api.setup_server",run_name="__main__")',
+                 str(plugin_root/'runtime'),str(project)]
     try:
-        process=subprocess.Popen([str(script),str(project)],cwd=project,env=environment,
+        process=subprocess.Popen(command,cwd=project,env=environment,
                                  stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,
-                                 start_new_session=True,close_fds=True)
+                                 start_new_session=not _IS_WINDOWS,close_fds=True)
     except OSError:
         raise AutoError('SETUP_START_FAILED') from None
-    selector=selectors.DefaultSelector()
+    selector=None
     try:
-        selector.register(process.stdout,selectors.EVENT_READ)
-        if not selector.select(8):raise AutoError('SETUP_START_TIMEOUT')
-        line=process.stdout.readline(512)
+        if _IS_WINDOWS:
+            # Windows selectors cannot wait on an anonymous subprocess pipe.
+            lines=queue.Queue(maxsize=1)
+            threading.Thread(target=lambda:lines.put(process.stdout.readline(512)),
+                             daemon=True,name='jev-setup-line').start()
+            try:line=lines.get(timeout=8)
+            except queue.Empty:raise AutoError('SETUP_START_TIMEOUT') from None
+        else:
+            selector=selectors.DefaultSelector()
+            selector.register(process.stdout,selectors.EVENT_READ)
+            if not selector.select(8):raise AutoError('SETUP_START_TIMEOUT')
+            line=process.stdout.readline(512)
         if len(line)>=512:raise AutoError('SETUP_START_FAILED')
         url=_extract_setup_url(line)
         def reap():
@@ -48,12 +75,16 @@ def _open_setup(path):
                 'credential_entry':'PRIVATE_BROWSER_ONLY'}
     except (OSError,UnicodeError,ValueError,AutoError):
         if process.poll() is None:
-            os.killpg(process.pid,signal.SIGKILL)
-        process.wait(timeout=2)
+            try:
+                if _IS_WINDOWS:process.kill()
+                else:os.killpg(process.pid,signal.SIGKILL)
+            except OSError:pass
+        try:process.wait(timeout=2)
+        except subprocess.TimeoutExpired:pass
         process.stdout.close()
         raise AutoError('SETUP_START_FAILED') from None
     finally:
-        selector.close()
+        if selector is not None:selector.close()
 
 def definitions(legacy):
     tools=legacy.tools(scope='global-hybrid')
@@ -115,10 +146,15 @@ def dispatch(name,args,legacy,caller=None,setup_launcher=None):
     for k,v in args.items():
         spec=schema['properties'][k];kind=spec.get('type')
         if isinstance(kind,list) and not any((item=='string' and isinstance(v,str)) or (item=='object' and isinstance(v,dict)) or (item=='array' and isinstance(v,list)) for item in kind):raise AutoError('MCP_ARGUMENT_TYPE')
-        if kind=='string' and (not isinstance(v,str) or len(v)<spec.get('minLength',0) or len(v)>spec.get('maxLength',100000)):raise AutoError('MCP_ARGUMENT_TYPE')
+        if kind=='string' and not isinstance(v,str):raise AutoError('MCP_ARGUMENT_TYPE')
         if kind=='integer' and (not isinstance(v,int) or isinstance(v,bool) or v<spec.get('minimum',0)):raise AutoError('MCP_ARGUMENT_TYPE')
         if kind=='object' and not isinstance(v,dict):raise AutoError('MCP_ARGUMENT_TYPE')
         if kind=='array' and not isinstance(v,list):raise AutoError('MCP_ARGUMENT_TYPE')
+        if kind=='number' and (not isinstance(v,(int,float)) or isinstance(v,bool) or not math.isfinite(v)):raise AutoError('MCP_ARGUMENT_TYPE')
+        if isinstance(v,str):
+            if len(v)<spec.get('minLength',0) or len(v)>spec.get('maxLength',100000):raise AutoError('MCP_ARGUMENT_TYPE')
+            if 'pattern' in spec and re.fullmatch(spec['pattern'],v) is None:raise AutoError('MCP_ARGUMENT_TYPE')
+        if isinstance(v,list) and (len(v)<spec.get('minItems',0) or len(v)>spec.get('maxItems',100000)):raise AutoError('MCP_ARGUMENT_TYPE')
         if 'enum' in spec and v not in spec['enum']:raise AutoError('MCP_ARGUMENT_ENUM')
     path=args.get('workspace_path')
     if name=='jev_setup':return (setup_launcher or _open_setup)(workspace(path))
@@ -159,6 +195,16 @@ def dispatch(name,args,legacy,caller=None,setup_launcher=None):
         return selftest()
     return legacy.call(name,args,scope='global-hybrid')
 
+def _drain_oversized_line(stream):
+    """Restore framing after an oversized request, with finite time and memory."""
+    remaining=4_194_304
+    while remaining>0:
+        chunk=stream.readline(min(65_536,remaining))
+        if not chunk:return True
+        if chunk.endswith(b'\n'):return True
+        remaining-=len(chunk)
+    return False
+
 def serve():
     from jevkit import mcp_server as legacy
     initialized=False
@@ -166,8 +212,12 @@ def serve():
         line=sys.stdin.buffer.readline(512_001)
         if not line:break
         rid=None
+        synchronized=True
         try:
-            if not line.endswith(b'\n') and len(line)>512000:raise AutoError('MCP_MESSAGE_SIZE')
+            if len(line)>512000:
+                if not line.endswith(b'\n'):
+                    synchronized=_drain_oversized_line(sys.stdin.buffer)
+                raise AutoError('MCP_MESSAGE_SIZE')
             req=decode(line)
             if not isinstance(req,dict) or req.get('jsonrpc')!='2.0':raise AutoError('MCP_REQUEST')
             if 'id' not in req:continue
@@ -194,3 +244,4 @@ def serve():
         except AutoError as e:out={'jsonrpc':'2.0','id':rid,'error':{'code':-32602,'message':str(e)}}
         except Exception:out={'jsonrpc':'2.0','id':rid,'error':{'code':-32603,'message':'Internal error'}}
         print(canonical(out).decode(),flush=True)
+        if not synchronized:break

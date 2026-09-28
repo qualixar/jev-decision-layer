@@ -9,6 +9,10 @@ import uuid
 from pathlib import Path
 from .security import SafeError, private_dir
 
+
+def _windows_legacy_storage() -> bool:
+    return os.name == 'nt'
+
 class CallBudget:
     _COLUMNS = (
         'id', 'expires', 'max_calls', 'used', 'allow_custom', 'workspace_id',
@@ -38,6 +42,10 @@ class CallBudget:
             raise SafeError('UNSAFE_BUDGET_PATH')
 
     def connect(self):
+        if _windows_legacy_storage():
+            # sqlite3 opens its own database and journal/WAL files. POSIX mode
+            # checks below cannot verify their Windows DACLs or file handles.
+            raise SafeError('LEGACY_GRANTS_UNAVAILABLE_WINDOWS')
         private_dir(self.path.parent)
         self._validate_ledger()
         if self.path.is_symlink():

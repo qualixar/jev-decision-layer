@@ -1,9 +1,9 @@
 """Refuse a shipped change that reuses an already-released version number.
 
-Users do not install a tag. `plugin marketplace add qualixar/jev-decision-layer`
-clones the default branch and resolves each plugin by the relative path in
-`.claude-plugin/marketplace.json`, so whatever is on `main` is what every host
-installs -- Claude Code, Codex, Antigravity, Hermes and VS Code alike.
+Users do not install a tag. Host marketplaces resolve plugins through the
+relative paths in `.agents/plugins/marketplace.json` and
+`.claude-plugin/marketplace.json`, so whatever is on `main` is what a fresh
+install receives.
 
 That is the ordinary first-party arrangement and not a fault: Anthropic's own
 marketplace uses the same unpinned relative form for the plugins it owns, and
@@ -46,7 +46,11 @@ PLUGIN = ROOT / "plugins" / "qualixar-jev-decision-layer"
 
 # Paths whose contents reach a user's installation. Given to `git diff` as
 # pathspecs, so a directory covers everything beneath it.
-SHIPPED: tuple[str, ...] = ("plugins", ".claude-plugin/marketplace.json")
+SHIPPED: tuple[str, ...] = (
+    "plugins",
+    ".agents/plugins/marketplace.json",
+    ".claude-plugin/marketplace.json",
+)
 
 SKIPPED = "skipped"
 CLEAN = "clean"

@@ -540,9 +540,9 @@ class HermesToolBoundsOrderingTests(unittest.TestCase):
         self.assertEqual(result, {"error": "HERMES_TOOL_TOO_LARGE"})
 
     def test_an_oversized_result_is_reported_without_leaking_its_content(self):
-        from jev_auto.hermes_tool import handle
+        from jev_auto.hermes_tool import MAX_RESULT_BYTES, handle
 
-        huge = "x" * 5_000
+        huge = "x" * (MAX_RESULT_BYTES + 1)
         result = handle({"name": "jev_route", "arguments": {"task": "small"}},
                         dispatcher=lambda *_a: {"payload": huge})
         self.assertEqual(result, {"error": "HERMES_TOOL_RESULT_INVALID"})
@@ -676,16 +676,9 @@ class HostMcpPlanRedactionAndLeakTests(unittest.TestCase):
             with self.subTest(leaked=leaked):
                 self.assertNotIn(leaked, serialized)
 
-    def test_a_prior_entry_under_our_own_name_with_nothing_to_redact_is_returned_as_is(self):
-        """`_redacted` has two return points: one masks a secret, the other
-        (line 174) returns the entry untouched when `env` is empty or absent.
-        This is the integration-level check, through `plan()`; the object
-        identity claim (does line 174 really skip rebuilding the dict) is
-        checked directly against `_redacted` below, since `plan()`'s config
-        goes through a JSON round-trip and can never be `is` the object this
-        test constructed.
-        """
+    def test_a_different_entry_under_our_name_is_refused_not_replaced(self):
         from jev_auto.host_mcp import TARGETS, plan
+        from jev_auto.common import AutoError
 
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
@@ -693,10 +686,8 @@ class HostMcpPlanRedactionAndLeakTests(unittest.TestCase):
             config.parent.mkdir(parents=True)
             stale_entry = {"command": "/old/stale/launcher", "args": [], "env": {}}
             config.write_text(json.dumps({"servers": {"qualixar-jev": stale_entry}}))
-            outcome = plan("vscode", workspace, Path("/opt/jev"))
-
-        self.assertEqual(outcome["action"], "update")
-        self.assertEqual(outcome["replaced_entry"], stale_entry)
+            with self.assertRaisesRegex(AutoError, "HOST_MCP_ENTRY_CONFLICT"):
+                plan("vscode", workspace, Path("/opt/jev"))
 
     def test_redacted_returns_the_same_object_when_there_is_nothing_to_mask(self):
         """Direct unit check of the identity claim above: called on an entry

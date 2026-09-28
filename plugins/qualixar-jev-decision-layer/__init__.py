@@ -23,7 +23,7 @@ _ID = re.compile(r"(?:file|skill|guidance):[A-Za-z0-9_./-]{1,200}\Z")
 _RECEIPT = re.compile(r"Receipt: [a-f0-9]{64}\Z")
 HOOK_DEADLINE_SECONDS = 25
 MAX_TOOL_ARGUMENT_BYTES = 32_768
-MAX_TOOL_RESULT_BYTES = 4_096
+MAX_TOOL_RESULT_BYTES = 16_384
 MAX_CONTEXT_WORKSPACE_PATH_CHARS = 1_024
 MAX_CONTEXT_GOAL_CHARS = 512
 MAX_CONTEXT_REDUCE_TEXT_CHARS = 20_000
@@ -173,13 +173,14 @@ def _tool_schema(name: str, description: str, properties: dict[str, Any], requir
                            "additionalProperties": False}}
 
 
-_WORKSPACE = {"type": "string", "description": "Absolute workspace path reviewed in Jev setup."}
+_WORKSPACE = {"type": "string", "minLength": 1, "maxLength": 4096}
 _CLASSIFICATION = {"type": "string", "enum": ["public", "internal-minimized", "restricted"]}
-# Path and goal limits are deliberately narrower than direct MCP. Reduce text
-# remains useful under the default sieve policy; its serialized JSON envelope
-# is independently bounded before crossing the Hermes child-process boundary.
-_MCP_WORKSPACE = {"type": "string", "minLength": 1, "maxLength": MAX_CONTEXT_WORKSPACE_PATH_CHARS}
+# Context-preparation inputs are narrower than direct MCP. The shared baseline
+# schemas remain identical across hosts; all Hermes calls also face a serialized
+# JSON envelope cap before crossing the child-process boundary.
+_MCP_WORKSPACE = {"type": "string", "minLength": 1, "maxLength": 4096}
 _MCP_GOAL = {"type": "string", "minLength": 1, "maxLength": MAX_CONTEXT_GOAL_CHARS}
+_GOAL = {"type": "string", "minLength": 1, "maxLength": 4000}
 _TOOL_SCHEMAS = (
     _tool_schema("jev_setup", "Open the private local Jev setup or scope-review wizard; never put a key in chat.",
                  {"workspace_path": _WORKSPACE}, ["workspace_path"]),
@@ -195,19 +196,38 @@ _TOOL_SCHEMAS = (
     _tool_schema("jev_recall", "Fetch a local receipt or exact omitted line range. No model inference or cloud request.",
                  {"workspace_path": _MCP_WORKSPACE,
                   "receipt_id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-                  "start": {"type": "integer", "minimum": 1, "maximum": MAX_CONTEXT_RECALL_LINE},
-                  "end": {"type": "integer", "minimum": 1, "maximum": MAX_CONTEXT_RECALL_LINE}},
+                  "start": {"type": "integer", "minimum": 1},
+                  "end": {"type": "integer", "minimum": 1}},
                  ["workspace_path", "receipt_id"]),
     _tool_schema("jev_route", "Ask Jev to advise on one task, tool, or skill from a closed shortlist. Does not execute it.",
-                 {"workspace_path": _WORKSPACE, "kind": {"type": "string", "enum": ["task", "tool", "skill"]},
-                  "task": {"type": "string"}, "candidates": {"type": "array", "items": {"type": "object"}},
+                  {"workspace_path": _WORKSPACE, "kind": {"type": "string", "enum": ["task", "tool", "skill"]},
+                  "task": _GOAL,
+                  "candidates": {"type": "array", "minItems": 2, "maxItems": 12,
+                                 "items": {"type": "object"}},
                   "data_classification": _CLASSIFICATION},
                  ["workspace_path", "kind", "task", "candidates", "data_classification"]),
     _tool_schema("jev_recipe_catalog", "List reviewed Jev use-case recipes without a provider call.", {}, []),
+    _tool_schema("jev_recipe_selftest", "Replay shipped synthetic fixtures through the local gate. Fully offline: no provider call, key, or workspace enrollment.",
+                 {"recipe_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                  "variant": {"type": "string", "enum": ["nominal", "uncertain", "adversarial"]}}, []),
     _tool_schema("jev_recipe_try", "Try one enrolled recipe on explicitly supplied input; advisory only.",
-                 {"workspace_path": _WORKSPACE, "recipe_id": {"type": "string"},
+                 {"workspace_path": _WORKSPACE,
+                  "recipe_id": {"type": "string", "minLength": 1, "maxLength": 128},
                   "input": {"type": "object"}, "data_classification": _CLASSIFICATION},
                  ["workspace_path", "recipe_id", "input", "data_classification"]),
+    _tool_schema("jev_verify", "Check a structured extraction against its source. Returns per-field probability of being wrong and a trustworthiness result; unknown fields are not clean.",
+                 {"workspace_path": _WORKSPACE,
+                  "source_text": {"type": "string", "minLength": 1, "maxLength": 20000},
+                  "extraction": {"type": "object"}, "threshold": {"type": "number"},
+                  "data_classification": _CLASSIFICATION},
+                 ["workspace_path", "source_text", "extraction", "data_classification"]),
+    _tool_schema("jev_rerank", "Score retrieved passages against the question and decide whether any passage answers it. If should_abstain is true, do not use the top hit as an answer.",
+                 {"workspace_path": _WORKSPACE,
+                  "query": {"type": "string", "minLength": 1, "maxLength": 2000},
+                  "memories": {"type": "array", "minItems": 1, "maxItems": 12,
+                               "items": {"type": "object"}},
+                  "data_classification": _CLASSIFICATION},
+                 ["workspace_path", "query", "memories", "data_classification"]),
     _tool_schema("jev_review_diff", "Ask Jev for advisory code-review focus; tests and independent review still required.",
                  {"workspace_path": _WORKSPACE, "goal": {"type": "string"},
                   "diff": {"type": "string"}, "data_classification": _CLASSIFICATION},

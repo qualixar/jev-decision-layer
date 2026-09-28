@@ -1,6 +1,6 @@
 ---
 name: jev-use-cases
-description: Use the 20 reviewed Jev decision contracts — skill/task/tool routing, file ranking, context sieving, injection triage, claim verification, completion gates, patch review, semantic lint, failure classification, worker routing, issue/incident/support triage, test selection, documentation drift, security review routing, research ranking and memory admission. Read a contract's required fields before sending anything, and check it offline first.
+description: Use Jev decision contracts and the 38-recipe catalog for bounded choices such as task/tool/skill routing, work-item priority, creator content format, file ranking, context sieving, injection triage, claim verification, patch review, retry decisions, research ranking and memory admission. Read the required fields first; use synthetic fixtures offline before a live call.
 ---
 
 # Jev decision contracts
@@ -9,26 +9,30 @@ Twenty bounded decision workflows, each with a fixed input contract and a locall
 
 ## Why call these at all
 
-A contract answers a classification question for roughly a thousandth of what it costs you to reason it out. The saving is not the call — it is the work you then do not do: no file sweep to guess which tests matter, no re-reading a diff to decide where review effort belongs, no second pass to re-derive whether a claim was actually supported. Call one whenever it would replace reasoning you would otherwise do in your own context, and do not batch or skip calls to economise. An abstention costs almost nothing; acting on an answer you should have checked costs a great deal more.
+A contract makes a bounded decision explicit and returns a typed result for the host to consider. Use it when the question, evidence, and candidate set fit the contract. A provider call has its own cost and latency; no token, cost, or task-time saving has been measured for this workflow.
 
 ## The sequence
 
 1. **`jev_catalog`** — the approved case IDs. Pick one before judging anything.
 2. **`jev_describe`** — required input fields, rubric and thresholds for that case. Read this before assembling input; a contract rejects unknown fields rather than ignoring them.
-3. **`jev_run_fixture`** — replay that case's synthetic fixture. Offline, no provider, no key. Use it to see the shape of a real answer before spending one, and to confirm the layer is working when a live call behaves oddly.
+3. **`jev_run_fixture`** — replay that case's synthetic fixture. Offline, no provider, no key. Use it to inspect the fixture result shape and local contract behavior; it is not a live provider answer and does not verify provider access.
 4. **`jev_evaluate`** — the live call. Needs a workspace-bound grant and reviewed, minimized input.
 
-`jev_recipe_selftest` replays all 96 shipped fixtures across the recipe catalog in one offline call. Run it once when adopting the layer, or when a gate result looks wrong, rather than debugging against paid calls.
+`jev_recipe_selftest` replays all 114 shipped synthetic fixtures across the recipe catalog in one offline call. Run it once when adopting the layer, or when a gate result looks wrong, rather than debugging against paid calls.
 
-## Reading the answer
+## Reading a live recipe result
 
-Every answer arrives pre-gated with a `host_action`:
+In 1.0.8, `jev_recipe_try` applies the packaged gate locally and returns an `EXPERIMENTAL_ADVISORY` result with `host_action` and `policy_receipt_id`. The policy receipt records the recipe status, provider receipt ID, provider/model, and gate outcome. It is a record of the gate result, not proof of provider accuracy.
 
-- **`act`** — it cleared both the confidence floor and the distribution bar. Use it. Do not re-derive the judgment in your own context; that is the cost the call was made to avoid.
-- **`verify`** — a starting point, not a conclusion. Cheaper to check than to work out from nothing.
-- **`ignore`** — below the floor, or the model chose `unknown`. Decide normally. The call still earned its keep by removing a bad option.
+Every shipped recipe is `SPECIFICATION_NOT_MODEL_EVALUATED`. Therefore, any recipe answer that would otherwise receive `act` is capped to `verify`. An explicit `unknown` choice may return `ignore`; other below-threshold or malformed answers return `verify`.
 
-**Confidence is not probability.** A distribution can look decisive while the answer is not calibrated — measured against jev-1.13, a choice came back at probability 0.85 with confidence 0.77. The gate already applies both; do not second-guess it by looking at the top probability alone.
+- **`act`** — meaning the answer passed the configured gate in a model-evaluated recipe. No shipped recipe can retain `act` in 1.0.8.
+- **`verify`** — independently check the recipe recommendation. This is the maximum result for a would-be passing answer from a shipped recipe.
+- **`ignore`** — the recipe chose `unknown`; do not use a recommendation and decide normally.
+
+No `host_action` authorizes or performs an operation. The host keeps its permissions and remains responsible for any action.
+
+**Confidence summarizes the reported distribution.** TypeSafe derives Choice and Score confidence from probabilities; it is not an independent accuracy signal. The gate applies its configured confidence floor and selected/outcome probability bar as unvalidated policy settings. Laya uses the same recipe floor because this repository has no reproducible labeled provider study to justify an override. A high probability or confidence does not prove the answer is correct.
 
 **A Noul answer has no confidence field.** Its distance from 0.5 is the certainty, and the yes/no bands express it. Do not look for a confidence number on one, and do not treat its absence as low confidence.
 
