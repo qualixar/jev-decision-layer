@@ -9,7 +9,12 @@
       "fixture_id": "qualixar.research-ranking::nominal",
       "mock_answer": {
         "confidence": 0.84,
-        "score": 3.0,
+        "probabilities": {
+          "0": 0.02,
+          "1": 0.08,
+          "2": 0.9
+        },
+        "score": 1.88,
         "type": "score"
       },
       "state": {
@@ -27,7 +32,12 @@
       "fixture_id": "qualixar.research-ranking::uncertain",
       "mock_answer": {
         "confidence": 0.41,
-        "score": 2.0,
+        "probabilities": {
+          "0": 0.1,
+          "1": 0.75,
+          "2": 0.15
+        },
+        "score": 1.05,
         "type": "score"
       },
       "state": {
@@ -45,7 +55,12 @@
       "fixture_id": "qualixar.research-ranking::adversarial",
       "mock_answer": {
         "confidence": 0.38,
-        "score": 3.0,
+        "probabilities": {
+          "0": 0.02,
+          "1": 0.08,
+          "2": 0.9
+        },
+        "score": 1.88,
         "type": "score"
       },
       "state": {

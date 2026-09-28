@@ -151,7 +151,7 @@ class GatesRejectedAtLoad(unittest.TestCase):
 
     def test_the_shipped_catalog_still_loads(self):
         catalog = json.loads((RUNTIME / "recipe_catalog.json").read_text())
-        self.assertEqual(len(validate_gates(catalog["gates"])), 36)
+        self.assertEqual(len(validate_gates(catalog["gates"])), 38)
 
 
 class TheProofIsNotTautological(unittest.TestCase):
@@ -186,7 +186,7 @@ class TheProofIsNotTautological(unittest.TestCase):
         entry["cases"][0]["state"] = {"wrong_field": "no longer type-checks"}
         with patch.object(recipe_fixtures, "catalog_document", lambda: catalog):
             result = recipe_fixtures.selftest()
-        self.assertEqual(result["cases"], 108, "every other case still ran")
+        self.assertEqual(result["cases"], 114, "every other case still ran")
         self.assertEqual(len(result["failures"]), 1)
 
 
@@ -213,8 +213,10 @@ class HostShapes(unittest.TestCase):
                 self.assertEqual(list(render(host, Path("/opt/jev"))), [key])
 
     def test_only_vscode_carries_a_type_field(self):
-        for host in TARGETS:
-            entry = render(host, Path("/opt/jev"))[TARGETS[host].key]["qualixar-jev"]
+        for host, target in TARGETS.items():
+            if target.windows_only:
+                continue
+            entry = render(host, Path("/opt/jev"))[target.key]["qualixar-jev"]
             with self.subTest(host):
                 self.assertEqual("type" in entry, host == "vscode")
 
@@ -231,16 +233,17 @@ class HostShapes(unittest.TestCase):
         self.assertEqual(outcome["preserved_servers"], ["other"])
         self.assertNotIn("document", outcome)
 
-    def test_a_secret_under_our_own_name_is_masked_before_it_is_reported(self):
+    def test_a_secret_under_our_own_name_is_never_returned_when_conflicting(self):
+        from jev_auto.host_mcp import TARGETS, plan
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)
             config = workspace / TARGETS["vscode"].workspace_relative
             config.parent.mkdir(parents=True)
             config.write_text(json.dumps({"servers": {
                 "qualixar-jev": {"command": "/old", "env": {"TOKEN": "sk-live-secret"}}}}))
-            outcome = plan("vscode", workspace, Path("/opt/jev"))
-        self.assertNotIn("sk-live-secret", json.dumps(outcome))
-        self.assertEqual(outcome["replaced_entry"]["env"], {"TOKEN": "[REDACTED]"})
+            with self.assertRaises(AutoError) as caught:
+                plan("vscode", workspace, Path("/opt/jev"))
+        self.assertNotIn("sk-live-secret", str(caught.exception))
 
     def test_a_malformed_key_is_refused_rather_than_reinterpreted(self):
         for bad in ({"servers": "oops"}, {"servers": None}, {"servers": ["a"]}, "not a dict"):

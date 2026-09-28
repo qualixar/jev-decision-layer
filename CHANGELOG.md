@@ -4,6 +4,29 @@ All notable changes to this project are recorded here. This project follows [Sem
 
 No release states measured token, cost or time savings, because none has been measured.
 
+## [1.0.8] — Unreleased (release candidate)
+
+This candidate is prepared for review. Publication depends on the native platform and host checks recorded in [the host guide](docs/HOSTS.md). It makes no measured accuracy, calibration, token, cost, or task-time savings claim.
+
+### Added
+
+- **Two audience-specific recipes**, taking the source catalog to 38 recipes and 114 synthetic fixtures: `qualixar.work-item-priority` helps a manager compare one item against an explicit rubric and supplied priorities; `qualixar.content-repurpose` selects among creator-provided content formats. Both return advice for a human or host to review.
+- **A local recipe workbench** with form-based recipe inputs, offline synthetic examples, and a separately reviewed live path. It runs on loopback and does not execute recommendations.
+- **Platform credential-store and portable launcher work** for a cross-platform hosted TypeSafe Jev/OpenRouter target. macOS, Linux and Windows native CI remains a release gate; local Laya-MLX stays Apple-Silicon macOS only. Windows `jev host-register --write` fails closed for all targets; Windows registration is a reviewed manual step.
+
+### Changed
+
+- **Live recipe answers are now evaluated by the packaged local policy gate.** `jev_recipe_try` returns the gate outcome, `host_action`, and a `policy_receipt_id` linked to the provider receipt. The response is advisory and sets `execution_authorized` to false.
+- **Every would-be passing recipe answer is capped to `VERIFY`** while its status is `SPECIFICATION_NOT_MODEL_EVALUATED`. An explicit `unknown` can return `IGNORE`; malformed or below-threshold answers remain `VERIFY`. This does not establish provider accuracy.
+- **Score gates now check probability mass on the side of the configured score threshold**, rather than accepting an unrelated distribution summary.
+- **Host adapter documentation distinguishes each native surface and its evidence.** Codex hook configuration is separate from Claude hook configuration; Antigravity remains PreInvocation advisory only; Hermes exposes its explicit tool allow-list; VS Code registers an MCP server. Windows host registration is plan-only and does not write configs. The adapters do not claim equal native verification.
+
+### Release gates
+
+- Native Windows and Linux CI and credential-store/IPC integration checks must pass before those platform routes are described as verified.
+- Native model/tool turns remain host-specific evidence; a staged manifest, plugin validator, or MCP handshake alone is not a live-turn verification.
+- Generated recipe catalog, Codex package, runtime manifests, declared versions, full test suite, and local commits remain subject to release verification and owner review. No public release is recorded by this candidate entry.
+
 ## [1.0.7] — 2026-09-26
 
 ### Added

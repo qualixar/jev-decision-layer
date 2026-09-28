@@ -10,19 +10,14 @@ from .common import AutoError, canonical, decode
 ALLOWED = frozenset({
     "jev_setup", "jev_auto_status", "jev_prepare", "jev_reduce", "jev_recall",
     "jev_route", "jev_recipe_catalog", "jev_recipe_try", "jev_review_diff",
-    # Offline and workspace-free by construction, so a Hermes session can
-    # check the gate holds before it enrols anything or spends a call.
+    # Shared baseline proof: offline and workspace-free by construction.
     "jev_recipe_selftest",
-    # Bounded advisory tools with fixed input shapes, like jev_route. They
-    # were missed when they shipped, which is why a test now pins this set
-    # against the served surface rather than leaving it to be remembered.
-    "jev_verify", "jev_rerank",
 })
 _CONTEXT_TOOLS = frozenset({"jev_prepare", "jev_reduce", "jev_recall"})
 _RECEIPT_ID = frozenset("0123456789abcdef")
 MAX_ARGUMENT_BYTES = 32_768
 MAX_RESULT_BYTES = 4_096
-MAX_WORKSPACE_PATH_CHARS = 1_024
+MAX_WORKSPACE_PATH_CHARS = 4_096
 MAX_GOAL_CHARS = 512
 MAX_REDUCE_TEXT_CHARS = 20_000
 MAX_RECALL_LINE = 1_000_000

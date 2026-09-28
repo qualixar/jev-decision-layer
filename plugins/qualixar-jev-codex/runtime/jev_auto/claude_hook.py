@@ -1,28 +1,21 @@
-"""Claude Code adapter: advisory-only hints for enrolled workspaces.
+"""Claude Code adapter: advisory context for enrolled workspaces.
 
-WHY THIS EXISTS SEPARATELY FROM agy_hook
-----------------------------------------
-Antigravity's documented PreToolUse stdout contract requires a permission
-``decision`` and can broaden host trust via ``permissionOverrides``, which is
-why ``agy_hook`` deliberately declines to register PreToolUse at all.
+The plugin registers only ``SessionStart`` and ``UserPromptSubmit``. Claude
+Code's official hook reference says exit 0 plain-text stdout on these events
+is added as model context; neither event controls tool permissions. This
+adapter always exits 0 and emits only fixed, bounded guidance. An unenrolled
+workspace or any malformed/error input produces no output.
 
-Claude Code's contract is different and *does* have a safe advisory-only
-path, verified against code.claude.com/docs/en/hooks:
-
-  * ``UserPromptSubmit`` - exit 0 and plain stdout becomes context the model
-    can see. Emitting nothing changes nothing.
-  * ``SessionStart``     - same stdout-as-context rule.
-  * ``PreToolUse``       - exit 0 WITHOUT a ``permissionDecision`` leaves the
-    normal permission flow completely untouched. Only exit 2, or an explicit
-    ``"permissionDecision": "deny"``, blocks a call. This adapter emits
-    neither, ever.
-
-So on Claude Code we can offer a hint before a tool call without taking any
-authority. Native permissions stay in control, exactly as on every other host.
+``PreToolUse`` is deliberately not registered. Although the current Claude
+Code reference documents that exit 0 with no output leaves the normal
+permission flow in place, Jev has not verified that behavior in a native
+Claude Code hook run. Keep it out of the manifest until that native check is
+recorded. The runtime ignores any unregistered event passed to it, which
+prevents stale or manually copied hook configuration from gaining behavior.
 
 HARD RULES
 ----------
-* Never exit 2. Never emit ``permissionDecision``. Never emit
+* Never exit 2. Never emit structured output, ``permissionDecision``, or
   ``permissionOverrides``. This layer is advisory and must stay advisory.
 * Unenrolled workspaces are untouched: no output, exit 0.
 * Any exception, any unexpected payload shape, any oversized input - emit
@@ -90,7 +83,7 @@ def handle(
         return ""
 
     name = event.get("hook_event_name")
-    if name not in ("SessionStart", "UserPromptSubmit", "PreToolUse", "SubagentStart"):
+    if name not in ("SessionStart", "UserPromptSubmit"):
         _log(f"UNHANDLED-EVENT {name!r} keys={sorted(event)}")
         return ""
 
@@ -108,11 +101,11 @@ def handle(
     if policy.get("enabled") is not True:
         return ""  # unenrolled: silent by design, not a failure
 
-    if name in ("SessionStart", "SubagentStart"):
+    if name == "SessionStart":
         return _SESSION_HINT
     if name == "UserPromptSubmit":
         return _PROMPT_HINT
-    return ""  # PreToolUse: registered, but this version stays silent
+    return ""  # Defensive: registered event names are handled above.
 
 
 def main() -> None:

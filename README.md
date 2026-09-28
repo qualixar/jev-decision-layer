@@ -6,42 +6,70 @@
 Route bounded task, tool, skill, and review choices through TypeSafe Jev, with optional local Laya.</p>
 
 <p align="center">
-<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.7"><img src="https://img.shields.io/badge/version-1.0.7-2fd3b3?style=flat-square" alt="Version 1.0.7"></a>
-<img src="https://img.shields.io/badge/hosts-5-4ddbb6?style=flat-square" alt="Five supported hosts">
-<img src="https://img.shields.io/badge/tools-20-4ddbb6?style=flat-square" alt="Twenty MCP tools">
-<img src="https://img.shields.io/badge/fixtures-108%20offline-4ddbb6?style=flat-square" alt="108 offline fixtures">
-<img src="https://img.shields.io/badge/license-MIT-8be1d4?style=flat-square" alt="MIT license">
+<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.8"><img src="https://img.shields.io/badge/version-1.0.8-7655d9?style=flat-square" alt="Version 1.0.8"></a>
+<img src="https://img.shields.io/badge/host%20adapters-5-7655d9?style=flat-square" alt="Five host adapters; verification varies by host">
+<img src="https://img.shields.io/badge/MCP%20tools-20-4f46e5?style=flat-square" alt="Twenty MCP tools">
+<img src="https://img.shields.io/badge/offline%20fixtures-114-d97706?style=flat-square" alt="114 offline fixtures">
+<img src="https://img.shields.io/badge/license-MIT-f97316?style=flat-square" alt="MIT license">
 </p>
 
-<p align="center"><a href="#install">Get started</a> · <a href="#supported-hosts">Supported hosts</a> · <a href="docs/USE_CASES.md">Explore use cases</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="LICENSE">MIT license</a></p>
+<p align="center"><a href="#60-second-example">See a bounded decision</a> · <a href="#why-add-a-layer-instead-of-calling-jev-directly">Why a layer?</a> · <a href="#install">Install</a> · <a href="#supported-hosts">Host evidence</a> · <a href="docs/USE_CASES.md">Use cases</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="LICENSE">MIT license</a></p>
 
 <p align="center"><img src="docs/assets/hero.svg" alt="Qualixar Jev Decision Layer: typed decisions for coding-agent workflows" width="820"></p>
 
-**A decision layer for coding agents, not another chat model.** Give Jev a bounded question—*which tool, skill, task, file, or review path fits this state?*—and get a typed answer with probabilities and a local receipt. Your agent still writes code, uses tools, requests native permissions, and verifies the result. TypeSafe Jev is the primary decision model; [Laya-MLX](https://github.com/mizorewww/laya-mlx) is an optional, separately installed local route.
+<p align="center"><strong>Not every decision inside a coding agent needs another chat-model turn.</strong></p>
 
-**One layer, five hosts.** The decision runtime, the recipes, and the policy broker are shared. Each host gets a thin adapter for its own hook contract and plugin manifest — nothing is forked. Support is uneven and the <a href="#supported-hosts">host table</a> says exactly how far each host has been taken.
+Qualixar Jev Decision Layer gives a coding agent a typed way to make a **bounded choice**—for example, which supplied tool, skill, file, retry path, or review target fits the current state. It routes eligible questions to hosted [TypeSafe Jev](https://docs.typesafe.ai/introduction/coding-agents) or an optional, separately installed [local Laya-MLX](https://github.com/mizorewww/laya-mlx), then applies local policy and records a receipt. The agent and its host still perform and verify the work.
 
-**Current release: 1.0.7** — 20 MCP tools, 36 recipes, 108 offline fixtures, five host adapters, per-provider thresholds. See the [changelog](CHANGELOG.md).
+One shared runtime has adapters for **Codex, Claude Code, VS Code, Hermes, and Antigravity**. Those adapters do not have equal live-verification evidence; the [host table](#supported-hosts) states what has and has not been run.
 
-### We measured a model against our own contracts, and it changed our thresholds
+**Why use a layer instead of calling Jev directly?** The model call is only one part of a coding-agent workflow. This repository adds reusable decision contracts, workspace scope and request controls, a local answer gate, receipts, optional local routing, and host-specific adapters behind one shared runtime. Direct Jev is a reasonable choice when you need only a single provider call; use this layer when you need those surrounding controls across harnesses.
 
-Most agent tooling ships thresholds nobody has tested. This one did too, and said so — every recipe still carries `UNVALIDATED_DEMONSTRATION_DEFAULT`. In 1.0.7 we finally measured one.
+**The model recommends; the host retains execution authority.** A Jev or Laya answer does not grant shell, file, browser, deployment, or publishing permission. Host support is not equally verified; see the [evidence and boundary table](#supported-hosts).
 
-Fourteen typed decisions from **laya-mlx 0.2.0** (`aac6fef/laya-mlx`, ModernBERT-large, 421M), driven through this package's own twenty decision contracts:
+**Current release: 1.0.8** (release candidate; publication pending review) — 20 MCP tools, 38 recipes for bounded decisions, 114 synthetic offline fixtures, and five host adapters. The live recipe gate caps every would-be passing result to `verify` until a recipe has been evaluated against labeled provider answers. Hosted TypeSafe Jev and OpenRouter are the cross-platform target for macOS, Linux, and Windows; native Windows/Linux CI remains a release gate. Local Laya-MLX is limited to supported Apple-Silicon Macs. See the [host evidence](docs/HOSTS.md) and [changelog](CHANGELOG.md).
 
-| | |
+Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent open-source integration, not an official TypeSafe, OpenAI, Anthropic, Google, Microsoft, or Laya product.
+
+## 60-second example
+
+Install the plugin, complete the reviewed workspace setup, then ask your agent:
+
+> Route this synthetic duplicate-charge request between `billing` and `engineering`. Show the selected candidate, provider, model, route status, and receipt ID.
+
+The prompt supplies a closed choice. A live result should identify the provider/model, route status, and receipt; the selected candidate may vary. This route example does not return the recipe-specific `host_action`. This README does not present a recorded live provider result; see [first use](docs/GETTING_STARTED.md) for setup and verification. The animation in [What can an agent actually do with it?](#what-can-an-agent-actually-do-with-it) is an **illustration of the answer flow**, not a provider recording.
+
+```text
+Synthetic request + supplied candidates
+                 ↓
+        Typed Jev decision
+                 ↓
+       Local policy gate
+                 ↓
+    act / verify / ignore + receipt
+                 ↓
+      Host decides what to do
+```
+
+## Why add a layer instead of calling Jev directly?
+
+| A direct Jev call gives you | This layer adds |
 |---|---|
-| Confidence | min 0.0085 · **median 0.2861** · max 0.7872 |
-| Probability minus that confidence | min +0.1078 · **median +0.2832** · max +0.4214 |
-| Answers correct or honestly abstaining | **13 of 14** |
+| A typed answer from the selected provider | One shared runtime with host-specific adapters |
+| A question you define for one call | 20 reusable MCP contracts and 38 data-only recipe specifications |
+| Provider output | Workspace/provider scope, request limits, local `act / verify / ignore` gate, and a receipt |
+| A hosted decision route | An optional, separately installed local Laya-MLX route for eligible decisions |
+| Whatever validation you build around that call | 114 synthetic offline fixtures that exercise the shipped local gate, without a provider call |
 
-Laya's confidence sits structurally far below its own distribution. So a gate tuned for a hosted model cleared **1 of 10** real answers where a lower floor cleared **5** — nearly every clean answer sent to a review it did not need.
+The layer is useful when you need those controls and integrations as part of a repeatable workflow. It does not make a provider answer correct by itself, and it does not replace host permissions.
 
-**That is our own threshold being wrong, published rather than quietly adjusted.** Thresholds are now per provider, an unmeasured provider never gets a weaker gate, and every profile reports its sample size beside the word `NOT_CALIBRATED`. Fourteen samples on one checkpoint is a measurement, and a test refuses any profile that claims to be more.
+### Useful beyond the developer workflow
 
-This is what AI reliability engineering looks like on a decision layer: publish the number that embarrasses you, then gate on it.
+A manager can compare a work item against a rubric and priorities they provide. A content creator can choose among short video, newsletter, or carousel formats using a supplied brief. A junior developer can ask for a bounded tool or skill suggestion. In every case, the person supplies context, reviews the advisory answer, and decides what happens next. The [recipe workbench](docs/GETTING_STARTED.md#let-a-non-developer-explore-a-recipe) offers a local form and offline examples for people who do not want to compose MCP JSON.
 
-Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent open-source integration, not an official TypeSafe, OpenAI, Anthropic, Google, or Laya product. [Jev is TypeSafe AI's System One model](https://docs.typesafe.ai/introduction/coding-agents), designed to answer structured questions rather than generate prose.
+## Jev, local Laya, or hybrid?
+
+Use hosted Jev for a reviewed decision whose data scope permits a provider call. OpenRouter is a separate hosted provider route. The 1.0.8 target supports hosted use on macOS, Linux, and Windows; macOS has live-path evidence; native Windows and Linux CI remain release gates before those platforms are described as verified. Windows host registration remains manual-plan-only, with writes blocked. Use optional local Laya-MLX only on a supported Apple-Silicon Mac after local attestation. Hybrid mode follows the workspace policy you reviewed. Provider behavior is not assumed to be interchangeable; see the [small-sample observation](#a-small-laya-mlx-sample-informed-a-threshold-hypothesis).
 
 ## What can an agent actually do with it?
 
@@ -62,11 +90,11 @@ Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent op
 | A structured extraction | Check every field against the source and return the probability each one is wrong | Decide what to do with a suspect field; re-extract or escalate |
 | A set of retrieved passages | Score them absolutely and say whether they answer the question at all | Read the sources; abstain honestly when told to |
 
-The package has **20 original workflow contracts and 36 data-only recipe specifications**. That is a catalog of use cases, not a claim that Jev is accurate on every user's data. Browse [everyday examples and recipe families](docs/USE_CASES.md), or ask the agent for `jev_recipe_catalog`.
+The package has **20 original workflow contracts and 38 data-only recipe specifications**. The two new recipes include work-item prioritization for managers and content-format selection for creators. This is a catalog of bounded use cases, not a claim that Jev is accurate on every user's data. Browse [everyday examples and recipe families](docs/USE_CASES.md), or ask the agent for `jev_recipe_catalog`.
 
 ### Prove it before you spend anything
 
-Every recipe ships three synthetic cases — a clear-cut one, a genuinely ambiguous one, and one carrying an instruction hidden in material that is supposed to be data. Replaying all **108** runs the real gate with no provider call, no key, and no workspace enrolment:
+Every recipe ships three synthetic cases — a clear-cut one, a genuinely ambiguous one, and one carrying an instruction hidden in material that is supposed to be data. Replaying all **114** runs the real gate with no provider call, no key, and no workspace enrolment:
 
 ```sh
 plugins/qualixar-jev-decision-layer/scripts/jev selftest
@@ -78,13 +106,15 @@ The TypeSafe question types are [Choice, Score, and Noul](https://docs.typesafe.
 
 ### The answer arrives already gated
 
-The host should not have to re-derive, in its own expensive context, the judgment the cheap model was called to settle. Every answer is evaluated locally first and carries a `host_action`:
+For a live `jev_recipe_try`, the packaged gate evaluates the typed answer and returns a `host_action` plus a policy receipt ID. This describes a policy result; it does not run the recommendation or authorize execution.
 
 | `host_action` | What it means | What the host should do |
 |---|---|---|
-| `act` | Cleared the confidence floor and the distribution bar | Use it. Do not re-reason it — that is the cost the call removed |
-| `verify` | A starting point, not a conclusion | Check it. Cheaper than working it out from nothing |
-| `ignore` | Below the floor, or the model chose `unknown` | Decide normally. The call still removed a bad option |
+| `act` | The answer passed the configured gate | No shipped recipe can retain `act` in 1.0.8: all are `SPECIFICATION_NOT_MODEL_EVALUATED`, so a would-be `act` is capped to `verify` |
+| `verify` | Check the advisory answer independently | This is the maximum action for a would-be passing result from every shipped recipe in 1.0.8 |
+| `ignore` | The model selected `unknown` | Do not use a recommendation; decide normally |
+
+The `jev_recipe_try` response is marked `EXPERIMENTAL_ADVISORY`. Its policy receipt records the recipe status, provider receipt ID, provider/model, and local gate result. The answer and receipt do not prove provider accuracy, authorize an operation, or execute anything. A below-threshold or malformed answer remains `verify`; an explicit `unknown` may return `ignore`.
 
 **Confidence is not probability.** A distribution can look decisive while the answer is not calibrated, and gating on probability alone passes answers the model is not actually sure of. The gate applies both. A Noul answer carries no confidence field at all — its distance from 0.5 is the certainty.
 
@@ -106,13 +136,13 @@ The shared runtime lives in `plugins/qualixar-jev-decision-layer/`. A host adapt
 
 | Host | Adapter | Why it differs |
 |---|---|---|
-| Codex | `jev_auto/hooks.py`, `hooks/hooks.json` | Registers a `PostToolUse` matcher over documented read-only tools |
+| Codex | `jev_auto/hooks.py`, `hooks/codex-hooks.json` | Registers a `PostToolUse` matcher over documented read-only tools |
 | Antigravity | `jev_auto/agy_hook.py`, root `hooks.json` | Deliberately does **not** register PreToolUse: that contract requires a permission `decision` and can widen host trust |
 | Hermes | `jev_auto/hermes_hook.py`, `jev_auto/hermes_tool.py` | Separate hook and tool entry points |
 | Claude Code | `jev_auto/claude_hook.py`, `hooks/claude-hooks.json` | Uses `${CLAUDE_PLUGIN_ROOT}`, not `${PLUGIN_ROOT}`; PreToolUse *can* be advisory-only here, so a hint costs no authority |
 | VS Code | `jev_auto/vscode_adapter.py` | No hook surface at all, so the adapter registers the same launcher as a workspace MCP server in `.vscode/mcp.json` |
 
-Three of those hosts also take MCP registration, and they disagree about its shape in ways that fail silently: VS Code keys servers under `servers`, Antigravity and the Claude desktop config under `mcpServers`, and only VS Code expects a `type` field. `jev_auto/host_mcp.py` holds all three shapes in one table with a test per row, and `plugins/qualixar-jev-decision-layer/scripts/jev host-register --host <name>` writes the right one. It plans before it writes, merges rather than replaces, refuses a config it cannot parse, and never prints another server's secrets.
+Three of those hosts also take MCP registration, and they disagree about its shape in ways that fail silently: VS Code keys servers under `servers`, Antigravity and the Claude desktop config under `mcpServers`, and only VS Code expects a `type` field. `jev_auto/host_mcp.py` holds those shapes in one table with a test per row. `plugins/qualixar-jev-decision-layer/scripts/jev host-register --host <name>` previews registration; on macOS and Linux, `--write` merges one entry without printing another server's secrets. On Windows it returns an exact host-specific snippet for manual registration, and `--write` is blocked pending native host configuration support.
 
 Hook files are **per host and never merged** — the plugin-root variable differs, and Codex registers a matcher Claude Code deliberately does not. See `plugins/qualixar-jev-decision-layer/hooks/README.md`.
 
@@ -128,11 +158,23 @@ The first-run wizard shows the exact folder, provider, text scope, expiry, and d
 | Jev + Laya hybrid | Hosted Jev for reviewed public/internal decisions; attested local Laya for selected restricted decisions | Split by the reviewed policy |
 | Laya-only | Local attested Laya; no Jev call | Local decisions |
 
-The secret screen is best-effort, **not comprehensive data-loss prevention**. Jev maximum requires an extra hosted-data confirmation, but that cannot grant permission to disclose somebody else's client or confidential information. Do not submit credentials or material you are not permitted to share. The provider key is entered only in the private setup page and stored in macOS Keychain; do not paste it into chat, a repository file, or a shell argument.
+The secret screen is best-effort, **not comprehensive data-loss prevention**. Jev maximum requires an extra hosted-data confirmation, but that cannot grant permission to disclose somebody else's client or confidential information. Do not submit credentials or material you are not permitted to share. The provider key is entered only in the private setup page and stored by the platform credential store; do not paste it into chat, a repository file, or a shell argument. Availability and native verification differ by operating system; see [host and platform evidence](docs/HOSTS.md).
+
+## A small Laya-MLX sample informed a threshold hypothesis
+
+A prior small Laya-MLX study recorded fourteen typed decisions from **laya-mlx 0.2.0** (`aac6fef/laya-mlx`, ModernBERT-large, 421M), run through this package's twenty decision contracts:
+
+| Measurement | Observed in this sample |
+|---|---:|
+| Confidence | min 0.0085 · **median 0.2861** · max 0.7872 |
+| Probability minus that confidence | min +0.1078 · **median +0.2832** · max +0.4214 |
+| Answers correct or honestly abstaining | **13 of 14** |
+
+In that small sample, one tested threshold cleared **1 of 10** real answers, while a lower floor cleared **5**. That observation motivated a provider-specific threshold hypothesis and keeping unmeasured providers on a stricter default. It is a small measurement, **not calibration**: every recipe still carries `UNVALIDATED_DEMONSTRATION_DEFAULT`, and provider profiles report `NOT_CALIBRATED`. It does not establish general Laya accuracy or equivalent confidence behavior across providers.
 
 ## Install
 
-**Platform for guided v1 setup:** macOS is required for the Keychain-backed hosted Jev wizard. Optional Laya-MLX additionally needs a supported Apple-Silicon macOS installation. This repository does not yet provide a tested Windows/Linux first-run credential flow.
+**Hosted platform scope for 1.0.8:** TypeSafe Jev and OpenRouter are being prepared for macOS, Linux, and Windows through platform credential stores. Native Windows and Linux CI must pass before those paths are called verified. Local Laya-MLX remains limited to compatible Apple-Silicon Macs and requires local attestation.
 
 Whichever host you use: **fully quit and reopen it after installing**, so its skills, MCP tools, and hooks reload. A running session binds them at start and will not pick up a new plugin.
 
@@ -157,7 +199,7 @@ Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes
 **Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the Claude desktop app's Code tab: there, every enabled plugin that ships a server is equally absent, ours included, with no error and no failed entry. Commands and skills load normally. If you work in the Code tab and want the tools, register the launcher directly instead:
 
 ```sh
-claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.7/scripts/launch-jev"
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.8/scripts/launch-jev"
 ```
 
 For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. `claude mcp list` reports on the CLI's own config and says nothing about what the desktop app can see.
@@ -170,7 +212,7 @@ If your organization sets `allowManagedHooksOnly`, your own `settings.json` hook
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host vscode --workspace .
 ```
 
-Prints what it would change and writes nothing. Add `--write` to apply. An existing `.vscode/mcp.json` is merged — one `qualixar-jev` entry is added or updated and every other key is kept — and a file that does not parse is refused rather than overwritten. Restart VS Code afterwards; Copilot agent mode picks the server up from the workspace. `/jev-vscode` does the same from inside Claude Code.
+Prints what it would change and writes nothing. Add `--write` to apply. An existing `.vscode/mcp.json` is merged — one `qualixar-jev` entry is added or updated and every other key is kept — and a file that does not parse is refused rather than overwritten. Restart VS Code afterwards; Copilot agent mode picks the server up from the workspace. `/jev-vscode` does the same from inside Claude Code. On Windows, `jev host-register --write` fails closed for all targets; use the planned instructions for a manual, reviewed host configuration.
 
 ### Antigravity and Hermes
 
@@ -182,6 +224,14 @@ Replace `qualixar/jev-decision-layer` with `.` in any command above.
 
 ### After installing
 
+Before opening private setup, run the offline diagnosis from a local repository checkout against the project folder you intend to use:
+
+```sh
+plugins/qualixar-jev-decision-layer/scripts/jev doctor --workspace /absolute/path/to/your/project
+```
+
+`jev doctor` is **offline-only** and makes no provider call. It checks the packaged runtime, Python requirement, workspace policy, offline fixtures, local receipt index, and presence of the portable runtime. Before setup, `ACTION_REQUIRED` with `NOT_ENROLLED` and exit status `2` is expected; this check does not prove that the host loaded the plugin or completed a live turn. After private setup, make any provider check separately through an explicit Jev route or the existing `jev probe --workspace /absolute/path/to/your/project` command. That is provider activity, not part of `doctor`. If you installed from the marketplace without cloning the repository, follow the [first-use guide](docs/GETTING_STARTED.md) for the host wizard; the plugin install does not add a global `jev` shell command.
+
 Say: **“Set up Qualixar Jev Decision Layer for this workspace.”** The `jev_setup` tool opens a private two-step browser wizard; ordinary users do not need a terminal command for the key or workspace enrollment. Explicit Jev tools are enabled by default after reviewed setup; automatic prompt guidance is **off until you turn it on** in that wizard. Review any native hook-trust prompt separately. The [first-use guide](docs/GETTING_STARTED.md) shows how to verify the provider and receipt without exposing a key.
 
 Then try: **“Use Jev to route this synthetic duplicate-charge request between billing and engineering; show the selected candidate, provider, model, and receipt.”** A live result should name the chosen provider and a local receipt ID. A fixture result is simulated and does not verify provider access. The actual answer may vary; the important proof is the native tool and recorded provider call.
@@ -192,19 +242,19 @@ Support is **not uniform**, and this table separates what has been observed from
 
 | Host | Evidence | Boundary |
 |---|---|---|
-| **Codex Desktop** | Installed MCP tools and live synthetic TypeSafe routing verified on a Mac | Automatic-hook coverage and savings are not proved by that call |
+| **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on a Mac; native Codex hook is a separate reviewed capability | Does not establish Linux/Windows operation, automatic-hook coverage, or savings |
 | **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; seven commands and three skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly and stays silent on an unenrolled workspace | A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are **not yet verified**. In the desktop app's **Code tab**, the plugin-provided MCP server does not load at all — see the install note above |
-| **Hermes** | Staged plugin doctor registers 9 tools and 1 hook; installed copy awaits refresh | Native model/tool turn still needs verification |
-| **Antigravity** | Packaged PreInvocation advisory hook and 2 skills; host adapter previously validated | No portable Jev MCP launcher or native model/tool turn verified |
+| **Hermes** | Staged plugin doctor registers the declared tools and hook; installed copy awaits refresh | Native model/tool turn still needs verification |
+| **Antigravity** | Packaged PreInvocation advisory hook and skills; this adapter does not request PreToolUse authority | Native model/tool turn and portable MCP registration still need verification |
 | **VS Code** | Adapter writes a valid `.vscode/mcp.json` against the documented `servers` format; merge, refusal and symlink behaviour are covered by tests | **No live Copilot agent-mode turn has been run.** No extension ships; registration is the whole integration |
 
-Every recipe also ships three synthetic fixtures — nominal, uncertain and adversarial. `jev_recipe_selftest`, or `plugins/qualixar-jev-decision-layer/scripts/jev selftest`, replays all 108 through the local gate with no provider call, no key and no enrolment, so you can check the gate holds before spending anything. A passing run is a contract check, never a measurement of Jev's accuracy.
+Every recipe also ships three synthetic fixtures — nominal, uncertain and adversarial. `jev_recipe_selftest`, or `plugins/qualixar-jev-decision-layer/scripts/jev selftest`, replays all 114 through the local gate with no provider call, no key and no enrolment, so you can check the gate holds before a live call. A passing run is a contract check, never a measurement of Jev's accuracy.
 
 The optional Laya worker has completed local synthetic inference and macOS sandbox file/network-denial tests. Those results do not prove a particular GPU path or native host interception. The [capability manifest](docs/capabilities.json) and [agent-readable index](llms.txt) provide machine-readable pointers; the table above is the human-facing support boundary.
 
 ## About token, cost, and time savings
 
-This release has **no measured token, subscription-cost, API-cost, or task-time savings claim** on any host. A Jev request has provider overhead and can make a task slower if it avoids no work. The broker reports actual calls and bytes; its saved-token and saved-cost fields remain unknown until matched, independently accepted host-task trials exist. Do not treat shorter text or fewer visible calls as proof of savings. Recipe and suggestion thresholds are uncalibrated demonstration defaults, not universal decision cutoffs.
+This project has **no measured token, subscription-cost, API-cost, or task-time savings claim** on any host. A Jev request has provider overhead and can make a task slower if it avoids no work. The broker reports actual calls and bytes; its saved-token and saved-cost fields remain unknown until matched, independently accepted host-task trials exist. Do not treat shorter text or fewer visible calls as proof of savings. Recipe and suggestion thresholds are uncalibrated demonstration defaults, not universal decision cutoffs.
 
 ## Build on it
 

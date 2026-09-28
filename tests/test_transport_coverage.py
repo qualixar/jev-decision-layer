@@ -600,7 +600,7 @@ class McpAutoDispatchOpCoverageTests(unittest.TestCase):
         with patch.object(mcp, "ensure", side_effect=AssertionError("ensure() must not run for offline tools")), \
              patch.object(mcp, "request", side_effect=AssertionError("request() must not run for offline tools")):
             catalog = mcp.dispatch("jev_recipe_catalog", {}, legacy)
-            self.assertEqual(len(catalog["recipes"]), 36)
+            self.assertEqual(len(catalog["recipes"]), 38)
 
             report = mcp.dispatch("jev_recipe_selftest", {}, legacy)
             self.assertEqual(report["mode"], "fixture")

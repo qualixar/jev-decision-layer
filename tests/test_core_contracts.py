@@ -117,7 +117,7 @@ class CoreContractTests(unittest.TestCase):
         from jev_auto.recipe_runtime import catalog_preview, prepare_recipe
 
         catalog = catalog_preview()
-        self.assertEqual(len(catalog["recipes"]), 36)
+        self.assertEqual(len(catalog["recipes"]), 38)
         prepared = prepare_recipe("qualixar.brief-fit", {
             "query": "Explain the idea plainly", "candidate": "This paragraph explains the idea plainly.",
         })
@@ -355,7 +355,8 @@ class CoreContractTests(unittest.TestCase):
         engine = object.__new__(Engine)
         engine.workspace = Path("/synthetic")
         seen = []
-        def judge(recipe, state, questions, current_policy, *, provider_override=None):
+        def judge(recipe, state, questions, current_policy, *, provider_override=None,
+                  expected_policy_digest=None):
             seen.append(provider_override)
             return {"model": expected_model, "answers": {"decision": {"type": "noul", "noul": 0.9}},
                     "receipt_id": "a" * 64, "cache_hit": False}

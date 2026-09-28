@@ -19,8 +19,8 @@ class Providers:
         profile=provider_profile(name)
         if profile.endpoint != 'https://'+host+path or profile.model != model:raise AutoError('PROVIDER_PROFILE_CHANGED')
         store=p.get('credential_store','legacy')
-        if store not in ('legacy','keychain'):raise AutoError('CREDENTIAL_STORE')
-        key=get_provider_credential(profile,credential_store='keychain') if store=='keychain' else get_provider_credential(profile)
+        if store not in ('legacy','keychain','os'):raise AutoError('CREDENTIAL_STORE')
+        key=get_provider_credential(profile,credential_store=store) if store!='legacy' else get_provider_credential(profile)
         payload={'model':model,'state':state,'questions':qs};require_clean(payload,(key,))
         data=canonical(payload);deadline=time.monotonic()+p['timeout_seconds']
         connection=getattr(self._threads,name,None)

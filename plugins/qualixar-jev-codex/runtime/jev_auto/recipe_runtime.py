@@ -55,8 +55,23 @@ def catalog_document() -> dict[str, Any] | None:
         data = json.loads(packaged.read_text())
     except (OSError, ValueError):
         raise AutoError("RECIPE_CATALOG_INVALID") from None
-    if not isinstance(data, dict) or data.get("schema_version") != 1 or not isinstance(data.get("recipes"), list):
+    if (not isinstance(data, dict) or data.get("schema_version") != 1
+            or not isinstance(data.get("recipes"), list) or not isinstance(data.get("gates"), list)):
         raise AutoError("RECIPE_CATALOG_INVALID")
+    recipes = data["recipes"]
+    recipe_ids = [recipe.get("id") for recipe in recipes if isinstance(recipe, dict)]
+    if len(recipe_ids) != len(recipes) or not all(isinstance(identifier, str) for identifier in recipe_ids):
+        raise AutoError("RECIPE_CATALOG_INVALID")
+    gates = data["gates"]
+    if gates:
+        from .recipe_gate import validate_gates
+
+        validated_gates = validate_gates(gates)
+        gate_ids = [gate["id"] for gate in validated_gates]
+    else:
+        gate_ids = []
+    if len(recipe_ids) != len(gate_ids) or set(recipe_ids) != set(gate_ids):
+        raise AutoError("RECIPE_GATES_INVALID")
     return data
 
 
@@ -91,6 +106,24 @@ def catalog_preview() -> dict[str, Any]:
         {"id": recipe["id"], "title": recipe["title"], "audience": recipe["audience"]}
         for recipe in _catalog()
     ]}
+
+
+def gate_policy(recipe_id: str) -> dict[str, Any]:
+    """Return the validated packaged gate for one recipe.
+
+    A missing or malformed gate is an incomplete installation/policy, not a
+    reason to let the provider answer pass ungated.
+    """
+    data = catalog_document()
+    if data is None:
+        raise AutoError("RECIPE_CATALOG_MISSING")
+    from .recipe_gate import validate_gates
+
+    gates = validate_gates(data.get("gates"))
+    match = next((gate for gate in gates if gate["id"] == recipe_id), None)
+    if match is None:
+        raise AutoError("RECIPE_GATES_INVALID")
+    return dict(match["policy"])
 
 
 def prepare_recipe(recipe_id: str, values: Any) -> dict[str, Any]:

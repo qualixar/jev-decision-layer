@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
 sys.path.insert(0, str(RUNTIME))
 
+from jev_auto.common import AutoError  # noqa: E402
 from jev_auto.recipe_gate import ACT, IGNORE, VERIFY, evaluate, validate_gates  # noqa: E402
 
 CHOICE = {
@@ -29,6 +30,7 @@ CHOICE = {
 NOUL = {"kind": "noul", "yes": 0.8, "no": 0.2,
         "positive_outcome": "mark_check_passed", "negative_outcome": "request_review"}
 SCORE = {"kind": "score", "min_confidence": 0.55, "min_score": 1.5,
+         "min_selected_probability": 0.8,
          "positive_outcome": "route_to_queue", "negative_outcome": "request_review"}
 
 
@@ -103,12 +105,63 @@ class NoulGate(unittest.TestCase):
 
 class ScoreGate(unittest.TestCase):
     def test_score_requires_confidence_too(self):
-        out = evaluate(SCORE, {"type": "score", "score": 2.0})
+        out = evaluate(SCORE, {"type": "score", "score": 2.0,
+                               "probabilities": {"0": 0.0, "1": 0.0, "2": 1.0}})
         self.assertEqual(out["host_action"], VERIFY)
 
     def test_low_confidence_score_does_not_pass(self):
-        out = evaluate(SCORE, {"type": "score", "score": 2.0, "confidence": 0.40})
+        out = evaluate(SCORE, {"type": "score", "score": 2.0, "confidence": 0.40,
+                               "probabilities": {"0": 0.0, "1": 0.0, "2": 1.0}})
         self.assertEqual(out["host_action"], VERIFY)
+
+    def test_positive_score_requires_probability_mass_on_passing_levels(self):
+        out = evaluate(SCORE, {"type": "score", "score": 1.5, "confidence": 0.99,
+                               "probabilities": {"0": 0.25, "1": 0.0, "2": 0.75}})
+        self.assertEqual(out["host_action"], VERIFY)
+        self.assertEqual(out["recommendation"], None)
+        self.assertAlmostEqual(out["outcome_probability"], 0.75)
+        self.assertIn("below 0.8", " ".join(out["reasons"]))
+
+    def test_positive_score_at_probability_bar_is_actionable(self):
+        out = evaluate(SCORE, {"type": "score", "score": 1.6, "confidence": 0.99,
+                               "probabilities": {"0": 0.2, "1": 0.0, "2": 0.8}})
+        self.assertEqual(out["host_action"], ACT)
+        self.assertEqual(out["recommendation"], "route_to_queue")
+        self.assertAlmostEqual(out["outcome_probability"], 0.8)
+
+    def test_negative_score_requires_probability_mass_on_failing_levels(self):
+        out = evaluate(SCORE, {"type": "score", "score": 0.4, "confidence": 0.99,
+                               "probabilities": {"0": 0.75, "1": 0.0, "2": 0.25}})
+        self.assertEqual(out["host_action"], VERIFY)
+        self.assertEqual(out["recommendation"], None)
+        self.assertAlmostEqual(out["outcome_probability"], 0.75)
+
+    def test_negative_score_at_probability_bar_is_actionable(self):
+        out = evaluate(SCORE, {"type": "score", "score": 0.4, "confidence": 0.99,
+                               "probabilities": {"0": 0.8, "1": 0.0, "2": 0.2}})
+        self.assertEqual(out["host_action"], ACT)
+        self.assertEqual(out["recommendation"], "request_review")
+        self.assertAlmostEqual(out["outcome_probability"], 0.8)
+
+    def test_malformed_score_probability_distributions_fail_closed(self):
+        malformed = [
+            None,
+            {},
+            {"0": 0.1, "1": 0.1, "2": 0.1},
+            {"0": 1.1, "1": 0.0, "2": 0.0},
+            {"0": 0.2, "2": 0.8},
+            {"low": 0.2, "1": 0.0, "2": 0.8},
+        ]
+        for probabilities in malformed:
+            with self.subTest(probabilities=probabilities):
+                out = evaluate(SCORE, {"type": "score", "score": 2.0, "confidence": 0.99,
+                                       "probabilities": probabilities})
+                self.assertEqual(out["host_action"], VERIFY)
+
+    def test_score_gate_requires_the_probability_threshold(self):
+        invalid = {key: value for key, value in SCORE.items() if key != "min_selected_probability"}
+        with self.assertRaises(AutoError):
+            validate_gates([{"id": "x", "policy": invalid}])
 
 
 class GateCatalog(unittest.TestCase):

@@ -4,13 +4,13 @@ import ctypes
 import errno
 import os
 import platform
-import stat
 import tempfile
 import time
 import uuid
 from contextlib import contextmanager
 from urllib.parse import urlsplit
 from .common import AutoError, canonical, number, private_dir, read_private, state_dir, workspace_id, write_private
+from .platform_fs import atomic_write_private, file_lock
 
 PROVIDERS=('typesafe','openrouter','laya-mlx')
 DEFAULTS={
@@ -52,7 +52,7 @@ def validate_policy(p,path,now=None):
                 'laya-only':('restricted',False)}
         if mode not in shapes or (p['data_classification'],p['local_laya_enabled'])!=shapes[mode] or (p['provider']=='laya-mlx')!=(mode=='laya-only'):
             raise AutoError('DECISION_MODE_INVALID')
-    if p.get('credential_store','legacy') not in ('legacy','keychain'): raise AutoError('CREDENTIAL_STORE')
+    if p.get('credential_store','legacy') not in ('legacy','keychain','os'): raise AutoError('CREDENTIAL_STORE')
     for name in ('native_output_rewrite','prepare_context','auto_prepare_jev'):
         if not isinstance(p.get(name),bool): raise AutoError('POLICY_BOOLEAN')
     if not isinstance(p.get('local_laya_enabled',False),bool):raise AutoError('POLICY_BOOLEAN')
@@ -98,24 +98,15 @@ def replace_reviewed_policy(path,expected,replacement,base=None):
 @contextmanager
 def _policy_lock(path,base=None):
     root=private_dir(state_dir(path,base));lock_path=root/'.policy.lock'
-    descriptor=os.open(lock_path,os.O_RDWR|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600)
     try:
-        metadata=os.fstat(descriptor)
-        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink!=1 or metadata.st_mode&0o077 or (hasattr(os,'getuid') and metadata.st_uid!=os.getuid()):raise AutoError('POLICY_LOCK_UNSAFE')
-        if os.name=='nt':
-            import msvcrt
-            if metadata.st_size==0:os.write(descriptor,b'0')
-            os.lseek(descriptor,0,os.SEEK_SET);msvcrt.locking(descriptor,msvcrt.LK_LOCK,1)
-            try:yield
-            finally:os.lseek(descriptor,0,os.SEEK_SET);msvcrt.locking(descriptor,msvcrt.LK_UNLCK,1)
-        else:
-            import fcntl
-            fcntl.flock(descriptor,fcntl.LOCK_EX)
-            try:yield
-            finally:fcntl.flock(descriptor,fcntl.LOCK_UN)
-    finally:os.close(descriptor)
+        with file_lock(lock_path):
+            yield
+    except AutoError as error:
+        if str(error)=='UNSAFE_PRIVATE_FILE':raise AutoError('POLICY_LOCK_UNSAFE') from None
+        raise
 
 def _rename_exclusive(source,destination):
+    if os.name=='nt':raise AutoError('WINDOWS_PRIVATE_STATE_UNVERIFIED')
     if platform.system()=='Darwin':
         libc=ctypes.CDLL(None,use_errno=True)
         operation=libc.renamex_np
@@ -135,6 +126,9 @@ def save_policy_new(path,p,base=None):
     validate_policy(p,path)
     with _policy_lock(path,base):
         root=state_dir(path,base);destination=root/'policy.json'
+        if os.name=='nt':
+            atomic_write_private(destination,canonical(p)+b'\n',replace=False)
+            return
         descriptor,temporary=tempfile.mkstemp(prefix='.policy-new-',dir=root)
         try:
             os.fchmod(descriptor,0o600)

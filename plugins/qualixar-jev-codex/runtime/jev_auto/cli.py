@@ -1,29 +1,24 @@
 """Human setup once; runtime operations do not ask for a grant on every request."""
 from __future__ import annotations
-import argparse, json, os, stat, sys
+import argparse, json, os, sys
 from contextlib import contextmanager
 from pathlib import Path
 from . import __version__
 from .common import AutoError, canonical, home_root, private_dir, read_private, state_dir, workspace, write_private
 from .settings import make_policy,save_policy,load_policy,revoke
 from .ipc import address,ensure,request
+from .platform_fs import file_lock
 
 @contextmanager
 def _bridge_lock(root):
     if os.name=='nt':
-        raise AutoError('BRIDGE_LOCK_PLATFORM_UNVERIFIED')
+        raise AutoError('WINDOWS_BROWSER_BRIDGE_UNVERIFIED')
     lock_path=private_dir(root)/'.auto-bridge.lock'
-    descriptor=os.open(lock_path,os.O_RDWR|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600)
     try:
-        metadata=os.fstat(descriptor)
-        if (not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink!=1 or metadata.st_mode&0o077
-            or (hasattr(os,'getuid') and metadata.st_uid!=os.getuid())):
-            raise AutoError('BRIDGE_LOCK_UNSAFE')
-        import fcntl
-        fcntl.flock(descriptor,fcntl.LOCK_EX)
-        try:yield
-        finally:fcntl.flock(descriptor,fcntl.LOCK_UN)
-    finally:os.close(descriptor)
+        with file_lock(lock_path):yield
+    except AutoError as error:
+        if str(error)=='UNSAFE_PRIVATE_FILE':raise AutoError('BRIDGE_LOCK_UNSAFE') from None
+        raise
 
 def bridge_record(path,p):
     root=Path(os.environ.get('XDG_CONFIG_HOME',Path.home()/'.config'))/'qualixar-jev-decision-layer'
@@ -55,13 +50,17 @@ def main(argv=None):
     decide.add_argument('--classification',required=True,choices=['public','internal-minimized','restricted'])
     recall=sub.add_parser('recall');recall.add_argument('--workspace',required=True);recall.add_argument('--receipt-id',required=True);recall.add_argument('--start',type=int,default=1);recall.add_argument('--end',type=int,default=120)
     probe=sub.add_parser('probe');probe.add_argument('--workspace',required=True)
+    doctor=sub.add_parser('doctor',help='Read-only local diagnosis; provider inference uses the separate probe command')
+    doctor.add_argument('--workspace',required=True)
+    wb=sub.add_parser('workbench',help='Open the local recipe workbench in your browser')
+    wb.add_argument('--workspace',required=True)
     st=sub.add_parser('selftest',help='Replay the shipped synthetic fixtures through the local gate. Offline: no provider call, no key, no enrollment.')
     st.add_argument('--recipe');st.add_argument('--variant',choices=['nominal','uncertain','adversarial'],default='nominal')
     vs=sub.add_parser('vscode',help='Register this layer as a workspace MCP server for VS Code Copilot agent mode')
     vs.add_argument('--workspace',required=True)
     vs.add_argument('--write',action='store_true',help='Apply the change. Without it the plan is printed and nothing is written.')
     hr=sub.add_parser('host-register',help='Register this layer as an MCP server in the shape a given host expects')
-    hr.add_argument('--host',required=True,choices=['vscode','antigravity','claude-desktop'])
+    hr.add_argument('--host',required=True,choices=['vscode','antigravity','claude-desktop','codex-cli','claude-code-cli'])
     hr.add_argument('--workspace',help='Required for vscode; the other hosts use a user-level config')
     hr.add_argument('--write',action='store_true',help='Apply the change. Without it the plan is printed and nothing is written.')
     args=parser.parse_args(argv)
@@ -85,6 +84,39 @@ def main(argv=None):
             print(canonical(result).decode())
             return 0 if result.get('all_passed',result.get('matched')) else 1
         path=workspace(args.workspace)
+        if args.command=='doctor':
+            from .doctor import diagnose,exit_code
+            result=diagnose(path)
+            print(canonical(result).decode())
+            return exit_code(result)
+        if args.command=='workbench':
+            from .recipe_workbench import RecipeWorkbench
+            from src.adl.api.recipe_workbench_server import WorkbenchServer
+            import webbrowser
+
+            server=WorkbenchServer(('127.0.0.1',0),RecipeWorkbench(path))
+            url=f'http://127.0.0.1:{server.server_port}/'
+            print('Recipe workbench:',url)
+            try:
+                opened=webbrowser.open(url)
+            except Exception:
+                opened=False
+            if not opened:print('Open this address in your browser:',url)
+            try:
+                server.serve_forever()
+            except KeyboardInterrupt:
+                pass
+            finally:
+                try:server.server_close()
+                finally:
+                    # Invalidate this browser session even if the server was
+                    # interrupted while it was handling a request.
+                    reviews=getattr(server,'reviews',None)
+                    if isinstance(reviews,dict):reviews.clear()
+                    session=getattr(server,'session',None)
+                    if session is not None:
+                        session.token='';session.csrf='';session.expires_at=0
+            return 0
         if args.command=='vscode':
             from .vscode_adapter import install,plan
             result=install(path) if args.write else plan(path)

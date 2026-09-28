@@ -3,11 +3,14 @@ from __future__ import annotations
 import contextlib, datetime, os, sqlite3, threading, time
 from pathlib import Path
 from .common import AutoError, canonical, decode, digest, private_dir, safe_path
+from .platform_fs import open_private_file, verify_private_dir
 
 class Store:
     def __init__(self,root):
         self.root=private_dir(Path(root));self.path=self.root/'auto.sqlite3';safe_path(self.path)
-        if self.path.exists():
+        if os.name == 'nt':
+            self._prepare_windows_database()
+        elif self.path.exists():
             s=self.path.stat()
             if s.st_mode & 0o077 or s.st_nlink!=1 or (hasattr(os,'getuid') and s.st_uid!=os.getuid()): raise AutoError('UNSAFE_DATABASE')
         with self.connection() as c:
@@ -18,16 +21,68 @@ class Store:
             CREATE TABLE IF NOT EXISTS goals(session TEXT PRIMARY KEY,created REAL,text TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY,created REAL,kind TEXT,body BLOB NOT NULL);
             ''')
+
+    def _verify_windows_database(self):
+        """Reject unsafe SQLite files before recovery or any query can read them.
+
+        WAL/SHM are rejected even when private: this store uses rollback journaling,
+        and silently ignoring an old WAL could lose uncheckpointed transactions.
+        """
+        verify_private_dir(self.root)
+        for suffix in ('-wal', '-shm'):
+            if os.path.lexists(str(self.path) + suffix):
+                raise AutoError('UNSAFE_DATABASE')
+        for path in (self.path, Path(str(self.path) + '-journal')):
+            if not os.path.lexists(path):
+                raise AutoError('UNSAFE_DATABASE')
+            fd = open_private_file(path, os.O_RDONLY)
+            os.close(fd)
+
+    def _prepare_windows_database(self):
+        verify_private_dir(self.root)
+        for suffix in ('-wal', '-shm'):
+            if os.path.lexists(str(self.path) + suffix):
+                raise AutoError('UNSAFE_DATABASE')
+        # SQLite opens paths itself, so pre-create both files with native
+        # protected DACLs. PERSIST mode keeps the rollback journal in place.
+        for path in (self.path, Path(str(self.path) + '-journal')):
+            if not os.path.lexists(path):
+                try:
+                    fd = open_private_file(path, os.O_RDWR | os.O_CREAT | os.O_EXCL)
+                except AutoError:
+                    # Another host process may have created it since lexists.
+                    # Reopen through the native verifier; any other failure
+                    # still fails closed without replacing existing state.
+                    if not os.path.lexists(path):
+                        raise
+                    fd = open_private_file(path, os.O_RDONLY)
+                os.close(fd)
+        self._verify_windows_database()
+
     @contextlib.contextmanager
     def connection(self):
         safe_path(self.path)
+        if os.name == 'nt':
+            self._verify_windows_database()
         old=os.umask(0o077)
         try:c=sqlite3.connect(self.path,timeout=5)
         finally:os.umask(old)
-        self.path.chmod(0o600)
+        if os.name == 'nt':
+            try:
+                mode=c.execute('PRAGMA journal_mode=PERSIST').fetchone()[0]
+                if mode.lower() != 'persist': raise AutoError('UNSAFE_DATABASE')
+                c.execute('PRAGMA temp_store=MEMORY')
+                self._verify_windows_database()
+            except BaseException:
+                c.close()
+                raise
+        else:
+            self.path.chmod(0o600)
         try:
             c.execute('PRAGMA busy_timeout=5000')
             yield c;c.commit()
+            if os.name == 'nt':
+                self._verify_windows_database()
         except Exception:c.rollback();raise
         finally:c.close()
     def reserve(self,p,n,now=None):

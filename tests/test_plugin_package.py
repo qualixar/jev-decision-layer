@@ -32,7 +32,7 @@ class PluginPackageTests(unittest.TestCase):
         self.assertEqual(marketplace["plugins"][0]["source"]["path"], "./plugins/qualixar-jev-codex")
         self.assertFalse((CODEX_PACKAGE / "plugin.json").exists())
         overlay = json.loads((CODEX_PACKAGE / ".codex-plugin/plugin.json").read_text())
-        self.assertEqual(overlay["hooks"], "./hooks/hooks.json")
+        self.assertEqual(overlay["hooks"], "./hooks/codex-hooks.json")
         self.assertTrue((CODEX_PACKAGE / overlay["hooks"]).is_file())
 
     def test_codex_and_claude_mcp_descriptors_start_the_same_bundled_server(self):
@@ -76,12 +76,19 @@ class PluginPackageTests(unittest.TestCase):
         self.assertIn('width="56" height="56"', readme)
         self.assertIn('src="docs/assets/hero.svg"', readme)
         self.assertIn('width="820"', readme)
+        headings = {
+            re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
+            for heading in re.findall(r"^#{1,6}\s+(.+)$", readme, flags=re.MULTILINE)
+        }
         targets = re.findall(r"\]\(([^)]+)\)", readme)
         for target in targets:
             if target.startswith(("https://", "http://")):
                 continue
             with self.subTest(target=target):
-                self.assertTrue((ROOT / target).is_file())
+                if target.startswith("#"):
+                    self.assertIn(target[1:], headings)
+                    continue
+                self.assertTrue((ROOT / target.split("#", 1)[0]).is_file())
         social = (ROOT / "docs/assets/social-preview.png").read_bytes()
         self.assertTrue(social.startswith(b"\x89PNG\r\n\x1a\n"))
         self.assertEqual((int.from_bytes(social[16:20]), int.from_bytes(social[20:24])), (1280, 640))
@@ -152,7 +159,7 @@ class PluginPackageTests(unittest.TestCase):
         claude = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text())
         self.assertEqual(overlay["version"], plugin["version"])
         self.assertEqual(claude["version"], plugin["version"])
-        self.assertEqual(overlay["hooks"], "./hooks/hooks.json")
+        self.assertEqual(overlay["hooks"], "./hooks/codex-hooks.json")
         self.assertTrue((PLUGIN / overlay["hooks"]).is_file())
         extension = plugin["extensions"]["com.openai"]
         self.assertEqual(extension["hooks"], overlay["hooks"])

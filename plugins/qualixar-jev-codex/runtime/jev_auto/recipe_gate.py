@@ -65,7 +65,7 @@ _KINDS = {"choice", "score", "noul"}
 # incomplete, and an incomplete gate is not a gate.
 _REQUIRED_THRESHOLDS = {
     "choice": ("min_confidence", "min_selected_probability"),
-    "score": ("min_confidence", "min_score"),
+    "score": ("min_confidence", "min_score", "min_selected_probability"),
     "noul": ("yes", "no"),
 }
 # Tolerance on a distribution's total mass. Providers round; they do not
@@ -182,6 +182,46 @@ def _probability_of(answer: dict[str, Any], label: Any) -> float | None:
     return chosen
 
 
+def _score_outcome_probability(answer: dict[str, Any], min_score: float, positive: bool) -> float | None:
+    """Mass supporting the score outcome selected by ``min_score``.
+
+    Score probabilities are keyed by their ordinal level ("0", "1", ...).
+    A positive score outcome means mass on levels >= min_score; the negative
+    outcome means mass on levels < min_score. Requiring a contiguous level map
+    and near-unit total catches missing, malformed, and unreadable distributions
+    before either outcome can clear the gate. Values are provider-reported,
+    not recalibrated here; the provider protocol validates the score against
+    its distribution before this local policy check.
+    """
+    probabilities = answer.get("probabilities")
+    if not isinstance(probabilities, dict) or not probabilities or len(probabilities) > 128:
+        return None
+
+    levels: dict[int, float] = {}
+    for key, value in probabilities.items():
+        # Provider JSON uses canonical decimal level labels. Reject aliases
+        # such as "01" so duplicate semantic levels cannot distort the mass.
+        if not isinstance(key, str) or not key.isdigit() or str(int(key)) != key:
+            return None
+        level = int(key)
+        probability = _unit(value)
+        if probability is None:
+            return None
+        levels[level] = probability
+
+    if set(levels) != set(range(len(levels))):
+        return None
+
+    total = sum(levels.values())
+    # Jev reports two-decimal level probabilities; at most 0.005 rounding
+    # error per level can move their sum away from one.
+    if abs(total - 1.0) > len(levels) * 0.005 + 1e-9:
+        return None
+
+    return sum(probability for level, probability in levels.items()
+               if (level >= min_score) == positive)
+
+
 def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
     """Apply one recipe's policy to one typed answer. Never raises on content.
 
@@ -204,6 +244,7 @@ def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
         "recommendation": None,
         "confidence": None,
         "probability": None,
+        "outcome_probability": None,
         "thresholds_applied": {},
         "thresholds_calibrated": False,
         "provider_profile": {"provider": calibration.provider_id or "(default)",
@@ -293,9 +334,11 @@ def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
 
     score = _number(answer.get("score"))
     min_score = _number(policy.get("min_score"))
+    min_probability = _unit(policy.get("min_selected_probability"))
     result["probability"] = score
-    result["thresholds_applied"] = {"min_confidence": floor, "min_score": min_score}
-    if floor is None or min_score is None:
+    result["thresholds_applied"] = {"min_confidence": floor, "min_score": min_score,
+                                    "min_selected_probability": min_probability}
+    if floor is None or min_score is None or min_probability is None:
         return finish("REVIEW", VERIFY, "This recipe's thresholds are missing or unreadable; "
                                         "an ungated answer is not an authorised one.")
     if score is None:
@@ -304,6 +347,19 @@ def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
         return finish("REVIEW", VERIFY, "No usable confidence was returned; a score alone is not a gate.")
     if confidence < floor:
         return finish("REVIEW", VERIFY, f"Confidence {confidence} is below {floor}.")
+    positive = score >= min_score
+    outcome_probability = _score_outcome_probability(answer, min_score, positive)
+    result["outcome_probability"] = outcome_probability
+    if outcome_probability is None:
+        return finish("REVIEW", VERIFY, "The score probability distribution was missing, malformed, "
+                                        "or did not sum to one within reporting precision.")
+    if outcome_probability < min_probability:
+        direction = "positive" if positive else "negative"
+        return finish("REVIEW", VERIFY,
+                      f"Probability mass for the {direction} score outcome {outcome_probability} "
+                      f"is below {min_probability}.")
     if score < min_score:
-        return finish("RECOMMEND", ACT, "Below the score bar.", policy.get("negative_outcome"))
-    return finish("RECOMMEND", ACT, "At or above the score bar.", policy.get("positive_outcome"))
+        return finish("RECOMMEND", ACT, "Below the score bar and cleared its probability bar.",
+                      policy.get("negative_outcome"))
+    return finish("RECOMMEND", ACT, "At or above the score bar and cleared its probability bar.",
+                  policy.get("positive_outcome"))

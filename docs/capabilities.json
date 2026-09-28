@@ -2,7 +2,7 @@
   "$schema": "./capabilities.schema.json",
   "schema_version": 2,
   "name": "Qualixar Jev Decision Layer",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "license": "MIT",
   "publisher": "Qualixar / Varun Pratap Bhardwaj",
   "primary_decision_model": "TypeSafe Jev",
@@ -14,7 +14,7 @@
   ],
   "recipe_counts": {
     "legacy_contracts": 20,
-    "additional_specifications": 36
+    "additional_specifications": 38
   },
   "decision_modes": [
     {
@@ -52,7 +52,7 @@
     {
       "id": "recipes",
       "tool": "jev_recipe_try",
-      "outcome": "experimental typed recipe answer"
+      "outcome": "experimental typed recipe answer with local advisory gate and separate policy receipt"
     },
     {
       "id": "review",
@@ -75,6 +75,11 @@
       "outcome": "offline replay of shipped synthetic fixtures through the local gate"
     },
     {
+      "id": "workbench",
+      "tool": "jev workbench",
+      "outcome": "local recipe browser with offline examples and reviewed live advisory requests"
+    },
+    {
       "id": "verify",
       "tool": "jev_verify",
       "outcome": "per-field probability that an extracted field is wrong, with a trustworthy flag"
@@ -88,7 +93,7 @@
   "host_support": [
     {
       "id": "codex-desktop",
-      "evidence": "installed MCP and synthetic TypeSafe public/restricted route",
+      "evidence": "installed 1.0.7 MCP and public synthetic TypeSafe route verified; 1.0.8 source package generated, native host refresh and receipt pending",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": true,
       "automatic_jev_hook_receipt_verified": false,
@@ -96,7 +101,7 @@
     },
     {
       "id": "hermes",
-      "evidence": "staged doctor: nine tools and one hook; installed copy pending refresh",
+      "evidence": "1.0.8 source registers ten tools including offline recipe self-test and one hook; installed 1.0.7 copy awaits refresh and native turn",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
@@ -104,7 +109,7 @@
     },
     {
       "id": "antigravity",
-      "evidence": "packaged PreInvocation advisory hook and two skills; no portable Jev MCP registration in v1",
+      "evidence": "packaged PreInvocation advisory hook and manual MCP registration path; native 1.0.8 turn and receipt pending",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
@@ -112,7 +117,7 @@
     },
     {
       "id": "claude-code",
-      "evidence": "marketplace install and plugin validate pass; seven commands and three skills load; MCP launcher answers initialize; hook launcher exits cleanly on an unenrolled workspace. Plugin-provided MCP servers do not load in the desktop app Code tab, which affects every plugin on that surface",
+      "evidence": "1.0.8 Claude hook packaged separately from Codex; plugin validate and MCP initialize pass, native 1.0.8 tool turn and receipt pending",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
@@ -120,7 +125,7 @@
     },
     {
       "id": "vscode",
-      "evidence": "adapter writes .vscode/mcp.json in the documented servers format; merge, parse-refusal and symlink behaviour covered by tests; no extension bundled and no live Copilot agent-mode turn run",
+      "evidence": "adapter plans .vscode/mcp.json in the documented servers format; merge, parse-refusal and symlink behaviour covered by tests; no extension bundled and no native Copilot agent-mode turn run",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
@@ -134,7 +139,7 @@
   "measured_host_cost_savings": null,
   "offline_fixtures": {
     "per_recipe": 3,
-    "total": 108,
+    "total": 114,
     "variants": [
       "nominal",
       "uncertain",

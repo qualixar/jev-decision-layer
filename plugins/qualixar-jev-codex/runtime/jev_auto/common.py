@@ -5,9 +5,7 @@ import json
 import math
 import os
 import re
-import stat
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -46,22 +44,15 @@ def safe_path(path: Path) -> Path:
     return p
 
 def private_dir(path: Path) -> Path:
-    p = safe_path(path)
-    p.mkdir(mode=0o700, parents=True, exist_ok=True)
-    st = p.stat()
-    if not stat.S_ISDIR(st.st_mode) or (hasattr(os, 'getuid') and st.st_uid != os.getuid()):
-        raise AutoError('PRIVATE_DIRECTORY_OWNER')
-    p.chmod(0o700)
-    return p
+    from .platform_fs import ensure_private_dir
+    return ensure_private_dir(path)
 
 def read_private(path: Path, limit=512_000):
-    p = safe_path(path)
-    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
-    fd = os.open(p, flags)
+    from .platform_fs import open_private_file
+    fd = open_private_file(path, os.O_RDONLY)
     try:
         st = os.fstat(fd)
-        if (not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_mode & 0o077
-            or (hasattr(os, 'getuid') and st.st_uid != os.getuid()) or st.st_size > limit):
+        if st.st_size > limit:
             raise AutoError('UNSAFE_PRIVATE_FILE')
         with os.fdopen(fd, 'rb', closefd=False) as f:
             return decode(f.read(limit + 1), limit)
@@ -69,15 +60,8 @@ def read_private(path: Path, limit=512_000):
         os.close(fd)
 
 def write_private(path: Path, value):
-    p = safe_path(path); private_dir(p.parent)
-    fd, name = tempfile.mkstemp(prefix='.auto-', dir=p.parent)
-    try:
-        os.fchmod(fd, 0o600)
-        with os.fdopen(fd, 'wb') as f:
-            f.write(canonical(value) + b'\n'); f.flush(); os.fsync(f.fileno())
-        os.replace(name, p)
-    finally:
-        if os.path.exists(name): os.unlink(name)
+    from .platform_fs import atomic_write_private
+    atomic_write_private(path, canonical(value) + b'\n', replace=True)
 
 def workspace(path: str | Path) -> Path:
     # A host can hand us any string. An embedded NUL makes lstat raise a bare
@@ -105,9 +89,8 @@ def workspace_id(path: str | Path) -> str:
     return digest({'path': str(p), 'device': st.st_dev, 'inode': st.st_ino})[:24]
 
 def home_root() -> Path:
-    # Operational storage; this is not an OS isolation boundary against the same UID.
-    base = os.environ.get('XDG_STATE_HOME')
-    return (Path(base).expanduser() if base else Path.home()/'.local'/'state')/'qualixar-jev-decision-layer'
+    from .platform_fs import user_state_root
+    return user_state_root()
 
 def state_dir(path: str | Path, base: Path | None = None) -> Path:
     return (base or home_root()) / workspace_id(path)

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import platform
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -19,7 +18,8 @@ from jev_auto.common import AutoError, canonical, home_root, read_private, state
 from jev_auto.settings import load_policy, make_policy, replace_reviewed_policy, save_policy_new, transition_setup_policy_ready, validate_policy
 from jevkit.engine import catalog
 
-from .keychain import KeychainError, MacKeychain
+from .credential_store import CredentialStore, credential_store_for_platform
+from .keychain import KeychainError
 
 
 class SetupError(RuntimeError):
@@ -44,6 +44,7 @@ class SetupController:
         self,
         workspace_path: Path,
         *,
+        credential_store: CredentialStore | None = None,
         keychain: Any | None = None,
         persist: Callable[[Path, dict[str, Any]], None] = save_policy_new,
         complete: Callable[[Path, dict[str, Any]], None] = transition_setup_policy_ready,
@@ -56,7 +57,15 @@ class SetupController:
         local_attestor: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ):
         self.workspace = workspace(workspace_path)
-        self.keychain = keychain if keychain is not None else MacKeychain()
+        if credential_store is not None and keychain is not None:
+            raise ValueError("CREDENTIAL_STORE_INJECTION_CONFLICT")
+        self._compat_keychain_injected = credential_store is None and keychain is not None
+        selected_store = credential_store if credential_store is not None else keychain
+        if selected_store is None:
+            selected_store = credential_store_for_platform(interactive=True)
+        self.credential_store = selected_store
+        # Keep the legacy attribute for callers/tests that used keychain=.
+        self.keychain = selected_store
         self.persist = persist
         self.complete = complete
         self.upgrade = upgrade
@@ -153,8 +162,16 @@ class SetupController:
 
     def preview(self, choice: SetupChoice) -> dict[str, Any]:
         self._validate_choice(choice)
-        if isinstance(self.keychain, MacKeychain) and platform.system() != "Darwin":
-            raise SetupError("GUIDED_SETUP_MACOS_ONLY")
+        if choice.provider != "laya-mlx":
+            available = getattr(self.credential_store, "available", None)
+            if callable(available) and not available():
+                status = getattr(self.credential_store, "availability_error", "")
+                safe_statuses = {
+                    "SECRET_SERVICE_DEPENDENCY_MISSING", "SECRET_SERVICE_UNAVAILABLE",
+                    "SECRET_SERVICE_LOCKED", "CREDENTIAL_STORE_UNAVAILABLE",
+                    "CREDENTIAL_STORE_UNSUPPORTED",
+                }
+                raise SetupError(status if status in safe_statuses else "CREDENTIAL_STORE_UNAVAILABLE")
         current: dict[str, Any] | None = None
         if self.policy_exists():
             try:
@@ -196,7 +213,7 @@ class SetupController:
             raise SetupError("PROVIDER_CHANGE_REQUIRES_SEPARATE_SETUP")
         if choice.provider != "laya-mlx":
             try:
-                self.keychain.get(choice.provider)
+                self._read_policy_credential(choice.provider, existing.get("credential_store", "legacy"))
             except KeychainError as error:
                 raise self._keychain_error(error) from None
         upgraded = {**existing,
@@ -230,21 +247,58 @@ class SetupController:
         self._previewed_existing = None
         return {"status": "UPDATED_PENDING_HOST_TRUST", "workspace": str(self.workspace),
                 "provider": choice.provider, "native_hook_trust": "USER_REVIEW_REQUIRED",
-                "credentials": "KEYCHAIN", "live_provider_test": "NOT_RUN"}
+                "credentials": self._credential_label(existing.get("credential_store", "legacy")),
+                "live_provider_test": "NOT_RUN"}
 
     def _choice_digest(self, choice: SetupChoice) -> str:
         return hashlib.sha256(canonical({"workspace": str(self.workspace), "choice": asdict(choice)})).hexdigest()
 
     @staticmethod
     def _keychain_error(error: KeychainError) -> SetupError:
-        safe_codes = {"KEYCHAIN_WRITE_FAILED", "KEYCHAIN_READ_FAILED", "KEYCHAIN_ITEM_MISSING", "KEYCHAIN_CREDENTIAL_INVALID", "KEYCHAIN_UNAVAILABLE"}
+        safe_codes = {
+            "KEYCHAIN_WRITE_FAILED", "KEYCHAIN_READ_FAILED", "KEYCHAIN_ITEM_MISSING",
+            "KEYCHAIN_CREDENTIAL_INVALID", "KEYCHAIN_UNAVAILABLE", "KEYCHAIN_DELETE_FAILED", "KEYCHAIN_VERIFY_FAILED",
+            "CREDENTIAL_STORE_UNSUPPORTED", "CREDENTIAL_STORE_UNAVAILABLE", "CREDENTIAL_INVALID",
+            "CREDENTIAL_PROVIDER_UNSUPPORTED", "CREDENTIAL_ITEM_MISSING", "CREDENTIAL_STORE_WRITE_FAILED",
+            "CREDENTIAL_STORE_READ_FAILED", "CREDENTIAL_STORE_DELETE_FAILED", "CREDENTIAL_STORE_VERIFY_FAILED",
+            "SECRET_SERVICE_DEPENDENCY_MISSING", "SECRET_SERVICE_UNAVAILABLE", "SECRET_SERVICE_LOCKED",
+        }
         code = str(error) if str(error) in safe_codes else "KEYCHAIN_OPERATION_FAILED"
         return SetupError(code)
+
+    def _read_policy_credential(self, provider: str, selector: str) -> str:
+        if self._compat_keychain_injected and selector == "legacy":
+            # Keep the historical keychain= test seam usable for policies
+            # constructed by older tests without an explicit selector.
+            return self.credential_store.get(provider)
+        if selector == "keychain":
+            # The old selector names the existing macOS item and is not a
+            # portable alias for another operating system's native store.
+            if not self._compat_keychain_injected and getattr(self.credential_store, "_SERVICES", None) is None:
+                raise SetupError("KEYCHAIN_CREDENTIAL_UNAVAILABLE")
+            return self.credential_store.get(provider)
+        if selector == "os":
+            return self.credential_store.get(provider)
+        if selector == "legacy":
+            from jevkit.providers import get_provider_credential, provider_profile
+            from jevkit.security import SafeError
+
+            try:
+                return get_provider_credential(provider_profile(provider), credential_store="legacy")
+            except (SafeError, OSError):
+                raise SetupError("LEGACY_CREDENTIAL_UNAVAILABLE") from None
+        raise SetupError("CREDENTIAL_STORE_UNSUPPORTED")
+
+    @staticmethod
+    def _credential_label(selector: str) -> str:
+        return {"os": "OS_STORE", "keychain": "KEYCHAIN", "legacy": "LEGACY_CONFIG"}.get(
+            selector, "NOT_AVAILABLE"
+        )
 
     def _finish(self, policy: dict[str, Any], *, keychain_verified: bool = False) -> dict[str, Any]:
         if policy["provider"] != "laya-mlx" and not keychain_verified:
             try:
-                self.keychain.get(policy["provider"])
+                self._read_policy_credential(policy["provider"], policy.get("credential_store", "legacy"))
             except KeychainError as error:
                 raise self._keychain_error(error) from None
         try:
@@ -258,7 +312,10 @@ class SetupController:
             "workspace": str(self.workspace),
             "provider": policy["provider"],
             "native_hook_trust": "USER_REVIEW_REQUIRED",
-            "credentials": "KEYCHAIN" if policy["provider"] != "laya-mlx" else "NOT_REQUIRED",
+            "credentials": (
+                self._credential_label(policy.get("credential_store", "legacy"))
+                if policy["provider"] != "laya-mlx" else "NOT_REQUIRED"
+            ),
             "live_provider_test": "NOT_RUN",
         }
 
@@ -310,7 +367,7 @@ class SetupController:
                 decision_mode=self._resolved_mode(choice),
                 routes={"sieve": "laya-mlx", "probe": "laya-mlx"} if choice.local_laya_enabled else {},
                 mlx=local_model if local_model is not None else None,
-                credential_store="keychain" if choice.provider != "laya-mlx" else "legacy",
+                credential_store=("keychain" if self._compat_keychain_injected else "os") if choice.provider != "laya-mlx" else "legacy",
                 case_ids=[case["id"] for case in catalog()],
                 setup_origin="local_wizard",
                 setup_state="pending",
@@ -326,26 +383,30 @@ class SetupController:
             try:
                 if credential:
                     try:
-                        existing_credential = self.keychain.get(choice.provider)
+                        existing_credential = self.credential_store.get(choice.provider)
                     except KeychainError as error:
-                        if str(error) != "KEYCHAIN_ITEM_MISSING":
+                        if str(error) not in {"KEYCHAIN_ITEM_MISSING", "CREDENTIAL_ITEM_MISSING"}:
                             raise
                         existing_credential = None
                     if existing_credential is None:
-                        self.keychain.put(choice.provider, credential)
+                        self.credential_store.put(choice.provider, credential)
                         keychain_changed = True
                     elif not hmac.compare_digest(existing_credential, credential):
                         if not replace_existing_credential:
                             raise SetupError("KEYCHAIN_REPLACEMENT_REQUIRES_CONFIRMATION")
-                        self.keychain.put(choice.provider, credential)
+                        self.credential_store.put(choice.provider, credential)
                         keychain_changed = True
                 else:
-                    self.keychain.get(choice.provider)
+                    self.credential_store.get(choice.provider)
             except KeychainError as error:
                 raise self._keychain_error(error) from None
 
         try:
             self.persist(self.workspace, policy)
         except Exception as error:
-            raise SetupError("SETUP_PARTIAL_KEYCHAIN_STORED" if keychain_changed else "SETUP_POLICY_WRITE_FAILED") from error
+            if keychain_changed:
+                code = "SETUP_PARTIAL_KEYCHAIN_STORED" if self._compat_keychain_injected else "SETUP_PARTIAL_CREDENTIAL_STORED"
+            else:
+                code = "SETUP_POLICY_WRITE_FAILED"
+            raise SetupError(code) from error
         return self._finish(policy, keychain_verified=True)

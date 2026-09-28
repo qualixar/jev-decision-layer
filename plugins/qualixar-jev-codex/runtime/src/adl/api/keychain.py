@@ -163,6 +163,20 @@ class MacKeychain:
             self._backend = _SecurityFrameworkBackend(self._keychain_path)
         return self._backend
 
+    def available(self) -> bool:
+        """Report whether this process can load the native macOS Keychain API.
+
+        This intentionally does not read an item or trigger a Keychain prompt.
+        Actual read/write availability is checked by the requested operation.
+        """
+        if platform.system() != "Darwin":
+            return False
+        try:
+            self._native()
+            return True
+        except KeychainError:
+            return False
+
     def put(self, provider: str, credential: str) -> None:
         service = self._service(provider)
         value = self._validate_credential(credential)

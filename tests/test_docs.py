@@ -27,7 +27,7 @@ class Links(unittest.TestCase):
                 if target.startswith(("https://", "http://", "#")):
                     continue
                 with self.subTest(document=document.name, target=target):
-                    self.assertTrue((document.parent / target).resolve().is_file())
+                    self.assertTrue((document.parent / target.split("#", 1)[0]).resolve().is_file())
 
 
 class Universal(unittest.TestCase):
@@ -83,7 +83,9 @@ class DocumentedCommands(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout)
         self.assertTrue(payload["all_passed"])
-        self.assertEqual(payload["cases"], 108)
+        catalog = json.loads((ROOT / "plugins" / "qualixar-jev-decision-layer" /
+                              "runtime" / "recipe_catalog.json").read_text())
+        self.assertEqual(payload["cases"], sum(len(entry["cases"]) for entry in catalog["fixtures"]))
 
     def test_an_unknown_subcommand_fails_loudly_rather_than_silently(self):
         result = subprocess.run([str(self.LAUNCHER), "selftest", "--recipe", "qualixar.not-real"],
@@ -93,6 +95,15 @@ class DocumentedCommands(unittest.TestCase):
 
 
 class Honesty(unittest.TestCase):
+    def test_portable_use_case_skill_matches_the_shipped_fixture_count(self):
+        skill = (ROOT / "plugins" / "qualixar-jev-decision-layer" / "skills" /
+                 "jev-use-cases" / "SKILL.md").read_text()
+        catalog = json.loads((ROOT / "plugins" / "qualixar-jev-decision-layer" /
+                              "runtime" / "recipe_catalog.json").read_text())
+        total = sum(len(entry["cases"]) for entry in catalog["fixtures"])
+        self.assertIn(f"all {total} shipped synthetic fixtures", skill)
+        self.assertNotIn("96 shipped fixtures", skill)
+
     def test_no_document_claims_a_measured_saving(self):
         claim = re.compile(r"(measured|proven|verified)[^.\n]{0,40}"
                            r"(token|cost|time)[^.\n]{0,20}(saving|reduction)", re.I)
@@ -171,7 +182,7 @@ class VersionIsStated(unittest.TestCase):
         catalog = json.loads((ROOT / "plugins" / "qualixar-jev-decision-layer"
                               / "runtime" / "recipe_catalog.json").read_text())
         self.assertIn(f"{len(catalog['recipes'])} recipes", readme)
-        self.assertIn("108 offline fixtures", readme)
+        self.assertIn(f"{sum(len(entry['cases']) for entry in catalog['fixtures'])} offline fixtures", readme)
 
 if __name__ == "__main__":
     unittest.main()

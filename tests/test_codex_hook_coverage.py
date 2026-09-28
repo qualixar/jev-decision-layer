@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugins" / "qualixar-jev-decision-layer"
 RUNTIME = PLUGIN / "runtime"
-HOOKS_JSON = PLUGIN / "hooks" / "hooks.json"
+HOOKS_JSON = PLUGIN / "hooks" / "codex-hooks.json"
 sys.path.insert(0, str(RUNTIME))
 
 

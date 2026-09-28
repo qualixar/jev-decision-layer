@@ -170,6 +170,21 @@ def get_provider_credential(
     provider: ProviderProfile | str, *, config_root: Path | None = None, credential_store: str = "legacy"
 ) -> str:
     profile = provider_profile(provider) if isinstance(provider, str) else provider
+    if credential_store == "os":
+        from src.adl.api.credential_store import credential_store_for_platform
+        from src.adl.api.keychain import KeychainError
+
+        try:
+            return validate_key(credential_store_for_platform().get(profile.provider_id))
+        except KeychainError as error:
+            safe_codes = {
+                "CREDENTIAL_STORE_UNSUPPORTED", "CREDENTIAL_STORE_UNAVAILABLE", "CREDENTIAL_INVALID",
+                "CREDENTIAL_PROVIDER_UNSUPPORTED", "CREDENTIAL_ITEM_MISSING", "CREDENTIAL_STORE_READ_FAILED",
+                "SECRET_SERVICE_DEPENDENCY_MISSING", "SECRET_SERVICE_UNAVAILABLE", "SECRET_SERVICE_LOCKED",
+                "KEYCHAIN_ITEM_MISSING", "KEYCHAIN_READ_FAILED", "KEYCHAIN_CREDENTIAL_INVALID", "KEYCHAIN_UNAVAILABLE",
+            }
+            code = str(error) if str(error) in safe_codes else "CREDENTIAL_STORE_READ_FAILED"
+            raise SafeError(code) from None
     if credential_store == "keychain":
         from src.adl.api.keychain import KeychainError, MacKeychain
 

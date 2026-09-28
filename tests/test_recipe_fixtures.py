@@ -34,8 +34,8 @@ class ShippedFixtures(unittest.TestCase):
     def test_the_whole_suite_replays_clean(self):
         result = selftest()
         self.assertTrue(result["all_passed"], result["failures"])
-        self.assertEqual(result["cases"], 108)
-        self.assertEqual(result["passed"], 108)
+        self.assertEqual(result["cases"], 114)
+        self.assertEqual(result["passed"], 114)
 
     def test_fixtures_are_not_shipped_inside_the_model_facing_recipes(self):
         for recipe in CATALOG["recipes"]:
@@ -103,7 +103,10 @@ class CleanCostsTheHostNothing(unittest.TestCase):
             if policy["positive_outcome"] not in {"mark_check_passed", "select_candidates"}:
                 continue
             with self.subTest(gate["id"]):
-                result = evaluate(policy, {"type": "score", "score": 3.0, "confidence": 0.84})
+                result = evaluate(policy, {
+                    "type": "score", "score": 3.0, "confidence": 0.95,
+                    "probabilities": {"0": 0.01, "1": 0.01, "2": 0.03, "3": 0.95},
+                })
                 self.assertEqual(result["host_action"], ACT)
                 self.assertNotEqual(result["recommendation"], "request_review")
 
