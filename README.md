@@ -244,9 +244,9 @@ Every recipe also ships three synthetic fixtures — nominal, uncertain and adve
 
 The optional Laya worker has completed local synthetic inference and macOS sandbox file/network-denial tests. Those results do not prove a particular GPU path or native host interception. The [capability manifest](docs/capabilities.json) and [agent-readable index](llms.txt) provide machine-readable pointers; the table above is the human-facing support boundary.
 
-## About token, cost, and time savings
+## Measure each decision
 
-This project has **no measured token, subscription-cost, API-cost, or task-time savings claim** on any host. A Jev request has provider overhead and can make a task slower if it avoids no work. The broker reports actual calls and bytes; its saved-token and saved-cost fields remain unknown until matched, independently accepted host-task trials exist. Do not treat shorter text or fewer visible calls as proof of savings. Recipe and suggestion thresholds are uncalibrated demonstration defaults, not universal decision cutoffs.
+The broker reports provider calls and bytes, and the decision receipt lets you inspect what happened for a bounded choice. For task-level token, cost, and speed comparisons, use paired runs with the same host and an independently checked outcome. Recipe thresholds are configurable starting points; validate them against your own tasks before relying on an automatic action.
 
 ## Build on it
 

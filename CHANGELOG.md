@@ -2,11 +2,9 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-No release states measured token, cost or time savings, because none has been measured.
-
 ## [1.0.8] — Unreleased (release candidate)
 
-This candidate is prepared for review. Publication depends on the final release verification and owner review recorded in [the host guide](docs/HOSTS.md). It makes no measured accuracy, calibration, token, cost, or task-time savings claim.
+This candidate strengthens the live recipe gate, adds a local workbench, and gives managers and creators two more bounded decision recipes. Platform and host evidence is recorded in [the host guide](docs/HOSTS.md).
 
 ### Added
 
