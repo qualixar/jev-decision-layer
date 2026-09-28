@@ -90,6 +90,7 @@ class _WindowsOps:
     GENERIC_WRITE = 0x40000000
     READ_CONTROL = 0x00020000
     WRITE_DAC = 0x00040000
+    WRITE_OWNER = 0x00080000
     FILE_READ_ATTRIBUTES = 0x00000080
     FILE_SHARE_ALL = 0x00000007
     OPEN_EXISTING = 3
@@ -102,6 +103,7 @@ class _WindowsOps:
     MOVEFILE_REPLACE_EXISTING = 0x1
     MOVEFILE_WRITE_THROUGH = 0x8
     SECURITY_INFORMATION = 0x1 | 0x4
+    OWNER_SECURITY_INFORMATION = 0x1
     DACL_SECURITY_INFORMATION = 0x4
     PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000
     SE_FILE_OBJECT = 1
@@ -193,6 +195,9 @@ class _WindowsOps:
         a.GetSecurityDescriptorDacl.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int),
                                                 ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_int)]
         a.GetSecurityDescriptorDacl.restype = ctypes.c_int
+        a.GetSecurityDescriptorOwner.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p),
+                                                 ctypes.POINTER(ctypes.c_int)]
+        a.GetSecurityDescriptorOwner.restype = ctypes.c_int
         a.GetSecurityDescriptorControl.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint16),
                                                    ctypes.POINTER(ctypes.c_uint32)]
         a.GetSecurityDescriptorControl.restype = ctypes.c_int
@@ -233,8 +238,11 @@ class _WindowsOps:
             raise OSError(ctypes.get_last_error())
         return descriptor
 
-    def _open_handle(self, path: Path, *, directory: bool, write_dac: bool = False):
-        access = self.READ_CONTROL | self.FILE_READ_ATTRIBUTES | (self.WRITE_DAC if write_dac else 0)
+    def _open_handle(self, path: Path, *, directory: bool, write_dac: bool = False,
+                     write_owner: bool = False):
+        access = (self.READ_CONTROL | self.FILE_READ_ATTRIBUTES
+                  | (self.WRITE_DAC if write_dac else 0)
+                  | (self.WRITE_OWNER if write_owner else 0))
         flags = self.FILE_FLAG_OPEN_REPARSE_POINT | (self.FILE_FLAG_BACKUP_SEMANTICS if directory else 0)
         handle = self.kernel32.CreateFileW(str(path), access, self.FILE_SHARE_ALL, None,
                                            self.OPEN_EXISTING, flags, None)
@@ -294,10 +302,15 @@ class _WindowsOps:
             if not self.advapi32.GetSecurityDescriptorDacl(descriptor, ctypes.byref(present),
                                                            ctypes.byref(dacl), ctypes.byref(defaulted)) or not present.value:
                 raise OSError("private DACL construction failed")
+            owner, owner_defaulted = ctypes.c_void_p(), ctypes.c_int()
+            if not self.advapi32.GetSecurityDescriptorOwner(
+                    descriptor, ctypes.byref(owner), ctypes.byref(owner_defaulted)) or not owner.value:
+                raise OSError("private owner construction failed")
             rc = self.advapi32.SetSecurityInfo(
                 handle, self.SE_FILE_OBJECT,
-                self.DACL_SECURITY_INFORMATION | self.PROTECTED_DACL_SECURITY_INFORMATION,
-                None, None, dacl, None)
+                self.OWNER_SECURITY_INFORMATION | self.DACL_SECURITY_INFORMATION
+                | self.PROTECTED_DACL_SECURITY_INFORMATION,
+                owner, None, dacl, None)
             if rc != 0:
                 raise OSError(rc)
         finally:
@@ -342,7 +355,7 @@ class _WindowsOps:
                     raise OSError(error)
         finally:
             self.kernel32.LocalFree(descriptor)
-        handle = self._open_handle(p, directory=True, write_dac=True)
+        handle = self._open_handle(p, directory=True, write_dac=True, write_owner=True)
         try:
             self._set_private_dacl(handle, directory=True)
             self._inspect(handle, directory=True)

@@ -70,6 +70,43 @@ class SddlValidationTests(unittest.TestCase):
         sddl = f"O:{USER}D:P(A;;FA;;;SY)(A;;FA;;;{USER})S:(AU;SA;FA;;;WD)"
         self.assertTrue(platform_fs._verify_sddl(sddl, USER, directory=False))
 
+    def test_private_directory_repair_sets_the_explicit_user_owner(self):
+        class FakeAdvapi:
+            def __init__(self):
+                self.arguments = None
+
+            def GetSecurityDescriptorDacl(self, _descriptor, present, dacl, _defaulted):
+                ctypes.cast(present, ctypes.POINTER(ctypes.c_int))[0] = 1
+                ctypes.cast(dacl, ctypes.POINTER(ctypes.c_void_p))[0] = 0x1234
+                return 1
+
+            def GetSecurityDescriptorOwner(self, _descriptor, owner, defaulted):
+                ctypes.cast(owner, ctypes.POINTER(ctypes.c_void_p))[0] = 0x5678
+                ctypes.cast(defaulted, ctypes.POINTER(ctypes.c_int))[0] = 0
+                return 1
+
+            def SetSecurityInfo(self, *arguments):
+                self.arguments = arguments
+                return 0
+
+        class FakeKernel:
+            def LocalFree(self, _descriptor):
+                return None
+
+        ops = platform_fs._WindowsOps.__new__(platform_fs._WindowsOps)
+        ops.advapi32 = FakeAdvapi()
+        ops.kernel32 = FakeKernel()
+        ops._descriptor = lambda _directory: ctypes.c_void_p(0x9999)
+        ops._set_private_dacl(ctypes.c_void_p(0x1111), directory=True)
+
+        _, object_type, flags, owner, group, dacl, sacl = ops.advapi32.arguments
+        self.assertEqual(object_type, ops.SE_FILE_OBJECT)
+        self.assertEqual(flags, 0x1 | ops.DACL_SECURITY_INFORMATION | ops.PROTECTED_DACL_SECURITY_INFORMATION)
+        self.assertEqual(owner.value, 0x5678)
+        self.assertIsNone(group)
+        self.assertEqual(dacl.value, 0x1234)
+        self.assertIsNone(sacl)
+
 
 class FakeWindowsOps:
     def __init__(self):
