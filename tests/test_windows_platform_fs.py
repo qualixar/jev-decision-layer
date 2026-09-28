@@ -116,7 +116,7 @@ class WindowsDispatchTests(unittest.TestCase):
                 os.environ, {"LOCALAPPDATA": r"C:\Users\test\AppData\Local"}), patch.object(
                     platform_fs, "Path", posix_path):
             self.assertEqual(str(platform_fs.user_state_root()),
-                             r"C:\Users\test\AppData\Local/Qualixar/JevDecisionLayer")
+                             str(posix_path(r"C:\Users\test\AppData\Local") / "Qualixar" / "JevDecisionLayer"))
 
     def test_public_private_storage_apis_delegate_to_native_backend(self):
         path = PureWindowsPath("C:/private/state")
