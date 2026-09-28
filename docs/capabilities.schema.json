@@ -11,6 +11,7 @@
     "publisher",
     "primary_decision_model",
     "optional_local_model",
+    "platform_support",
     "typed_answers",
     "recipe_counts",
     "decision_modes",
@@ -52,6 +53,16 @@
     "optional_local_model": {
       "type": "string",
       "minLength": 1
+    },
+    "platform_support": {
+      "type": "object",
+      "required": ["macos", "linux", "windows"],
+      "properties": {
+        "macos": {"const": "supported_verified"},
+        "linux": {"const": "experimental_unverified"},
+        "windows": {"const": "disabled_unverified"}
+      },
+      "additionalProperties": false
     },
     "typed_answers": {
       "type": "array",

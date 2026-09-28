@@ -442,6 +442,8 @@ def build_controller(workspace: Path) -> SetupController:
 
 
 def main() -> None:
+    if os.name == "nt":
+        raise SystemExit("WINDOWS_UNSUPPORTED_IN_1_0_8")
     parser = argparse.ArgumentParser(description="Open private Qualixar setup in your browser")
     parser.add_argument("--workspace", type=Path, required=True)
     args = parser.parse_args()

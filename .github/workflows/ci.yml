@@ -9,10 +9,8 @@ permissions:
 
 jobs:
   verify:
-    # Keep the existing full-suite Linux and macOS lanes. Linux exercises the
-    # Secret Service path; macOS exercises Keychain and the Apple-Silicon local
-    # route. Windows has its own native support subset below because unrelated
-    # POSIX-only suites still import fcntl at module load.
+    # macOS is the supported 1.0.8 platform. Linux runs generic tests and its
+    # disposable Secret Service check as an experimental, unverified path.
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -46,44 +44,3 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes dbus-x11 gnome-keyring libsecret-tools
           dbus-run-session -- bash -lc 'printf "%s" "jev-ci-keyring-password-fixture" | gnome-keyring-daemon --unlock --components=secrets >/dev/null; JEV_RUN_NATIVE_SECRET_SERVICE=1 python3 -m unittest discover -s tests -p test_credential_store_linux_native.py -v'
-
-  windows-native:
-    # This is an explicit support lane, not the full suite. Several unrelated
-    # POSIX-only modules import fcntl at module load and remain outside the
-    # Windows contract until those modules are made portable deliberately.
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.11'
-      - name: Verify recipe catalog
-        run: python tools/build_recipes.py --check
-      - name: Verify native Windows private filesystem contract
-        run: python -m unittest discover -s tests -p test_windows_platform_fs.py -v
-      - name: Verify native Windows SQLite evidence-store ACLs
-        run: python -m unittest discover -s tests -p test_windows_store_acl_native.py -v
-      - name: Verify legacy Jevkit private-state boundary on Windows
-        run: python -m unittest discover -s tests -p test_jevkit_windows_private.py -v
-      - name: Verify native Windows named pipe contract
-        run: python -m unittest discover -s tests -p test_windows_pipe_native.py -v
-      - name: Verify production Windows IPC endpoint and private state
-        run: python -m unittest discover -s tests -p test_windows_production_ipc.py -v
-      - name: Verify production platform IPC and policy paths
-        run: python -m unittest discover -s tests -p test_platform_ipc.py -v
-      - name: Verify native host registration config plans
-        run: python -m unittest discover -s tests -p test_host_registration_parity.py -v
-      - name: Verify CLI workbench contracts
-        run: python -m unittest discover -s tests -p test_cli_workbench.py -v
-      - name: Verify Windows Codex and Claude profile config safety
-        run: python -m unittest discover -s tests -p test_windows_host_registration_native.py -v
-      - name: Verify OS credential adapter mocks
-        run: python -m unittest discover -s tests -p test_credential_store_portability.py -v
-      - name: Verify native Windows Credential Manager fixture CRUD
-        run: python -m unittest discover -s tests -p test_windows_credential_store_native.py -v
-      - name: Verify mechanical policy gate
-        run: python -m unittest discover -s tests -p test_recipe_gate.py -v
-      - name: Verify native command launchers and package entrypoints
-        run: python -m unittest discover -s tests -p test_windows_launcher.py -v

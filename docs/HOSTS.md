@@ -16,7 +16,7 @@ Harnesses expose different plugin, hook, and tool surfaces. Four adapters includ
 | Hermes | `jev_auto/hermes_hook.py`, `jev_auto/hermes_tool.py` | Separate hook and tool entry points |
 | VS Code | `jev_auto/vscode_adapter.py` | No hook surface at all. Registers the stdio launcher as a workspace MCP server in `.vscode/mcp.json` |
 
-The adapters offer host-native tool registration where available. VS Code uses workspace `.vscode/mcp.json`; Antigravity uses its documented global `mcpServers` configuration; Claude desktop app configuration is distinct from Claude Code CLI. On Windows, every `jev host-register` target is manual-plan-only in 1.0.8: `--write` fails closed. Use the exact generated snippet and review it in the host configuration UI or file; there is no one-click Windows registration parity.
+The adapters offer host-native tool registration where available. VS Code uses workspace `.vscode/mcp.json`; Antigravity uses its documented global `mcpServers` configuration; Claude desktop app configuration is distinct from Claude Code CLI. Host registration describes configuration shape; it does not widen the supported operating-system scope stated below.
 
 **Hook files are per host and are never merged.** Each harness reads its own file and they have incompatible schemas — Codex's `hooks/codex-hooks.json` and Claude Code's `hooks/claude-hooks.json` are different documents on purpose. Editing one to satisfy another breaks the first silently.
 
@@ -24,9 +24,9 @@ The adapters offer host-native tool registration where available. VS Code uses w
 
 ## Platform scope
 
-The 1.0.8 release candidate targets hosted TypeSafe Jev and OpenRouter on macOS, Linux, and Windows, using each operating system credential store: macOS Keychain, Windows Credential Manager, and Linux Secret Service through `secret-tool`. Native Windows and Linux CI must pass before those OS paths can be called verified. Windows host registration remains manual-plan-only, with writes blocked; native host setup has not reached one-click parity. An adapter being present does not prove the full host + operating system + provider path works.
+Version 1.0.8 is supported and verified on macOS, using Keychain for hosted TypeSafe Jev and OpenRouter. Linux remains experimental and unverified: generic Linux CI does not establish the complete Secret Service, broker, host, and provider path. Windows hosted runtime entry points fail closed because the native private-state contract did not pass CI; the Windows CI lane has been removed until that contract is deliberately revalidated. An adapter being present does not prove the full host + operating system + provider path works.
 
-The older `jevkit` direct grant, policy-file, and credential-file paths fail closed on Windows because their legacy storage has no verified Windows SQLite/ACL contract. The reviewed `jev_auto` hosted route uses the OS credential store and separate protected broker state. This is a capability boundary, not an automatic fallback.
+Windows-specific filesystem, credential, pipe, and launcher code remains in the source tree for future work, but it is not a supported 1.0.8 runtime. The `jev_auto` broker refuses to start on Windows. Windows host configuration snippets do not enable or imply runtime support.
 
 Local Laya-MLX remains limited to a compatible Apple-Silicon Mac with a successful local installation attestation. It is not a Windows or Linux provider route. Hosted and local routes are separate choices; Jev-only does not silently fall back to Laya.
 
@@ -66,7 +66,7 @@ For the desktop app specifically, add the same command to `~/Library/Application
 plugins/qualixar-jev-decision-layer/scripts/jev vscode --workspace .
 ```
 
-This writes nothing. It prints the planned change, the config path, and `preserved_servers` — your existing servers, which are kept. On macOS and Linux, add `--write` to apply. An existing `.vscode/mcp.json` is merged: exactly one `qualixar-jev` entry is added or updated and every other key is carried through. A file that does not parse is refused rather than overwritten, because rewriting it would discard servers the adapter cannot read. On Windows, use the manual snippet; `--write` refuses. Restart VS Code afterwards; Copilot agent mode reads the workspace file.
+This writes nothing. It prints the planned change, the config path, and `preserved_servers` — your existing servers, which are kept. On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified; Windows hosted runtime is disabled in 1.0.8. An existing `.vscode/mcp.json` is merged: exactly one `qualixar-jev` entry is added or updated and every other key is carried through. A file that does not parse is refused rather than overwritten, because rewriting it would discard servers the adapter cannot read. Restart VS Code afterwards; Copilot agent mode reads the workspace file.
 
 ### Antigravity
 
@@ -76,7 +76,7 @@ Use the portable plugin source at `plugins/qualixar-jev-decision-layer` with Ant
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host antigravity
 ```
 
-On macOS and Linux, add `--write` to apply. On Windows, review and apply the manual snippet in the host; `--write` refuses. A plugin-relative `mcp_config.json` is deliberately **not** shipped: Antigravity documents `command` as an executable or a binary name and says nothing about resolving a path relative to the plugin, so the adapter uses an absolute one in the documented global config. A repository test keeps that file from being added until the relative form is documented and verified.
+On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified. Windows is outside the supported 1.0.8 runtime. A plugin-relative `mcp_config.json` is deliberately **not** shipped: Antigravity documents `command` as an executable or a binary name and says nothing about resolving a path relative to the plugin, so the adapter uses an absolute one in the documented global config. A repository test keeps that file from being added until the relative form is documented and verified.
 
 ### Hermes
 
@@ -88,7 +88,7 @@ Use the portable plugin source with Hermes's own plugin install path; it uses se
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host claude-desktop --write
 ```
 
-**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed. On Windows, omit `--write` and apply the generated manual snippet in the app's configuration instead.
+**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed. Windows runtime commands are disabled in 1.0.8; do not use a generated configuration snippet as an indication of platform support.
 
 ## What is verified, and what is not
 
@@ -96,7 +96,7 @@ plugins/qualixar-jev-decision-layer/scripts/jev host-register --host claude-desk
 
 | Harness | Evidence | Boundary |
 |---|---|---|
-| **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on a Mac | Does not establish Linux/Windows operation or automatic-hook coverage |
+| **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on macOS | Does not establish Linux operation or automatic-hook coverage; Windows runtime is disabled in 1.0.8 |
 | **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; seven commands and three skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly and stays silent on an unenrolled workspace | A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are not yet verified. In the desktop app's Code tab the plugin-provided server does not load at all |
 | **Hermes** | Staged 1.0.8 source registers twelve declared tools including self-test, verify and rerank, plus its hook; installed copy awaits refresh | Native model/tool turn still needs verification |
 | **Antigravity** | Packaged PreInvocation advisory hook and skills; this adapter does not request PreToolUse authority | Native model/tool turn and portable MCP registration still need verification |

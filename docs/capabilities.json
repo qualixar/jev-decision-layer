@@ -7,6 +7,11 @@
   "publisher": "Qualixar / Varun Pratap Bhardwaj",
   "primary_decision_model": "TypeSafe Jev",
   "optional_local_model": "Laya-MLX",
+  "platform_support": {
+    "macos": "supported_verified",
+    "linux": "experimental_unverified",
+    "windows": "disabled_unverified"
+  },
   "typed_answers": [
     "choice",
     "score",

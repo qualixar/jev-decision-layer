@@ -2,7 +2,7 @@
 
 The shortest useful path is: **install the host adapter → run the offline diagnosis → review one workspace's provider and text scope → run one synthetic bounded decision → inspect its returned status and receipt.** For `jev_recipe_try`, also inspect `host_action` and `policy_receipt_id`; those outputs remain advisory. The host retains its normal permissions. Host install and verification details differ, so use [the host guide](HOSTS.md) for the exact surface and its current evidence.
 
-The 1.0.8 release candidate targets hosted TypeSafe Jev and OpenRouter on macOS, Linux, and Windows, using each operating system's credential store. Native Windows and Linux CI must pass before those platform paths are treated as verified. Windows host registration is manual-plan-only and `--write` fails closed. Optional local Laya-MLX is supported only on a compatible Apple-Silicon Mac after local attestation. Host evidence is tracked separately; a packaged adapter does not prove a live provider turn.
+Version 1.0.8 is supported and verified on macOS. Linux remains experimental and unverified; Windows hosted runtime entry points fail closed because its native private-state contract did not pass CI. Optional local Laya-MLX is supported only on a compatible Apple-Silicon Mac after local attestation. Host evidence is tracked separately; a packaged adapter does not prove a live provider turn.
 
 ## Try it before you enrol
 
@@ -32,7 +32,7 @@ claude plugin marketplace add qualixar/jev-decision-layer
 claude plugin install qualixar-jev-decision-layer@qualixar
 ```
 
-Both packages use the shared runtime, while the host's plugin format, hooks, registration and available capabilities differ. The five adapters do not have identical surfaces or equal native evidence. Per-host detail is in [the host guide](HOSTS.md). On Windows, `jev host-register --write` fails closed for all targets; use its planned instructions as a manual, reviewed configuration step.
+Both packages use the shared runtime, while the host's plugin format, hooks, registration and available capabilities differ. The five adapters do not have identical surfaces or equal native evidence. Per-host detail is in [the host guide](HOSTS.md). Windows is outside the supported 1.0.8 runtime.
 
 If the plugin is already installed and you are moving to a newer version, use the upgrade steps below instead — they quit the host first, which a fresh install does not need.
 

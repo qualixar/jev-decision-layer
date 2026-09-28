@@ -6,13 +6,13 @@ No release states measured token, cost or time savings, because none has been me
 
 ## [1.0.8] — Unreleased (release candidate)
 
-This candidate is prepared for review. Publication depends on the native platform and host checks recorded in [the host guide](docs/HOSTS.md). It makes no measured accuracy, calibration, token, cost, or task-time savings claim.
+This candidate is prepared for review. Publication depends on the final release verification and owner review recorded in [the host guide](docs/HOSTS.md). It makes no measured accuracy, calibration, token, cost, or task-time savings claim.
 
 ### Added
 
 - **Two audience-specific recipes**, taking the source catalog to 38 recipes and 114 synthetic fixtures: `qualixar.work-item-priority` helps a manager compare one item against an explicit rubric and supplied priorities; `qualixar.content-repurpose` selects among creator-provided content formats. Both return advice for a human or host to review.
 - **A local recipe workbench** with form-based recipe inputs, offline synthetic examples, and a separately reviewed live path. It runs on loopback and does not execute recommendations.
-- **Platform credential-store and portable launcher work** for a cross-platform hosted TypeSafe Jev/OpenRouter target. macOS, Linux and Windows native CI remains a release gate; local Laya-MLX stays Apple-Silicon macOS only. Windows `jev host-register --write` fails closed for all targets; Windows registration is a reviewed manual step.
+- **Supported platform scope:** 1.0.8 is supported and verified on macOS. Linux remains experimental and unverified. Windows hosted runtime entry points fail closed because the native private-state contract did not pass CI; the Windows CI lane has been removed until that contract is deliberately revalidated. Local Laya-MLX stays Apple-Silicon macOS only.
 
 ### Changed
 
@@ -20,12 +20,12 @@ This candidate is prepared for review. Publication depends on the native platfor
 - **Every would-be passing recipe answer is capped to `VERIFY`** while its status is `SPECIFICATION_NOT_MODEL_EVALUATED`. An explicit `unknown` can return `IGNORE`; malformed or below-threshold answers remain `VERIFY`. This does not establish provider accuracy.
 - **Score gates now check probability mass on the side of the configured score threshold**, rather than accepting an unrelated distribution summary.
 - **Choice gates now reject truncated probability distributions**, including missing alternatives or a total mass outside a small rounding tolerance. The Laya-specific confidence-floor override and the cross-field confidence-shortfall rule from 1.0.7 were removed: the repository does not ship the labeled evidence needed to justify that override, and TypeSafe defines confidence as a statistic derived from the same distribution. Every provider now uses the recipe's unvalidated floor; no profile claims calibrated thresholds.
-- **Host adapter documentation distinguishes each native surface and its evidence.** Codex hook configuration is separate from Claude hook configuration; Antigravity remains PreInvocation advisory only; Hermes exposes its explicit tool allow-list; VS Code registers an MCP server. Windows host registration is plan-only and does not write configs. The adapters do not claim equal native verification.
+- **Host adapter documentation distinguishes each native surface and its evidence.** Codex hook configuration is separate from Claude hook configuration; Antigravity remains PreInvocation advisory only; Hermes exposes its explicit tool allow-list; VS Code registers an MCP server. The adapters do not claim equal native verification.
 - **Hermes now registers `jev_verify` and `jev_rerank` and accepts validated Windows local-drive workspace paths.** The earlier 1.0.4 changelog entry described those tools as fixed, but the shipped Hermes allow-list and manifest still omitted them; this candidate repairs that actual installed surface and tests schema parity.
 
 ### Release gates
 
-- Native Windows and Linux CI and credential-store/IPC integration checks must pass before those platform routes are described as verified.
+- Linux hosted support remains experimental until native Secret Service, broker, host, and provider integration is verified. Windows hosted support remains disabled until native private-state and broker contracts pass CI.
 - Native model/tool turns remain host-specific evidence; a staged manifest, plugin validator, or MCP handshake alone is not a live-turn verification.
 - Generated recipe catalog, Codex package, runtime manifests, declared versions, full test suite, and local commits remain subject to release verification and owner review. No public release is recorded by this candidate entry.
 

@@ -716,6 +716,15 @@ class CliMcpAndArgparseTests(unittest.TestCase):
         self.assertEqual((out, err), ("", ""))
         serve_mock.assert_called_once_with()
 
+    def test_mcp_command_fails_closed_on_windows_for_108(self):
+        import jev_auto.mcp as mcp
+
+        with patch("jev_auto.cli.os.name", "nt"), patch.object(mcp, "serve") as serve_mock:
+            rc, _out, err = _run_cli(["mcp"])
+        self.assertEqual(rc, 2)
+        self.assertIn("WINDOWS_UNSUPPORTED_IN_1_0_8", err)
+        serve_mock.assert_not_called()
+
     def test_missing_subcommand_exits_two(self):
         import jev_auto.cli as cli
 
@@ -1111,6 +1120,14 @@ class ServerServeLifecycleTests(unittest.TestCase):
     our own TemporaryDirectory in every test that gets past the lock, so no
     socket file is ever created under the shared /private/tmp broker
     directory."""
+
+    def test_windows_broker_entrypoint_refuses_the_unverified_108_path(self):
+        import jev_auto.server as server
+        from jev_auto.common import AutoError
+
+        with patch("jev_auto.server.os.name", "nt"):
+            with self.assertRaisesRegex(AutoError, "WINDOWS_UNSUPPORTED_IN_1_0_8"):
+                server.serve("unused-workspace")
 
     def test_returns_immediately_when_another_broker_already_holds_the_lock(self):
         import jev_auto.server as server

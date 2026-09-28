@@ -44,6 +44,7 @@ class Server(socketserver.ThreadingMixIn,_UnixStreamServer):
         finally:self.slots.release()
 
 def serve(path,base=None,idle_seconds=900):
+    if os.name=='nt':raise AutoError('WINDOWS_UNSUPPORTED_IN_1_0_8')
     root=private_dir(state_dir(path,base));lock=root/'broker.lock'
     if lock.is_symlink():raise AutoError('UNSAFE_BROKER_LOCK')
     with file_lock(lock,blocking=False) as acquired:

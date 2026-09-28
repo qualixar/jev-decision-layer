@@ -65,6 +65,8 @@ def main(argv=None):
     hr.add_argument('--write',action='store_true',help='Apply the change. Without it the plan is printed and nothing is written.')
     args=parser.parse_args(argv)
     try:
+        if os.name=='nt' and args.command not in ('selftest','doctor'):
+            raise AutoError('WINDOWS_UNSUPPORTED_IN_1_0_8')
         if args.command=='mcp':
             from .mcp import serve
             serve();return 0
