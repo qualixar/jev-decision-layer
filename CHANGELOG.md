@@ -2,9 +2,9 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.8] — Unreleased (release candidate)
+## [1.0.8] — 2026-09-29
 
-This candidate strengthens the live recipe gate, adds a local workbench, and gives managers and creators two more bounded decision recipes. Platform and host evidence is recorded in [the host guide](docs/HOSTS.md).
+This release strengthens the live recipe gate, adds a local workbench, and gives managers and creators two more bounded decision recipes. Platform and host evidence is recorded in [the host guide](docs/HOSTS.md).
 
 ### Added
 
@@ -21,11 +21,10 @@ This candidate strengthens the live recipe gate, adds a local workbench, and giv
 - **Host adapter documentation distinguishes each native surface and its evidence.** Codex hook configuration is separate from Claude hook configuration; Antigravity remains PreInvocation advisory only; Hermes exposes its explicit tool allow-list; VS Code registers an MCP server. The adapters do not claim equal native verification.
 - **Hermes now registers `jev_verify` and `jev_rerank` and accepts validated Windows local-drive workspace paths.** The earlier 1.0.4 changelog entry described those tools as fixed, but the shipped Hermes allow-list and manifest still omitted them; this candidate repairs that actual installed surface and tests schema parity.
 
-### Release gates
+### Platform and host notes
 
 - Linux hosted support remains experimental until native Secret Service, broker, host, and provider integration is verified. Windows hosted support remains disabled until native private-state and broker contracts pass CI.
 - Native model/tool turns remain host-specific evidence; a staged manifest, plugin validator, or MCP handshake alone is not a live-turn verification.
-- Generated recipe catalog, Codex package, runtime manifests, declared versions, full test suite, and local commits remain subject to release verification and owner review. No public release is recorded by this candidate entry.
 
 ## [1.0.7] — 2026-09-26
 
