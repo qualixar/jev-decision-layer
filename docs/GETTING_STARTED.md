@@ -97,6 +97,8 @@ codex plugin add qualixar-jev-decision-layer@qualixar-jev-layer
 
 Reopen Codex Desktop and start a fresh task. Check the installed version in the Plugins screen or with `codex plugin list`. If the old task showed the missing-hook-file error, reopen the app first and check the installed version before retrying the update; do not re-enter your provider key to fix a missing local file. A workspace's reviewed consent is separate from the plugin files.
 
+In Codex, an enabled hook in Settings confirms registration, not that a particular run succeeded. The Hook stats history can retain a failed `SessionStart` from a task that was open during an upgrade. Expand that run to read its command, stderr, and time; then compare it with a new `SessionStart` after restarting Codex. A successful current run does not erase an older failed row. If the new run fails, keep its exact error text for diagnosis. A missing old cache file calls for a restart; `local service unavailable` calls for checking the enrolled workspace and local broker with `jev doctor --workspace /absolute/path/to/project`. Neither error calls for re-entering a provider key or changing the workspace grant.
+
 On Claude Code:
 
 ```sh
