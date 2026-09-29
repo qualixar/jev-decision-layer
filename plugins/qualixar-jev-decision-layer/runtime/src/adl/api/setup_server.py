@@ -30,7 +30,7 @@ from .setup_controller import SetupChoice, SetupController, SetupError
 
 
 _MAX_BODY = 16_384
-_FORM_KEYS = frozenset({"csrf", "provider", "mode", "classification", "days", "daily_calls", "daily_bytes", "generic", "auto_prepare", "local_laya", "confirm", "confirm_external_scope", "credential", "review_nonce"})
+_FORM_KEYS = frozenset({"csrf", "provider", "mode", "classification", "days", "daily_calls", "daily_bytes", "generic", "auto_prepare", "local_laya", "confirm", "confirm_external_scope", "confirm_descendants", "cover_descendants", "credential", "review_nonce"})
 _SECURITY_HEADERS = {
     "Cache-Control": "no-store",
     "Pragma": "no-cache",
@@ -252,6 +252,9 @@ class _SetupHandler(BaseHTTPRequestHandler):
             "Optional Laya needs a verified Apple-Silicon installation.</p>"
             f"<label>Advisory Jev tools <select name='generic'>{generic_options}</select></label>"
             f"<label>Automatic Jev prompt guidance <select name='auto_prepare'>{auto_options}</select>. Turning this on sends minimized prompt terms and candidate titles to your selected provider and uses your daily call budget; it never executes a tool. Laya-only makes no Jev call.</label>"
+            "<label><input name='cover_descendants' type='checkbox' value='yes'> "
+            "Also cover child directories and nested repositories under this root. "
+            "A child workspace with its own consent is unchanged.</label>"
             "<p class='hint'>The next screen shows your exact choices before saving.</p>"
             "<details><summary>Advanced limits</summary>"
             "<label>Permission days <input name='days' type='number' min='1' max='365' value='30' required></label>"
@@ -324,6 +327,7 @@ class _SetupHandler(BaseHTTPRequestHandler):
                 auto_prepare_jev=mode != "laya-only" and form.get("auto_prepare") == "on",
                 local_laya_enabled=local_laya,
                 decision_mode=mode,
+                cover_descendants=form.get("cover_descendants") == "yes",
             )
         except (KeyError, TypeError, ValueError) as error:
             raise SetupError("SETUP_SCOPE_INVALID") from error
@@ -363,6 +367,8 @@ class _SetupHandler(BaseHTTPRequestHandler):
                         inputs += "<input type='hidden' name='auto_prepare' value='on'>"
                 if choice.local_laya_enabled and "mode" not in form:
                     inputs += "<input type='hidden' name='local_laya' value='on'>"
+                if choice.cover_descendants:
+                    inputs += "<input type='hidden' name='cover_descendants' value='yes'>"
                 if choice.provider == "laya-mlx":
                     credential_step = "<p class='hint'>Step 2 of 2 · Check the local model and scope.</p>"
                     credential_field = "<p>No provider key needed for local Laya. Its model must be prepared and verified before setup can finish.</p>"
@@ -379,6 +385,12 @@ class _SetupHandler(BaseHTTPRequestHandler):
                     "<p role='alert'>Jev maximum can send reviewed workspace text, including client or confidential material, to the selected hosted provider. Only use it when you have authority to share that material. Secret screening is best-effort and cannot catch everything.</p>"
                     "<label><input name='confirm_external_scope' type='checkbox' value='yes' required> I understand this broader hosted-data scope.</label>"
                     if _requires_external_scope_confirmation(choice) else ""
+                )
+                descendant_field = (
+                    "<p>Child directories and nested repositories under this root use this grant unless they have their own consent.</p>"
+                    "<label><input name='confirm_descendants' type='checkbox' value='yes' required> I approve descendant coverage for this root.</label>"
+                    if choice.cover_descendants else
+                    "<p>Descendant coverage: not requested.</p>"
                 )
                 content = (
                     credential_step +
@@ -397,7 +409,7 @@ class _SetupHandler(BaseHTTPRequestHandler):
                     "<form method='post' action='/apply' autocomplete='off'>"
                     f"<input type='hidden' name='csrf' value=\"{csrf}\">"
                     f"<input type='hidden' name='review_nonce' value=\"{_safe(nonce)}\">{inputs}"
-                    f"{credential_field}{external_scope_field}"
+                    f"{credential_field}{external_scope_field}{descendant_field}"
                     "<label><input name='confirm' type='checkbox' value='yes' required> I approve this exact workspace, provider, data scope and budget.</label>"
                     "<button type='submit'>Confirm setup</button></form>"
                 )
@@ -419,8 +431,14 @@ class _SetupHandler(BaseHTTPRequestHandler):
             if _requires_external_scope_confirmation(choice) and form.get("confirm_external_scope") != "yes":
                 self._error(400, "EXTERNAL_SCOPE_CONFIRMATION_REQUIRED")
                 return
+            if choice.cover_descendants and form.get("confirm_descendants") != "yes":
+                self._error(400, "DESCENDANT_APPROVAL_REQUIRED")
+                return
             self.server.review = None
-            result = self.server.controller.apply(choice, credential=form.get("credential") or None, confirmed=form.get("confirm") == "yes")
+            result = self.server.controller.apply(
+                choice, credential=form.get("credential") or None, confirmed=form.get("confirm") == "yes",
+                descendants_confirmed=form.get("confirm_descendants") == "yes",
+            )
             self.server.applied = True
         except SetupError as error:
             code = str(error)

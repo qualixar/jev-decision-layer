@@ -22,11 +22,11 @@ A contract makes a bounded decision explicit and returns a typed result for the 
 
 ## Reading a live recipe result
 
-In 1.0.8, `jev_recipe_try` applies the packaged gate locally and returns an `EXPERIMENTAL_ADVISORY` result with `host_action` and `policy_receipt_id`. The policy receipt records the recipe status, provider receipt ID, provider/model, and gate outcome. It is a record of the gate result, not proof of provider accuracy.
+In 1.0.9, `jev_recipe_try` applies the packaged gate locally and returns an `EXPERIMENTAL_ADVISORY` result with `host_action` and `policy_receipt_id`. The policy receipt records the recipe status, provider receipt ID, provider/model, and gate outcome. It is a record of the gate result, not proof of provider accuracy.
 
 Every shipped recipe is `SPECIFICATION_NOT_MODEL_EVALUATED`. Therefore, any recipe answer that would otherwise receive `act` is capped to `verify`. An explicit `unknown` choice may return `ignore`; other below-threshold or malformed answers return `verify`.
 
-- **`act`** — meaning the answer passed the configured gate in a model-evaluated recipe. No shipped recipe can retain `act` in 1.0.8.
+- **`act`** — meaning the answer passed the configured gate in a model-evaluated recipe. No shipped recipe can retain `act` in 1.0.9.
 - **`verify`** — independently check the recipe recommendation. This is the maximum result for a would-be passing answer from a shipped recipe.
 - **`ignore`** — the recipe chose `unknown`; do not use a recommendation and decide normally.
 

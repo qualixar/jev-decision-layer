@@ -4,7 +4,7 @@ import ctypes, os, socket, stat, struct, subprocess, sys, tempfile, time
 from pathlib import Path
 from .common import AutoError, canonical, decode, digest, private_dir, state_dir, workspace, workspace_id
 from .platform_fs import file_lock
-from .settings import load_policy
+from .settings import governing_workspace, load_policy
 
 MAX=512_000
 
@@ -68,7 +68,18 @@ def read_message(sock):
     if extra.strip():raise AutoError('IPC_ONE_REQUEST_PER_CONNECTION')
     return decode(line,MAX)
 
+def _ipc_workspace(path, base=None):
+    """Follow an ancestor grant, but do not invent one for an unenrolled path."""
+    try:
+        return governing_workspace(path, base)
+    except AutoError as error:
+        if str(error) == 'WORKSPACE_NOT_ENROLLED':
+            return workspace(path)
+        raise
+
+
 def request(path,obj,base=None,timeout=16):
+    path = _ipc_workspace(path, base)
     if not isinstance(obj,dict):raise AutoError('IPC_REQUEST_INVALID')
     if os.name=='nt':
         from .transports.windows_pipe import request as pipe_request
@@ -96,7 +107,14 @@ def request(path,obj,base=None,timeout=16):
     return result['result']
 
 def ensure(path,base=None):
-    load_policy(path,base)
+    policy = load_policy(path,base)
+    # Descendant coverage stores the approved root on the policy. Retarget
+    # from that field so a covered child shares the root broker. An exact
+    # policy, and a test double that does not return one, keeps `path`.
+    if isinstance(policy, dict) and policy.get('covers_descendants') is True:
+        grant = policy.get('workspace_path')
+        if isinstance(grant, str) and grant:
+            path = grant
     try:
         ready=request(path,{'op':'health'},base,timeout=1)
         if ready.get('version')!='1.0.0':raise AutoError('BROKER_VERSION_MISMATCH')

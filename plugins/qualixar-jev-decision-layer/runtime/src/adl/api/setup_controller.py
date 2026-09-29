@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from jev_auto.common import AutoError, canonical, home_root, read_private, state_dir, workspace
-from jev_auto.settings import load_policy, make_policy, replace_reviewed_policy, save_policy_new, transition_setup_policy_ready, validate_policy
+from jev_auto.settings import DESCENDANT_COVERAGE_APPROVED, descendant_root_allowed, load_policy, make_policy, replace_reviewed_policy, save_policy_new, transition_setup_policy_ready, validate_policy
 from jevkit.engine import catalog
 
 from .credential_store import CredentialStore, credential_store_for_platform
@@ -37,6 +37,7 @@ class SetupChoice:
     auto_prepare_jev: bool = False
     local_laya_enabled: bool = False
     decision_mode: str | None = None
+    cover_descendants: bool = False
 
 
 class SetupController:
@@ -119,6 +120,7 @@ class SetupController:
             or not isinstance(choice.generic_query_enabled, bool)
             or not isinstance(choice.auto_prepare_jev, bool)
             or not isinstance(choice.local_laya_enabled, bool)
+            or not isinstance(choice.cover_descendants, bool)
             or (choice.auto_prepare_jev and not choice.generic_query_enabled)
             or (choice.auto_prepare_jev and choice.provider == "laya-mlx")
             or (choice.local_laya_enabled and choice.provider == "laya-mlx")
@@ -204,6 +206,7 @@ class SetupController:
             "changes_applied": False,
             "upgrade": current is not None,
             "current_data_classification": current.get("data_classification") if current else None,
+            "cover_descendants": choice.cover_descendants,
         }
 
     def _apply_upgrade(self, choice: SetupChoice, existing: dict[str, Any], credential: str | None) -> dict[str, Any]:
@@ -226,6 +229,18 @@ class SetupController:
                     "local_laya_enabled": choice.local_laya_enabled,
                     "decision_mode": self._resolved_mode(choice),
                     "setup_choice_digest": self._choice_digest(choice)}
+        if choice.cover_descendants:
+            # Same breadth rule as a fresh enroll: make_policy enforces it for
+            # new grants, so the upgrade path must not persist a broad root.
+            if not descendant_root_allowed(self.workspace):
+                raise SetupError("DESCENDANT_ROOT_NOT_ALLOWED")
+            upgraded["covers_descendants"] = True
+            upgraded["descendant_approval"] = DESCENDANT_COVERAGE_APPROVED
+            upgraded["workspace_path"] = str(self.workspace)
+        else:
+            upgraded.pop("covers_descendants", None)
+            upgraded.pop("descendant_approval", None)
+            upgraded.pop("workspace_path", None)
         if choice.local_laya_enabled or choice.provider == "laya-mlx":
             model = self._attested_local_model()
             if model is None:
@@ -320,9 +335,11 @@ class SetupController:
         }
 
     def apply(self, choice: SetupChoice, *, credential: str | None, confirmed: bool,
-              replace_existing_credential: bool = False) -> dict[str, Any]:
+              replace_existing_credential: bool = False, descendants_confirmed: bool = False) -> dict[str, Any]:
         if confirmed is not True:
             raise SetupError("USER_CONFIRMATION_REQUIRED")
+        if choice.cover_descendants and descendants_confirmed is not True:
+            raise SetupError("DESCENDANT_APPROVAL_REQUIRED")
         self._validate_choice(choice)
         choice_digest = self._choice_digest(choice)
         if self.policy_exists():
@@ -372,6 +389,8 @@ class SetupController:
                 setup_origin="local_wizard",
                 setup_state="pending",
                 setup_choice_digest=choice_digest,
+                **({"covers_descendants": True, "descendant_approval": DESCENDANT_COVERAGE_APPROVED}
+                   if choice.cover_descendants else {}),
             )
         except (AutoError, KeyError, TypeError, ValueError) as error:
             raise SetupError("SETUP_SCOPE_INVALID") from error

@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from . import __version__
 from .common import AutoError, canonical, home_root, private_dir, read_private, state_dir, workspace, write_private
-from .settings import make_policy,save_policy,load_policy,revoke
+from .settings import DESCENDANT_COVERAGE_APPROVED, governing_workspace, make_policy,save_policy,load_policy,revoke
 from .ipc import address,ensure,request
 from .platform_fs import file_lock
 
@@ -41,6 +41,7 @@ def main(argv=None):
     en.add_argument('--days',type=int,default=30);en.add_argument('--daily-calls',type=int,default=1000);en.add_argument('--daily-bytes',type=int,default=20_000_000)
     en.add_argument('--classification',choices=['public','internal-minimized'],default='public');en.add_argument('--browser-origin',action='append',default=[])
     en.add_argument('--generic-query',action='store_true',help='Include explicit advisory typed queries in this workspace consent')
+    en.add_argument('--cover-descendants',action='store_true',help='Also cover child directories and nested repositories after a second confirmation')
     for name in ('status','start','stop','revoke','warmup','stats','bridge-config'):
         p=sub.add_parser(name);p.add_argument('--workspace',required=True)
     route=sub.add_parser('route-local');route.add_argument('--workspace',required=True);route.add_argument('--recipe',action='append',choices=['sieve','prepare','browser','probe'],default=[])
@@ -133,16 +134,23 @@ def main(argv=None):
                 from jevkit.providers import resolve_provider
                 provider=resolve_provider().provider_id
             from jevkit.engine import catalog
-            p=make_policy(path,provider,args.days,max_calls_per_day=args.daily_calls,
-                max_bytes_per_day=args.daily_bytes,data_classification=args.classification,
-                browser_origins=args.browser_origin,case_ids=[c['id'] for c in catalog()],
-                generic_query_enabled=args.generic_query)
-            if provider=='laya-mlx':p['mlx']=read_private(home_root()/'mlx-installation.json',100_000)
+            fields=dict(max_calls_per_day=args.daily_calls,max_bytes_per_day=args.daily_bytes,
+                data_classification=args.classification,browser_origins=args.browser_origin,
+                case_ids=[c['id'] for c in catalog()],generic_query_enabled=args.generic_query)
             print('One-time workspace enrollment. Applies to reviewed workspace data, not the entire computer.')
             print('Provider:',provider,'Days:',args.days,'Maximum attempts/day:',args.daily_calls)
             print('Explicit generic typed queries:', 'ENABLED' if args.generic_query else 'DISABLED')
+            print('Descendant coverage:', 'REQUESTED' if args.cover_descendants else 'NOT REQUESTED')
             print('No per-turn grants. Native Codex/browser permissions stay unchanged. Same-user local controls are not tamper-proof.')
             if input('Type ENABLE to activate: ').strip()!='ENABLE':raise AutoError('SETUP_CANCELLED')
+            if args.cover_descendants:
+                print('Child directories and nested repositories will use this grant unless they have their own consent.')
+                if input('Type COVER CHILDREN to approve descendant coverage: ').strip()!='COVER CHILDREN':
+                    raise AutoError('DESCENDANT_APPROVAL_REQUIRED')
+                fields['covers_descendants']=True
+                fields['descendant_approval']=DESCENDANT_COVERAGE_APPROVED
+            p=make_policy(path,provider,args.days,**fields)
+            if provider=='laya-mlx':p['mlx']=read_private(home_root()/'mlx-installation.json',100_000)
             save_policy(path,p);bridge_record(path,p);ensure(path)
             print('Jev Decision Layer enabled. Restart Codex after plugin update and review changed hooks once.');return 0
         if args.command=='route-local':
@@ -160,7 +168,9 @@ def main(argv=None):
         if args.command=='stop':print(canonical(request(path,{'op':'shutdown'})).decode());return 0
         if args.command=='status':
             try:
-                p=load_policy(path);print(canonical({'enrolled':True,'provider':p['provider'],'routes':p.get('routes',{}),'expires_at':p['expires_at']}).decode())
+                p=load_policy(path);root=governing_workspace(path)
+                print(canonical({'enrolled':True,'provider':p['provider'],'routes':p.get('routes',{}),'expires_at':p['expires_at'],
+                    'enrollment_scope':'exact' if root==workspace(path) else 'descendant','enrollment_root':str(root)}).decode())
             except AutoError:print('{"enrolled":false}')
             return 0
         if args.command=='route':

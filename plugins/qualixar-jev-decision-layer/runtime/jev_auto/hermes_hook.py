@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 from .common import canonical, decode, require_clean, workspace
 from .ipc import ensure, request
-from .settings import load_policy
+from .settings import governing_workspace, load_policy
 
 
 _ELIGIBLE = re.compile(r"(?i)\b(fix|implement|refactor|debug|research|browser|review|test|build)\b")
@@ -52,9 +52,15 @@ def handle(
         policy = policy_loader(path)
         if policy.get("prepare_context") is not True:
             return {}
-        starter(path)
+        # Broker and Engine state follow the governing root: a covered child
+        # shares the root broker instead of starting/addressing child state.
+        try:
+            root = governing_workspace(path)
+        except Exception:
+            root = path
+        starter(root)
         invoke = caller or (lambda target, payload, timeout: request(target, payload, timeout=timeout))
-        result = invoke(path, {"op": "prepare", "goal": goal}, min(int(policy["timeout_seconds"]) + 5, MAX_BROKER_SECONDS))
+        result = invoke(root, {"op": "prepare", "goal": goal}, min(int(policy["timeout_seconds"]) + 5, MAX_BROKER_SECONDS))
         selected = _safe_ids(result.get("selected")) if isinstance(result, dict) else []
         if not selected:
             return {}

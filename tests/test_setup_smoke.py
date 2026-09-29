@@ -229,6 +229,63 @@ class SetupSmokeTests(unittest.TestCase):
                     server.server_close()
                     thread.join(timeout=2)
 
+    def test_descendant_coverage_requires_the_second_checkbox(self):
+        """The first checkbox requests coverage. Only the review checkbox confirms it."""
+        from jev_auto.settings import DESCENDANT_COVERAGE_APPROVED, load_policy
+        from src.adl.api.setup_controller import SetupController
+        from src.adl.api.setup_server import SetupServer
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "project"
+            project.mkdir()
+            with patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")}):
+                controller = SetupController(project, keychain=_MemoryKeychain(),
+                                             bridge=lambda *_: None, start=lambda *_: None)
+                server = SetupServer(("127.0.0.1", 0), controller, host_inventory=lambda: [])
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    def request(method, path, values=None, cookie=None):
+                        connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+                        body = urlencode(values).encode() if values is not None else None
+                        headers = {"Origin": f"http://127.0.0.1:{server.server_port}",
+                                   "Content-Type": "application/x-www-form-urlencoded"} if body else {}
+                        if cookie:
+                            headers["Cookie"] = cookie
+                        connection.request(method, path, body=body, headers=headers)
+                        response = connection.getresponse()
+                        value = response.status, dict(response.getheaders()), response.read()
+                        connection.close()
+                        return value
+
+                    _, headers, page = request("GET", "/setup")
+                    cookie = headers["Set-Cookie"].split(";", 1)[0]
+                    csrf = re.search(rb'name=[\'\"]csrf[\'\"] value=[\'\"]([^\'\"]+)', page).group(1).decode()
+                    fields = {"csrf": csrf, "provider": "typesafe", "mode": "jev-public",
+                              "days": "1", "daily_calls": "2", "daily_bytes": "2000",
+                              "generic": "on", "auto_prepare": "off", "cover_descendants": "yes"}
+                    status, _, review = request("POST", "/preview", fields, cookie)
+                    self.assertEqual(status, 200)
+                    self.assertIn(b"confirm_descendants", review)
+                    nonce = re.search(rb'name=[\'\"]review_nonce[\'\"] value=[\'\"]([^\'\"]+)', review).group(1).decode()
+                    apply_fields = {**fields, "review_nonce": nonce, "confirm": "yes",
+                                    "credential": "synthetic-key-123456"}
+                    status, _, body = request("POST", "/apply", apply_fields, cookie)
+                    self.assertEqual(status, 400)
+                    self.assertIn(b"DESCENDANT_APPROVAL_REQUIRED", body)
+                    self.assertFalse(controller.policy_exists())
+                    status, _, _body = request("POST", "/apply", {**apply_fields, "confirm_descendants": "yes"}, cookie)
+                    self.assertEqual(status, 200)
+                    saved = load_policy(project)
+                    self.assertIs(saved["covers_descendants"], True)
+                    self.assertEqual(saved["descendant_approval"], DESCENDANT_COVERAGE_APPROVED)
+                    self.assertEqual(saved["workspace_path"], str(project.resolve()))
+                finally:
+                    server.shutdown()
+                    server.server_close()
+                    thread.join(timeout=2)
+
     def test_legacy_restricted_hosted_setup_requires_external_scope_confirmation(self):
         """Old clients cannot bypass the maximum hosted-data acknowledgement."""
         from src.adl.api.setup_controller import SetupController
@@ -408,6 +465,32 @@ class SetupSmokeTests(unittest.TestCase):
             self.assertEqual(upgraded["data_classification"], "internal-minimized")
             self.assertEqual(upgraded["policy_id"], original["policy_id"], "scope upgrade reset the daily budget identity")
             self.assertEqual(keychain.get("typesafe"), "synthetic-key-123456")
+
+    def test_upgrade_to_descendant_coverage_refuses_a_broad_root(self):
+        from jev_auto.settings import load_policy, make_policy, save_policy
+        from src.adl.api.setup_controller import SetupChoice, SetupController, SetupError
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            workspace = root / "project"
+            workspace.mkdir()
+            keychain = _MemoryKeychain()
+            keychain.put("typesafe", "synthetic-key-123456")
+            with patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")}):
+                original = make_policy(workspace, "typesafe", days=1, data_classification="public",
+                                       credential_store="keychain", setup_origin="local_wizard", setup_state="ready")
+                save_policy(workspace, original)
+                controller = SetupController(workspace, keychain=keychain,
+                                             bridge=lambda *_: None, start=lambda *_: None)
+                choice = SetupChoice("typesafe", "public", 2, 20, 20000, cover_descendants=True)
+                review = controller.preview(choice)
+                self.assertTrue(review["upgrade"])
+                self.assertTrue(review["cover_descendants"])
+                with patch("src.adl.api.setup_controller.descendant_root_allowed", return_value=False):
+                    with self.assertRaises(SetupError) as ctx:
+                        controller.apply(choice, credential=None, confirmed=True, descendants_confirmed=True)
+                self.assertEqual(str(ctx.exception), "DESCENDANT_ROOT_NOT_ALLOWED")
+                self.assertNotIn("covers_descendants", load_policy(workspace))
 
     def test_scope_upgrade_refuses_unreviewed_or_changed_existing_policy(self):
         from jev_auto.settings import load_policy, make_policy, save_policy

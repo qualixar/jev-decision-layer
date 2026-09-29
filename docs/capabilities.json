@@ -2,7 +2,7 @@
   "$schema": "./capabilities.schema.json",
   "schema_version": 2,
   "name": "Qualixar Jev Decision Layer",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "license": "MIT",
   "publisher": "Qualixar / Varun Pratap Bhardwaj",
   "primary_decision_model": "TypeSafe Jev",
@@ -101,7 +101,7 @@
   "host_support": [
     {
       "id": "codex-desktop",
-      "evidence": "installed 1.0.7 MCP and public synthetic TypeSafe route verified; 1.0.8 source package generated, native host refresh and receipt pending",
+      "evidence": "installed 1.0.7 MCP and public synthetic TypeSafe route verified; 1.0.9 source package generated, native host refresh and receipt pending",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": true,
       "automatic_jev_hook_receipt_verified": false,
@@ -109,7 +109,7 @@
     },
     {
       "id": "hermes",
-      "evidence": "1.0.8 source registers twelve tools including offline recipe self-test, verify and rerank, plus one hook; installed 1.0.7 copy awaits refresh and native turn",
+      "evidence": "1.0.9 source registers twelve tools including offline recipe self-test, verify and rerank, plus one hook; installed 1.0.7 copy awaits refresh and native turn",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
@@ -117,7 +117,7 @@
     },
     {
       "id": "antigravity",
-      "evidence": "packaged PreInvocation advisory hook and manual MCP registration path; native 1.0.8 turn and receipt pending",
+      "evidence": "packaged PreInvocation advisory hook and manual MCP registration path; native 1.0.9 turn and receipt pending",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
@@ -125,7 +125,7 @@
     },
     {
       "id": "claude-code",
-      "evidence": "1.0.8 Claude hook packaged separately from Codex; plugin validate and MCP initialize pass, native 1.0.8 tool turn and receipt pending",
+      "evidence": "1.0.9 Claude hook packaged separately from Codex; plugin validate and MCP initialize pass, native 1.0.9 tool turn and receipt pending",
       "installed_adapter": true,
       "explicit_jev_receipt_verified": false,
       "automatic_jev_hook_receipt_verified": false,
