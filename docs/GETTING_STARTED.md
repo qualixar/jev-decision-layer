@@ -99,6 +99,8 @@ Reopen Codex Desktop and start a fresh task. Check the installed version in the 
 
 In Codex, an enabled hook in Settings confirms registration, not that a particular run succeeded. The Hook stats history can retain a failed `SessionStart` from a task that was open during an upgrade. Expand that run to read its command, stderr, and time; then compare it with a new `SessionStart` after restarting Codex. A successful current run does not erase an older failed row. If the new run fails, keep its exact error text for diagnosis. A missing old cache file calls for a restart; `local service unavailable` calls for checking the enrolled workspace and local broker with `jev doctor --workspace /absolute/path/to/project`. Neither error calls for re-entering a provider key or changing the workspace grant.
 
+`hook returned invalid session start JSON output` means Codex rejected that run's stdout as a `SessionStart` response. It does not identify which field or extra output caused the rejection. A Hook stats row labeled `Plugin` does not name the plugin when several are installed; inspect the registered `SessionStart` commands in Hooks before attributing the failure. Codex treats stdout beginning with `{` or `[` as JSON, so bracket-prefixed prose must be wrapped in the event's JSON object or kept off stdout. Validate the exact installed command against Codex's `SessionStart` schema. Other hooks have separate contracts: a `UserPromptSubmit` response with `hookSpecificOutput` must include `hookEventName: "UserPromptSubmit"`. Do not change Jev's enrolled policy to repair an unrelated user hook.
+
 On Claude Code:
 
 ```sh
