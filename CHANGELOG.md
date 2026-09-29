@@ -2,6 +2,13 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.10] — 2026-09-29
+
+### Fixed
+
+- **Session-start failures are no longer silent.** When a workspace is enrolled but the local broker cannot start, the Codex hook names the reason on stderr (`qualixar-jev: local service unavailable (<code>)`) and continues without guidance. Exit stays 0; unenrolled workspaces stay fully silent. The failure that motivated this was a half-replaced 1.0.8 hook cache during a mid-session marketplace upgrade, which no in-repo code can survive; this change makes the remaining failure class, an enrolled workspace with an unreachable broker, diagnosable instead of invisible.
+- **No consent or routing changes.** Counts stay 20 tools, 38 recipes, 114 fixtures. Supported and verified on macOS; Linux experimental; Windows hosted runtime disabled.
+
 ## [1.0.9] — 2026-09-29
 
 ### Added

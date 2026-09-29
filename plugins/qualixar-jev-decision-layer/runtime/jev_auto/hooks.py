@@ -90,7 +90,17 @@ def handle(event, base=None, caller=None, starter=None):
                 return None
             if not isinstance(event.get("session_id") or event.get("turn_id"), str):
                 return None
-        (starter or ensure)(path, base)
+        try:
+            (starter or ensure)(path, base)
+        except (AutoError, OSError) as error:
+            # Enrolled, but the local service cannot start: name the reason
+            # on stderr and continue without guidance. Exit stays 0; an
+            # absent layer must never block ordinary work.
+            print(
+                f"qualixar-jev: local service unavailable ({error}); continuing without guidance",
+                file=sys.stderr,
+            )
+            return None
     except (AutoError, OSError):
         return None
     call = caller or (

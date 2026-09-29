@@ -53,6 +53,54 @@ class CodexHookCoverageTests(unittest.TestCase):
         )
         return result, calls
 
+    def test_enrolled_but_brokerless_session_start_names_the_reason(self):
+        import contextlib
+        import io
+        import tempfile
+        from jev_auto import hooks
+        from jev_auto.common import AutoError
+        from jev_auto.settings import make_policy, save_policy_new
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "project"
+            project.mkdir()
+            state = root / "state"
+            save_policy_new(project, make_policy(project, "typesafe"), base=state)
+
+            def failing_starter(_path, _base=None):
+                raise AutoError("BROKER_UNAVAILABLE")
+
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                result = hooks.handle(
+                    {"hook_event_name": "SessionStart", "cwd": str(project), "session_id": "s1"},
+                    base=state,
+                    starter=failing_starter,
+                )
+            self.assertIsNone(result)
+            self.assertIn("BROKER_UNAVAILABLE", err.getvalue())
+
+    def test_unenrolled_session_start_stays_fully_silent(self):
+        import contextlib
+        import io
+        import tempfile
+        from jev_auto import hooks
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "project"
+            project.mkdir()
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                result = hooks.handle(
+                    {"hook_event_name": "SessionStart", "cwd": str(project), "session_id": "s1"},
+                    base=root / "state",
+                    starter=lambda _p, _b=None: self.fail("unenrolled must not start a broker"),
+                )
+            self.assertIsNone(result)
+            self.assertEqual(err.getvalue(), "")
+
     def test_matcher_and_handler_cover_only_documented_read_paths(self):
         from jev_auto.hooks import POST_TOOL_READ_ONLY_TOOLS
 
