@@ -316,7 +316,10 @@ class CliStatusCommandTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         body = json.loads(out)
         self.assertEqual(body, {"enrolled": True, "provider": "typesafe", "routes": {},
-                                 "expires_at": body["expires_at"]})
+                                 "expires_at": body["expires_at"],
+                                 "enrollment_scope": "exact",
+                                 "enrollment_root": body["enrollment_root"]})
+        self.assertEqual(body["enrollment_root"], str(workspace.resolve()))
 
 
 class CliEnrollCommandTests(unittest.TestCase):
@@ -610,16 +613,16 @@ class CliBrokerCommandTests(unittest.TestCase):
             _rc, status_out, _err = _run_cli(["status", "--workspace", str(workspace)])
             self.assertEqual(status_out, '{"enrolled":false}\n')
 
-    def test_revoke_on_an_unenrolled_workspace_hits_the_generic_failure_fallback(self):
-        """settings.revoke() raises a bare FileNotFoundError (no policy.json
-        exists yet), which is not an AutoError - this is the one branch that
-        naturally reaches main()'s generic `except Exception` fallback."""
+    def test_revoke_on_an_unenrolled_workspace_is_a_typed_refusal(self):
+        """A missing policy is not a crash. Revoke reports the same enrollment
+        code the rest of the runtime uses."""
         with ExitStack() as stack:
             _root, workspace = self._enrolled_workspace(stack)
             rc, out, err = _run_cli(["revoke", "--workspace", str(workspace)])
         self.assertEqual(rc, 2)
         self.assertEqual(out, "")
-        self.assertIn("SETUP_OR_RUNTIME_FAILURE", err)
+        self.assertIn("WORKSPACE_NOT_ENROLLED", err)
+        self.assertNotIn("SETUP_OR_RUNTIME_FAILURE", err)
 
 
 class CliRouteCommandTests(unittest.TestCase):

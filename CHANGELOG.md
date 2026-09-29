@@ -2,6 +2,18 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] — 2026-09-29
+
+### Added
+
+- **Hierarchical workspace enrollment.** A reviewed root can cover child directories and nested repositories. The setup wizard asks for that coverage separately, and `jev enroll --cover-descendants` requires the additional `COVER CHILDREN` confirmation. An exact child policy wins. Revoking a covered child records a local refusal and leaves the root grant in place. Home directories and filesystem tops cannot be descendant roots. Codex, Claude Code, Hermes, Antigravity, and VS Code resolve that consent through one binding, and the broker and budget stay on the grant root.
+- **Host enrollment parity tests** for those five adapters. `native_status` remains `NOT_RUN`; an in-process adapter test is not a native host session.
+
+### Unchanged
+
+- **20 MCP tools, 38 recipes, and 114 synthetic offline fixtures.** Published launch figures stay as recorded.
+- **Platform scope.** 1.0.9 is supported and verified on macOS. Linux remains experimental and unverified. Windows hosted runtime entry points stay closed. Local Laya-MLX stays on supported Apple-Silicon Macs.
+
 ## [1.0.8] — 2026-09-29
 
 This release strengthens the live recipe gate, adds a local workbench, and gives managers and creators two more bounded decision recipes. Platform and host evidence is recorded in [the host guide](docs/HOSTS.md).

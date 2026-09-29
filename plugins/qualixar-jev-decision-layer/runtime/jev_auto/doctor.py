@@ -18,7 +18,7 @@ from typing import Any
 
 from .common import AutoError, safe_path, state_dir
 from .recipe_fixtures import selftest
-from .settings import load_policy
+from .settings import enrollment_binding, governing_workspace, load_policy
 
 
 RUNTIME = Path(__file__).resolve().parents[1]
@@ -72,7 +72,8 @@ def _policy(path: Path) -> tuple[dict[str, Any], dict[str, Any] | None]:
                 "NOT_ENROLLED" if code == "WORKSPACE_NOT_ENROLLED" else "POLICY_EXPIRED"
             )), None
         return _check("workspace_policy", "FAILED", code=code), None
-    return _check("workspace_policy", "PASS", provider=policy["provider"]), policy
+    scope = enrollment_binding(path)["scope"]
+    return _check("workspace_policy", "PASS", provider=policy["provider"], enrollment_scope=scope), policy
 
 
 def _offline_gate() -> dict[str, Any]:
@@ -113,7 +114,8 @@ def _receipt_index(path: Path) -> dict[str, Any]:
 
 def diagnose(path: Path) -> dict[str, Any]:
     """Return the stable public diagnostic schema without any provider activity."""
-    policy_check, _policy_document = _policy(path)
+    policy_check, policy_document = _policy(path)
+    receipt_target = governing_workspace(path) if policy_document is not None else path
     checks = [
         _runtime_manifest(),
         _python(),
@@ -121,7 +123,7 @@ def diagnose(path: Path) -> dict[str, Any]:
         _offline_gate(),
         _check("host_surface", "PORTABLE_RUNTIME", package="qualixar-jev-decision-layer",
                detail="portable runtime present; Codex installation and live host turn are not checked"),
-        _receipt_index(path),
+        _receipt_index(receipt_target),
     ]
     failed = any(check["status"] == "FAILED" for check in checks)
     action = next((check for check in checks if check["status"] == "ACTION_REQUIRED"), None)

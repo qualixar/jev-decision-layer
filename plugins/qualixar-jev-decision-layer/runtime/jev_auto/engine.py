@@ -1,15 +1,15 @@
 """Automatic orchestration; authority remains outside the decision response."""
 from __future__ import annotations
 import time
-from .common import AutoError, canonical, digest, require_clean, state_dir, workspace
+from .common import AutoError, canonical, digest, require_clean, state_dir
 from .protocol import validate_questions, validate_response, compact_receipt
-from .settings import _policy_lock, load_policy, validate_policy
+from .settings import _policy_lock, governing_workspace, load_policy, validate_policy
 from .store import Store,SingleFlight
 from .providers import Providers
 
 class Engine:
     def __init__(self,path,base=None,provider=None):
-        self.workspace=workspace(path);self.base=base;self.root=state_dir(path,base)
+        self.workspace=governing_workspace(path,base);self.base=base;self.root=state_dir(self.workspace,base)
         self.store=Store(self.root);self.providers=provider or Providers();self.flight=SingleFlight()
         self.store.prune(self.policy()['retention_days'])
     def policy(self):return load_policy(self.workspace,self.base)

@@ -8,13 +8,13 @@ Use this page to record GitHub repository metadata and the social-preview specif
 
 > Typed decision layer for Codex, Claude Code, VS Code, Hermes and Antigravity. TypeSafe Jev or optional local Laya with policy gates, receipts and 36 recipes.
 
-This is the verified live repository description as of 2026-09-28; it reflects the 1.0.7 public repository state. Update it for 1.0.8 after the release checks pass. Keep the canonical repository URL stable.
+This is the verified live repository description as of 2026-09-28; it reflects the 1.0.7 public repository state. Update it for 1.0.9 after the release checks pass. Keep the canonical repository URL stable.
 
-## Suggested 1.0.8 description
+## Suggested 1.0.9 description
 
 > Open-source AI agent decision layer for Codex, Claude Code, Hermes, Antigravity and VS Code. TypeSafe Jev MCP routing, 38 recipes, local gates and receipts; optional Laya-MLX on Apple Silicon.
 
-Use this as a metadata update after the 1.0.8 candidate is verified. GitHub description text is a discovery aid, not a ranking or star guarantee.
+Use this as a metadata update after the 1.0.9 candidate is verified. GitHub description text is a discovery aid, not a ranking or star guarantee.
 
 ## Topics
 

@@ -46,6 +46,7 @@ JSON_VERSION_SITES = (
 TEXT_VERSION_SITES: tuple[tuple[Path, str], ...] = (
     (PLUGIN / "plugin.yaml", r"^version: (\d+\.\d+\.\d+)$"),
     (PLUGIN / "runtime" / "jev_auto" / "__init__.py", r"^__version__ = '(\d+\.\d+\.\d+)'$"),
+    (PLUGIN / "runtime" / "jev_auto" / "__init__.py", r"workspace-scoped (\d+\.\d+\.\d+) runtime"),
     (PLUGIN / "runtime" / "jevkit" / "__init__.py", r'^__version__ = "(\d+\.\d+\.\d+)"$'),
     (ROOT / "README.md", r"\*\*Current release: (\d+\.\d+\.\d+)\*\*"),
 )

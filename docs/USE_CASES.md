@@ -8,9 +8,9 @@ The same recipe definitions run through one shared runtime across Codex, Claude 
 
 Use a typed decision when a task can be expressed as a bounded question over evidence and explicit choices. A provider call adds its own cost and latency, so whether it reduces overall work must be measured on accepted tasks; this project makes no measured token, cost, or time savings claim.
 
-For a live `jev_recipe_try` in 1.0.8, the packaged local gate evaluates the provider answer and returns a `host_action` plus a policy receipt ID. The response is advisory and never executes the recommendation:
+For a live `jev_recipe_try` in 1.0.9, the packaged local gate evaluates the provider answer and returns a `host_action` plus a policy receipt ID. The response is advisory and never executes the recommendation:
 
-- **`act`** — the answer passed the configured gate. Every shipped recipe is `SPECIFICATION_NOT_MODEL_EVALUATED`, so a would-be `act` is capped to `verify` in 1.0.8.
+- **`act`** — the answer passed the configured gate. Every shipped recipe is `SPECIFICATION_NOT_MODEL_EVALUATED`, so a would-be `act` is capped to `verify` in 1.0.9.
 - **`verify`** — independently check the advisory answer. This is the highest result a shipped recipe can return when its answer would otherwise pass.
 - **`ignore`** — the model selected `unknown`. Do not use a recommendation; decide normally.
 
@@ -65,7 +65,7 @@ The `jev-browser-choice` skill uses the browser interface already available in t
 1. Ask your agent to show the recipe catalog and explain one recipe in plain language.
 2. Use the local workbench or offline fixture to see the question, the input fields, and an example result without sending text to a provider.
 3. Try a live recipe only after reviewing the workspace, provider, and data scope in setup. Start with public synthetic material.
-4. Read the returned `host_action` and receipt. In 1.0.8, every would-be passing recipe result is capped to `VERIFY` until that recipe has been evaluated against labeled provider answers. Decide and act through your host as usual.
+4. Read the returned `host_action` and receipt. In 1.0.9, every would-be passing recipe result is capped to `VERIFY` until that recipe has been evaluated against labeled provider answers. Decide and act through your host as usual.
 
 ## Try a recipe safely
 
@@ -75,7 +75,7 @@ Offline first, with no provider charge and nothing enrolled:
 plugins/qualixar-jev-decision-layer/scripts/jev selftest --recipe qualixar.brief-fit --variant nominal
 ```
 
-Then, after workspace setup, ask your agent: **"Show the Qualixar Jev recipe catalog, then try the brief-fit recipe on this public synthetic example."** It can call `jev_recipe_catalog` and `jev_recipe_try` without you writing JSON. In 1.0.8 the live call applies the packaged local gate and returns an `EXPERIMENTAL_ADVISORY` result with `host_action` and `policy_receipt_id`. A would-be `ACT` is capped to `VERIFY` while the recipe remains `SPECIFICATION_NOT_MODEL_EVALUATED`; an explicit `unknown` may return `IGNORE`. The agent still decides whether to act and performs any authorized action itself.
+Then, after workspace setup, ask your agent: **"Show the Qualixar Jev recipe catalog, then try the brief-fit recipe on this public synthetic example."** It can call `jev_recipe_catalog` and `jev_recipe_try` without you writing JSON. In 1.0.9 the live call applies the packaged local gate and returns an `EXPERIMENTAL_ADVISORY` result with `host_action` and `policy_receipt_id`. A would-be `ACT` is capped to `VERIFY` while the recipe remains `SPECIFICATION_NOT_MODEL_EVALUATED`; an explicit `unknown` may return `IGNORE`. The agent still decides whether to act and performs any authorized action itself.
 
 ## Contributing a recipe
 
