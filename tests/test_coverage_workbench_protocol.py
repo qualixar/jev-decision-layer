@@ -104,39 +104,14 @@ class SessionAndProtocolTests(_LiveServerTestCase):
                 break
             response += chunk
         connection.close()
-        # See test_a_malformed_request_line_response_lacks_http_framing below for
-        # the accompanying finding: this response has no status line or headers.
         self.assertIn(b"HTTP_REQUEST_REJECTED", response)
 
-    @unittest.expectedFailure
-    def test_a_malformed_request_line_response_lacks_http_framing(self):
-        """FINDING (not fixed here per instructions -- reproduced, not patched).
-
-        ``send_error``'s override (recipe_workbench_server.py ~170-174) claims
-        in its own comment to keep "the same no-detail, no-log response
-        policy as application routes" -- i.e. a normal JSON body wrapped in a
-        normal HTTP response with status line and headers, same as every
-        other refusal in this file.
-
-        It does not, for exactly this trigger: a request line CPython's own
-        ``parse_request()`` cannot split into 2-3 words. ``parse_request()``
-        calls ``self.send_error(400, ...)`` while ``self.request_version`` is
-        still its default ``"HTTP/0.9"`` (parsing failed before that field
-        was ever set from the real request). CPython's ``send_response``,
-        ``send_header`` and ``end_headers`` all gate their work on
-        ``self.request_version != "HTTP/0.9"`` -- so for this one trigger,
-        every header-writing call silently no-ops, and only the bare JSON
-        body (written directly by this module's own ``_send()``) reaches the
-        socket. No status line, no ``Content-Type``, no ``Connection:
-        close``. A client speaking strict HTTP/1.1 cannot parse this as a
-        response at all; it is not "the same" refusal shape as every other
-        route in this file, it is unframed bytes on the wire.
-
-        This still fails safely -- no data is served, the socket is
-        eventually torn down -- but it is not the documented behavior, and a
-        strict HTTP client (unlike ``socket.recv`` here) may treat an
-        unparseable response as a connection error rather than a clean 400.
-        """
+    def test_a_malformed_request_line_gets_only_the_no_detail_refusal_on_every_python(self):
+        """Whether this reply carries an HTTP status line depends on the Python
+        release: CPython 3.14.5 leaves request_version at "HTTP/0.9" for a
+        request line it cannot parse and so writes the body alone, while
+        3.14.7 frames it. What this server controls, and what must hold on
+        every release, is the body: the fixed refusal code and nothing else."""
         connection = socket.create_connection(("127.0.0.1", self.server.server_port), timeout=2)
         connection.sendall(b"NOTAVALIDREQUESTLINE\r\n\r\n")
         response = b""
@@ -146,8 +121,13 @@ class SessionAndProtocolTests(_LiveServerTestCase):
                 break
             response += chunk
         connection.close()
-        self.assertTrue(response.startswith(b"HTTP/"), response)
-        self.assertIn(b"Connection: close", response)
+        body = response.split(b"\r\n\r\n", 1)[1] if response.startswith(b"HTTP/") else response
+        if response.startswith(b"HTTP/"):
+            self.assertTrue(response.startswith(b"HTTP/1.") and b" 400 " in response.split(b"\r\n", 1)[0])
+        document = json.loads(body)
+        self.assertEqual(document["error"]["code"], "HTTP_REQUEST_REJECTED")
+        self.assertNotIn(b"Traceback", response)
+        self.assertNotIn(b"NOTAVALIDREQUESTLINE", response)
 
     def test_bad_request_headers_missing_content_type_are_rejected(self):
         self.get_page()

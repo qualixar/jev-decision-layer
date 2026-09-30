@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import sys
 import tempfile
@@ -89,9 +90,15 @@ def _patched_workbench_asset(overrides):
 
     def fake_stat(self, *args, **kwargs):
         cfg = _cfg(self)
+        real = original_stat(self, *args, **kwargs)
         if cfg and "stat_size" in cfg:
-            return SimpleNamespace(st_size=cfg["stat_size"])
-        return original_stat(self, *args, **kwargs)
+            # A real stat_result with only the size changed: pathlib's own
+            # is_file()/exists() read st_mode from it, and on Python 3.11 they
+            # go through this patched stat().
+            fields = list(real[:10])
+            fields[6] = cfg["stat_size"]
+            return os.stat_result(fields)
+        return real
 
     def fake_is_symlink(self):
         cfg = _cfg(self)

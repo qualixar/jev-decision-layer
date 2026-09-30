@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import types
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -199,7 +200,10 @@ class WizardCopyTests(unittest.TestCase):
     def test_the_review_screen_repeats_the_scope_before_saving(self):
         import re
 
-        wizard = _Server(SetupController(self.folder, local_config=lambda: None))
+        # Preview asks the platform credential store whether it is available;
+        # a CI runner without Secret Service would answer 503. Inject one.
+        store = types.SimpleNamespace(available=lambda: True)
+        wizard = _Server(SetupController(self.folder, local_config=lambda: None, credential_store=store))
         try:
             _status, page = wizard.request("GET", "/setup")
             csrf = re.search(r"name='csrf' value=\"([^\"]+)\"", page).group(1)
