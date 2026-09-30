@@ -69,7 +69,10 @@ _HARNESS_SCOPE = (
 
 
 def _expiry(value: object) -> str:
+    """Render a policy expiry; anything outside the policy validator's range is unknown."""
     if not isinstance(value, (int, float)) or isinstance(value, bool) or value != value:
+        return "unknown"
+    if not 0 < value <= 10**12:
         return "unknown"
     try:
         return time.strftime("%Y-%m-%d", time.localtime(value))
@@ -77,20 +80,30 @@ def _expiry(value: object) -> str:
         return "unknown"
 
 
-def _is_git_repository(root: Path) -> bool:
+def _is_plain_folder(root: Path) -> bool:
+    """True only when Git positively reports that `root` is not inside a repository.
+
+    A work tree, a bare repository, an unreadable or dubious-ownership repository,
+    a missing folder, or Git being unavailable are all "not known to be plain".
+    """
     try:
-        result = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
-                                capture_output=True, timeout=3, check=False)
+        if not root.is_dir():
+            return False
+        result = subprocess.run(["git", "-C", str(root), "rev-parse", "--git-dir"],
+                                capture_output=True, timeout=3, check=False,
+                                env={**os.environ, "LC_ALL": "C", "LANG": "C"})
     except (OSError, subprocess.SubprocessError):
-        return True  # unknown: never pre-tick
-    return result.returncode == 0
+        return False
+    if result.returncode == 0:
+        return False
+    return b"not a git repository" in (result.stderr or b"")
 
 
 def _suggest_coverage(root: Path, current: dict, exists: bool) -> bool:
-    """Pre-tick child coverage for a parent folder; respect an existing grant's own choice.
+    """Pre-tick child coverage only for a folder known to be a plain parent folder.
 
-    This only sets the initial checkbox. Saving still needs the review screen
-    and its separate descendant confirmation.
+    An existing grant keeps its own choice. This only sets the initial checkbox:
+    saving still needs the review screen and its separate descendant confirmation.
     """
     if exists:
         return isinstance(current, dict) and current.get("covers_descendants") is True
@@ -99,7 +112,7 @@ def _suggest_coverage(root: Path, current: dict, exists: bool) -> bool:
             return False
     except Exception:
         return False
-    return not _is_git_repository(root)
+    return _is_plain_folder(root)
 
 
 def _page(title: str, content: str) -> bytes:
@@ -502,7 +515,7 @@ class _SetupHandler(BaseHTTPRequestHandler):
             self.server.review = None
             self._error(500, "SETUP_INTERNAL_FAILURE")
             return
-        self._send(200, _page("Setup saved", f"<p>Provider: {_safe(result['provider'])}.</p><p>Review Codex hook trust in Codex. Other host cells remain unverified until their native checks pass.</p>"))
+        self._send(200, _page("Setup saved", f"<p>Provider: {_safe(result['provider'])}.</p><p>{_HARNESS_SCOPE} Review each agent's own hook-trust prompt the first time it appears. Native host checks remain unverified until they pass.</p>"))
         threading.Thread(target=self.server.shutdown, daemon=True, name="adl-setup-finished").start()
 
 

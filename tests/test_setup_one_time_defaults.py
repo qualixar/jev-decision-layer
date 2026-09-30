@@ -69,6 +69,32 @@ class WizardDefaultTests(unittest.TestCase):
         body = _page(repo)
         self.assertIn(_COVER_UNTICKED, body)
 
+    def test_a_bare_repository_does_not_pre_tick_child_coverage(self):
+        bare = self.root / "store.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True, capture_output=True)
+        self.assertFalse(setup_server._suggest_coverage(bare, {}, False))
+
+    def test_any_ambiguous_git_answer_leaves_coverage_unticked(self):
+        folder = self.root / "Documents"
+        folder.mkdir()
+        self.assertTrue(setup_server._suggest_coverage(folder, {}, False))
+        dubious = subprocess.CompletedProcess([], 128, b"", b"fatal: detected dubious ownership in repository")
+        with patch.object(setup_server.subprocess, "run", return_value=dubious):
+            self.assertFalse(setup_server._suggest_coverage(folder, {}, False))
+        with patch.object(setup_server.subprocess, "run", side_effect=OSError("no git")):
+            self.assertFalse(setup_server._suggest_coverage(folder, {}, False))
+        self.assertFalse(setup_server._suggest_coverage(self.root / "missing", {}, False))
+
+    def test_expiry_outside_the_policy_range_renders_as_unknown(self):
+        for value in (0, -1, 10**13, float("nan"), True, "soon", None):
+            with self.subTest(value=value):
+                self.assertEqual(setup_server._expiry(value), "unknown")
+        self.assertRegex(setup_server._expiry(1_790_000_000), r"^\d{4}-\d{2}-\d{2}$")
+
+    def test_the_saved_page_names_no_single_host(self):
+        source = Path(setup_server.__file__).read_text()
+        self.assertNotIn("Review Codex hook trust in Codex", source)
+
     def test_a_root_that_cannot_hold_coverage_is_never_pre_ticked(self):
         folder = self.root / "Documents"
         folder.mkdir()
