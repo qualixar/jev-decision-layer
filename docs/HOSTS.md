@@ -91,7 +91,7 @@ On supported macOS, add `--write` to apply. Linux registration code is experimen
 
 ### Hermes
 
-Use the portable plugin source with Hermes's own plugin install path; it uses separate hook and tool entry points and an explicit tool allow-list. The 1.0.10 source includes offline self-test, `jev_verify`, and `jev_rerank` in that allow-list. A host manifest or tool-list handshake does not prove a native model/tool turn.
+Use the portable plugin source with Hermes's own plugin install path; it uses separate hook and tool entry points and an explicit tool allow-list. Hermes does not pass a working directory to `pre_llm_call`; the hook uses the same order Hermes does — its session working directory, then `TERMINAL_CWD`, then the launch directory — so worktree and messaging-gateway sessions resolve the workspace Hermes is working in. The 1.0.10 source includes offline self-test, `jev_verify`, and `jev_rerank` in that allow-list. A host manifest or tool-list handshake does not prove a native model/tool turn.
 
 ### Claude desktop app
 

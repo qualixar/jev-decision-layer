@@ -163,8 +163,49 @@ def prepare_context(user_message: Any, *, cwd: Path | str | None = None,
         return None
 
 
+def _usable_directory(value: Any) -> str | None:
+    if not isinstance(value, (str, Path)):
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    path = Path(text).expanduser()
+    try:
+        return str(path) if path.is_absolute() and path.is_dir() else None
+    except (OSError, ValueError):
+        return None
+
+
+def _hermes_working_directory() -> str | None:
+    """The directory Hermes itself works in for this turn.
+
+    Hermes passes no `cwd` to `pre_llm_call`. Its own cwd consumers resolve
+    through `agent.runtime_cwd.resolve_agent_cwd()`: a session override, then
+    TERMINAL_CWD, then the launch directory. Worktree mode and the messaging
+    gateway set TERMINAL_CWD while the process cwd stays elsewhere. That
+    resolver is Hermes-internal, so each step falls back rather than trusting it.
+    """
+    try:
+        from agent.runtime_cwd import resolve_agent_cwd
+        resolved = _usable_directory(resolve_agent_cwd())
+        if resolved is not None:
+            return resolved
+    except Exception:
+        pass
+    configured = _usable_directory(os.environ.get("TERMINAL_CWD"))
+    if configured is not None:
+        return configured
+    try:
+        return os.getcwd()
+    except OSError:
+        return None
+
+
 def pre_llm_call(user_message: Any = None, **kwargs: Any) -> dict[str, str] | None:
-    return prepare_context(user_message, cwd=kwargs.get("cwd"))
+    cwd = kwargs.get("cwd") or _hermes_working_directory()
+    if cwd is None:
+        return None
+    return prepare_context(user_message, cwd=cwd)
 
 
 def _tool_schema(name: str, description: str, properties: dict[str, Any], required: list[str]) -> dict[str, Any]:

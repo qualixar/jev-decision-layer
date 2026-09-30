@@ -14,10 +14,11 @@ All notable changes to this project are recorded here. This project follows [Sem
 - **`jev host-register` can upgrade its own entry.** The plugin cache path carries the release number, and registration refused its own previous entry as a conflict, so the Claude desktop app kept launching the old release after every upgrade. An entry that is the same launcher at an older release in the same cache — compared after resolving symlinks and `..` segments — is now replaced. A newer release, a different location, or an entry carrying your own `env` or `args` is still refused. This applies to every host `host-register` supports.
 - **A missing `workspace_path` falls back to `CLAUDE_PROJECT_DIR`** when Claude Code set it for the server. Advertised schemas are unchanged for every host, and a host that does not set the variable still gets `MCP_ARGUMENTS`. The server cannot tell which host exported the variable, so a value exported globally applies to any host that passes its environment through; consent is still checked on the resolved folder, and an explicit `workspace_path` always wins.
 - **Enrollment messages no longer name Codex** when you enroll from another host.
+- **Hermes looks at the folder Hermes is actually working in.** Hermes passes no `cwd` to `pre_llm_call`, so the hook used the process launch directory. Hermes itself resolves its working directory as a session override, then `TERMINAL_CWD`, then the launch directory, and worktree mode and the messaging gateway set `TERMINAL_CWD` while the process stays elsewhere. The hook now asks Hermes's own resolver when it is importable, then `TERMINAL_CWD`, then the launch directory; each step must be an existing absolute directory. A deleted launch directory yields no guidance instead of an error.
 
 ### Unchanged
 
-- **20 MCP tools, 38 recipes, and 114 synthetic offline fixtures.** Codex, Antigravity, Hermes and VS Code hook files and adapters are unchanged. Supported and verified on macOS; Linux experimental; Windows hosted runtime disabled. `native_status` remains `NOT_RUN` for every host.
+- **20 MCP tools, 38 recipes, and 114 synthetic offline fixtures.** Codex, Antigravity and VS Code hook files and adapters are unchanged; the Hermes change is limited to how its hook finds the working directory. Supported and verified on macOS; Linux experimental; Windows hosted runtime disabled. `native_status` remains `NOT_RUN` for every host.
 
 ## [1.0.10] — 2026-09-29
 
