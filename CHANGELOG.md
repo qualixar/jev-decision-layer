@@ -16,6 +16,18 @@ All notable changes to this project are recorded here. This project follows [Sem
 - **Enrollment messages no longer name Codex** when you enroll from another host.
 - **Hermes looks at the folder Hermes is actually working in.** Hermes passes no `cwd` to `pre_llm_call`, so the hook used the process launch directory. Hermes itself resolves its working directory as a session override, then `TERMINAL_CWD`, then the launch directory, and worktree mode and the messaging gateway set `TERMINAL_CWD` while the process stays elsewhere. The hook now asks Hermes's own resolver when it is importable, then `TERMINAL_CWD`, then the launch directory; each step must be an existing absolute directory. A deleted launch directory yields no guidance instead of an error.
 
+### Fixed
+
+- **The test suite no longer writes grants into your own state directory.** Three setup-wizard test classes did not isolate `XDG_STATE_HOME`, so every run of the suite saved a one-day `jev-public` wizard grant for a temporary folder into the developer's real state directory. They now isolate it, and `tools/coverage_gate.py` runs the suite against a private state directory and fails, naming the file, if any test writes there.
+
+### Removed
+
+- **Code that could never run.** The Windows named-pipe dispatch in the broker, unreachable since 1.0.8 closed the Windows runtime ahead of it, and the Hermes tool adapter's re-checks after path normalisation, which repeated checks already made on the raw value. The raw-value checks stay authoritative, because normalisation can turn a relative `./C:/x` into an absolute `C:\x`; a differential test holds the adapter's accept/reject behaviour identical to 1.0.10 across 40,000 generated paths.
+
+### Tests
+
+- **Per-module coverage floors hold again.** Modules below their recorded floor went from 18 to none, floors were recorded for six modules that had none, and no floor was lowered. The new tests assert the exact refusal on error paths, and a sample was checked by removing the guard and confirming the test fails.
+
 ### Unchanged
 
 - **20 MCP tools, 38 recipes, and 114 synthetic offline fixtures.** Codex, Antigravity and VS Code hook files and adapters are unchanged; the Hermes change is limited to how its hook finds the working directory. Supported and verified on macOS; Linux experimental; Windows hosted runtime disabled. `native_status` remains `NOT_RUN` for every host.

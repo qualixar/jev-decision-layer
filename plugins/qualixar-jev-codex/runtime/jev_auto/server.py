@@ -49,14 +49,10 @@ def serve(path,base=None,idle_seconds=900):
     if lock.is_symlink():raise AutoError('UNSAFE_BROKER_LOCK')
     with file_lock(lock,blocking=False) as acquired:
         if not acquired:return
-        if os.name=='nt':
-            from .transports.windows_pipe import serve as serve_pipe
-            engine=Engine(path,base)
-            try:
-                serve_pipe(address(path,base),engine,threading.Event(),idle_seconds)
-            finally:
-                engine.providers.close()
-            return
+        # The Windows named-pipe broker (transports.windows_pipe) is closed
+        # since 1.0.8 by the refusal above. Its dispatch lived here, dormant
+        # and unreachable, until 1.0.11; restore it from history when the
+        # Windows private-state contract is revalidated.
         addr=address(path,base)
         if addr.exists():
             if addr.is_symlink():raise AutoError('UNSAFE_SOCKET')

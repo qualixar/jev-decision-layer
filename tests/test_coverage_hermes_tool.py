@@ -231,43 +231,16 @@ class ResultShapeAndFinalSizeCapTests(unittest.TestCase):
 # --------------------------------------------------------------------------
 
 class WindowsAndPosixNormpathGuardsAreUnreachableTests(unittest.TestCase):
-    """`_canonical_workspace_path` re-checks `is_absolute()` / UNC-drive /
-    length AFTER calling `ntpath.normpath` (Windows) or `posixpath.normpath`
-    (POSIX), in case normalisation itself produced something unsafe. Both
-    `return None` statements guarding that re-check are unreached by every
-    other test in this suite (hermes_parity's own exhaustive invalid-path
-    list never reaches them either), and this test demonstrates why with a
-    a targeted fuzz of both normalizers rather than merely asserting absence
-    of a counterexample from a hand-picked list.
+    """The stdlib property `_canonical_workspace_path` relies on.
 
-    Windows (hermes_tool.py, the line after the drive/length re-check): once
-    the *pre*-normalize checks already required `path.is_absolute()`, a
-    non-UNC `path.drive`, and `len(value) <= MAX_WORKSPACE_PATH_CHARS`,
-    `ntpath.normpath` can only ever shorten or preserve length (it collapses
-    redundant separators and `.`/`..` segments; it never inserts characters),
-    and it cannot turn a drive letter like "C:" into a UNC prefix like
-    "\\\\server" out of a value that did not already contain one -- which the
-    pre-check already excluded. So the post-normalize `not
-    canonical.is_absolute()`, `canonical.drive.startswith("\\\\")`, and
-    `len(normalized) > MAX` branches cannot fire.
-
-    POSIX (the line after `posixpath.normpath`): the pre-check already
-    requires `value.startswith("/")`; `posixpath.normpath` of any path
-    rooted at "/" is also rooted at "/" (a leading ".." at the root is
-    discarded, not promoted above it), and, as above, normalisation cannot
-    lengthen the string past the pre-checked bound. So `not
-    normalized.startswith("/")` and the length check cannot fire either.
-
-    This test is evidence, not proof by exhaustion: it fuzzes a large,
-    structurally-varied sample of drive/separator/dot-segment combinations
-    (200,000 samples per platform) and asserts none of them reaches the
-    guarded branch, then asserts a matching bound in `_canonical_workspace_path`
-    on the always-reachable pre-checks. It is intentionally NOT a test of
-    `_canonical_workspace_path` returning a specific value for these lines,
-    because no such input is known to exist; see hermes_tool.py's own
-    docstring on the `windows=` parameter for why the branch was written
-    defensively rather than proven unreachable at the time.
-    """
+Until 1.0.11 the function re-checked absoluteness, UNC drive and length
+after `ntpath.normpath` / `posixpath.normpath`. Those re-checks could never
+fire and were removed; the authoritative checks run on the raw value. These
+fuzz tests pin why that is safe: once a value passed the raw checks, neither
+normalizer makes it relative, UNC, or longer. The differential test in
+tests/test_hermes_path_canonicalization.py compares the current function
+against the previous double-checked one.
+"""
 
     def test_ntpath_normpath_never_lengthens_or_unc_promotes_an_already_valid_windows_path(self):
         random.seed(1234567)

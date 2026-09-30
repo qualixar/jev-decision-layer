@@ -44,22 +44,19 @@ def _canonical_workspace_path(value: Any, *, windows: bool | None = None) -> str
         return None
     use_windows = (sys.platform == "win32") if windows is None else windows
     if use_windows:
+        # These checks run on the raw value and are the authoritative ones:
+        # normalisation can turn a relative "./C:/x" into an absolute "C:\x".
         path = PureWindowsPath(value)
         if (not path.is_absolute() or not path.drive or path.drive.startswith("\\\\")
                 or value.startswith(("\\\\?\\", "\\\\.\\"))):
             return None
-        normalized = ntpath.normpath(value)
-        canonical = PureWindowsPath(normalized)
-        if (not canonical.is_absolute() or canonical.drive.startswith("\\\\")
-                or len(normalized) > MAX_WORKSPACE_PATH_CHARS):
-            return None
-        return normalized
+        # normpath keeps a validated drive path absolute, on its drive, and no
+        # longer than its input. tests/test_hermes_path_canonicalization.py holds
+        # this against the previous implementation, which re-checked it.
+        return ntpath.normpath(value)
     if not value.startswith("/"):
         return None
-    normalized = posixpath.normpath(value)
-    if not normalized.startswith("/") or len(normalized) > MAX_WORKSPACE_PATH_CHARS:
-        return None
-    return normalized
+    return posixpath.normpath(value)
 
 
 def _is_workspace_path(value: Any) -> bool:

@@ -34,7 +34,7 @@
     "jev_auto/rerank.py": 95,
     "jev_auto/review.py": 100,
     "jev_auto/routing.py": 100,
-    "jev_auto/server.py": 96,
+    "jev_auto/server.py": 100,
     "jev_auto/settings.py": 100,
     "jev_auto/sieve.py": 100,
     "jev_auto/store.py": 100,
