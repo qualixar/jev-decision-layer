@@ -348,8 +348,9 @@ def notice(sources: Iterable[Source] | None = None, *, home: Path | None = None)
     except Exception:  # advisory only: an unreadable policy must never break a caller
         return None
     affected: list[dict[str, Any]] = []
-    for label, where, document in listed:
+    for source in listed:
         try:
+            label, where, document = source
             codes = findings(document) if isinstance(document, Mapping) else []
             location = _display(where, home)
         except Exception:  # one malformed source must not hide the others

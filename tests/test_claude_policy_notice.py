@@ -127,7 +127,8 @@ class FindingTests(unittest.TestCase):
     def test_only_well_formed_command_entries_count(self):
         name = {"serverName": "qualixar-jev"}
         # An invalid entry is stripped, so it cannot hide a valid name entry.
-        for invalid in ({"serverCommand": "/opt/x"}, {"serverCommand": []}, {"serverCommand": [1]}):
+        for invalid in ({"serverCommand": "/opt/x"}, {"serverCommand": []}, {"serverCommand": [1]},
+                        {"serverCommand": ["/opt/cache/scripts/launch-jev", 1]}):
             with self.subTest(invalid=invalid):
                 self.assertEqual(findings({"allowedMcpServers": [invalid, name]}), [])
                 self.assertEqual(findings({"allowedMcpServers": [invalid]}), ["MCP_SERVER_NOT_ALLOWED"])
@@ -161,8 +162,9 @@ class FindingTests(unittest.TestCase):
                 raise RuntimeError("hostile mapping")
 
         good = ("managed settings file", "/etc/claude-code/managed-settings.json", _HOOKS_ONLY)
-        for bad in (("label", "/where", ["not", "a", "mapping"]), ("label", "/where", Hostile())):
-            with self.subTest(bad=type(bad[2]).__name__):
+        for bad in (("label", "/where", ["not", "a", "mapping"]), ("label", "/where", Hostile()),
+                    ("label", "/where"), None):
+            with self.subTest(bad=repr(bad)[:40]):
                 result = notice([bad, good])
                 self.assertEqual([source["location"] for source in result["sources"]],
                                  ["/etc/claude-code/managed-settings.json"])

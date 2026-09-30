@@ -75,7 +75,7 @@
     "jev_auto/hermes_tool.py": "34690c6c8bc28b3ef4d5b474edd8f53c7ccb46a942e1bf444e175e2936ce4357",
     "jev_auto/hooks.py": "610b44d861a6ecc7f2a11bd77b7f78aa5ab690be1ce3cc349a2d58c7fa8a158a",
     "jev_auto/host_mcp.py": "79ee87f55144844b9f0318a0f664d8eb26f50e10b44f448e4b176d85eecd656b",
-    "jev_auto/host_policy.py": "415d9f3befaf7647a8a22dd14c2f36a73bf0db3d808d817b80e815c0f6080dea",
+    "jev_auto/host_policy.py": "c2f95f48b8122addd7e8c016c69edda671bad1262d1e3f4cf65b6d6d5ba67473",
     "jev_auto/ipc.py": "7bc9cf48ccd12f3aa5b00b5d959dca778095a7e83460283e73e3a8179bcea8e6",
     "jev_auto/mcp.py": "fd05ad6f3b37ec2ea961bf773ef6ae79f0ce18c54ef29af47a8137eaac83498c",
     "jev_auto/measure.py": "816f1410c0477e562ec9093c91745f9aed95ac69c40b7385eae0cf5eb5ef834d",
