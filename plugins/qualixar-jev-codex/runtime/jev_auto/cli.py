@@ -78,7 +78,7 @@ def main(argv=None):
             print(canonical(result).decode())
             if not args.write:print('Nothing written. Re-run with --write to apply.',file=sys.stderr)
             # A host holding its config in memory will flush over an external edit.
-            if args.host=='claude-desktop' and args.write:
+            if args.host=='claude-desktop' and result.get('written') is True:
                 print('Quit the Claude desktop app before this edit, or it will be overwritten on exit.',file=sys.stderr)
             return 0
         if args.command=='selftest':

@@ -6,7 +6,7 @@
 Route tasks, tools, skills, tests, and reviews through TypeSafe Jev, with optional local Laya-MLX on Apple Silicon.</p>
 
 <p align="center">
-<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.11"><img src="https://img.shields.io/badge/version-1.0.11-7655d9?style=flat-square" alt="Version 1.0.11"></a>
+<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.12"><img src="https://img.shields.io/badge/version-1.0.12-7655d9?style=flat-square" alt="Version 1.0.12"></a>
 <img src="https://img.shields.io/badge/host%20adapters-5-7655d9?style=flat-square" alt="Five host adapters; verification varies by host">
 <img src="https://img.shields.io/badge/MCP%20tools-20-4f46e5?style=flat-square" alt="Twenty MCP tools">
 <img src="https://img.shields.io/badge/offline%20fixtures-114-d97706?style=flat-square" alt="114 offline fixtures">
@@ -29,7 +29,7 @@ One shared runtime has adapters for **Codex, Claude Code, VS Code, Hermes, and A
 
 **The model recommends; the host retains execution authority.** A Jev or Laya answer does not grant shell, file, browser, deployment, or publishing permission. Host support is not equally verified; see the [evidence and boundary table](#supported-hosts).
 
-**Current release: 1.0.11** — 20 MCP tools, 38 recipes for bounded decisions, 114 synthetic offline fixtures, and five host adapters. The live recipe gate caps every would-be passing result to `verify` until a recipe has been evaluated against labeled provider answers. Version 1.0.11 is supported and verified on macOS. Linux remains experimental and unverified; Windows hosted operation is disabled in this release because its native private-state contract did not pass CI. Local Laya-MLX is limited to supported Apple-Silicon Macs. See the [host evidence](docs/HOSTS.md) and [changelog](CHANGELOG.md).
+**Current release: 1.0.12** — 20 MCP tools, 38 recipes for bounded decisions, 114 synthetic offline fixtures, and five host adapters. The live recipe gate caps every would-be passing result to `verify` until a recipe has been evaluated against labeled provider answers. Version 1.0.12 is supported and verified on macOS. Linux remains experimental and unverified; Windows hosted operation is disabled in this release because its native private-state contract did not pass CI. Local Laya-MLX is limited to supported Apple-Silicon Macs. See the [host evidence](docs/HOSTS.md) and [changelog](CHANGELOG.md).
 
 Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent open-source integration, not an official TypeSafe, OpenAI, Anthropic, Google, Microsoft, or Laya product.
 
@@ -71,7 +71,7 @@ A manager can compare a work item against a rubric and priorities they provide. 
 
 ## Jev, local Laya, or hybrid?
 
-Use hosted Jev for a reviewed decision whose data scope permits a provider call. OpenRouter is a separate hosted provider route. Version 1.0.11 is supported on macOS; Linux is experimental and unverified, and Windows hosted runtime entry points fail closed. Use optional local Laya-MLX only on a supported Apple-Silicon Mac after local attestation. Hybrid mode follows the workspace policy you reviewed. Provider behavior is not assumed to be interchangeable; see [provider thresholds and evidence](#provider-thresholds-and-evidence).
+Use hosted Jev for a reviewed decision whose data scope permits a provider call. OpenRouter is a separate hosted provider route. Version 1.0.12 is supported on macOS; Linux is experimental and unverified, and Windows hosted runtime entry points fail closed. Use optional local Laya-MLX only on a supported Apple-Silicon Mac after local attestation. Hybrid mode follows the workspace policy you reviewed. Provider behavior is not assumed to be interchangeable; see [provider thresholds and evidence](#provider-thresholds-and-evidence).
 
 ## What can an agent actually do with it?
 
@@ -112,8 +112,8 @@ For a live `jev_recipe_try`, the packaged gate evaluates the typed answer and re
 
 | `host_action` | What it means | What the host should do |
 |---|---|---|
-| `act` | The answer passed the configured gate | No shipped recipe can retain `act` in 1.0.11: all are `SPECIFICATION_NOT_MODEL_EVALUATED`, so a would-be `act` is capped to `verify` |
-| `verify` | Check the advisory answer independently | This is the maximum action for a would-be passing result from every shipped recipe in 1.0.11 |
+| `act` | The answer passed the configured gate | No shipped recipe can retain `act` in 1.0.12: all are `SPECIFICATION_NOT_MODEL_EVALUATED`, so a would-be `act` is capped to `verify` |
+| `verify` | Check the advisory answer independently | This is the maximum action for a would-be passing result from every shipped recipe in 1.0.12 |
 | `ignore` | The model selected `unknown` | Do not use a recommendation; decide normally |
 
 The `jev_recipe_try` response is marked `EXPERIMENTAL_ADVISORY`. Its policy receipt records the recipe status, provider receipt ID, provider/model, and local gate result. The answer and receipt do not prove provider accuracy, authorize an operation, or execute anything. A below-threshold or malformed answer remains `verify`; an explicit `unknown` may return `ignore`.
@@ -144,7 +144,7 @@ The shared runtime lives in `plugins/qualixar-jev-decision-layer/`. A host adapt
 | Claude Code | `jev_auto/claude_hook.py`, `hooks/claude-hooks.json` | Uses `${CLAUDE_PLUGIN_ROOT}`, not `${PLUGIN_ROOT}`; PreToolUse *can* be advisory-only here, so a hint costs no authority |
 | VS Code | `jev_auto/vscode_adapter.py` | No hook surface at all, so the adapter registers the same launcher as a workspace MCP server in `.vscode/mcp.json` |
 
-Three of those hosts also take MCP registration, and they disagree about its shape in ways that fail silently: VS Code keys servers under `servers`, Antigravity and the Claude desktop config under `mcpServers`, and only VS Code expects a `type` field. `jev_auto/host_mcp.py` holds those shapes in one table with a test per row. `plugins/qualixar-jev-decision-layer/scripts/jev host-register --host <name>` previews registration; on supported macOS, `--write` merges one entry without printing another server's secrets. Linux registration is experimental and unverified. Windows runtime support is disabled in 1.0.11.
+Three of those hosts also take MCP registration, and they disagree about its shape in ways that fail silently: VS Code keys servers under `servers`, Antigravity and the Claude desktop config under `mcpServers`, and only VS Code expects a `type` field. `jev_auto/host_mcp.py` holds those shapes in one table with a test per row. `plugins/qualixar-jev-decision-layer/scripts/jev host-register --host <name>` previews registration; on supported macOS, `--write` merges one entry without printing another server's secrets. Linux registration is experimental and unverified. Windows runtime support is disabled in 1.0.12.
 
 Hook files are **per host and never merged** — the plugin-root variable differs, and Codex registers a matcher Claude Code deliberately does not. See `plugins/qualixar-jev-decision-layer/hooks/README.md`.
 
@@ -168,7 +168,7 @@ The shipped recipe floors are demonstration policy settings. The repository does
 
 ## Install
 
-**Hosted platform scope for 1.0.11:** TypeSafe Jev and OpenRouter are supported and verified on macOS through Keychain. Linux code is experimental and unverified; passing generic Linux tests does not establish the Secret Service and host integration path. Windows hosted runtime entry points fail closed because its native private-state contract did not pass CI. Local Laya-MLX remains limited to compatible Apple-Silicon Macs and requires local attestation.
+**Hosted platform scope for 1.0.12:** TypeSafe Jev and OpenRouter are supported and verified on macOS through Keychain. Linux code is experimental and unverified; passing generic Linux tests does not establish the Secret Service and host integration path. Windows hosted runtime entry points fail closed because its native private-state contract did not pass CI. Local Laya-MLX remains limited to compatible Apple-Silicon Macs and requires local attestation.
 
 Whichever host you use: **fully quit and reopen it after installing**, so its skills, MCP tools, and hooks reload. A running session binds them at start and will not pick up a new plugin.
 
@@ -193,12 +193,12 @@ Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes
 **Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the Claude desktop app's Code tab: there, every enabled plugin that ships a server is equally absent, ours included, with no error and no failed entry. Commands and skills load normally. If you work in the Code tab and want the tools, register the launcher directly instead:
 
 ```sh
-claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.11/scripts/launch-jev"
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.12/scripts/launch-jev"
 ```
 
 For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. `claude mcp list` reports on the CLI's own config and says nothing about what the desktop app can see.
 
-If your organization sets `allowManagedHooksOnly`, your own `settings.json` hooks are blocked; hooks from a plugin force-enabled in managed `enabledPlugins` are documented as exempt. The MCP tools and commands are unaffected either way.
+**If your organization manages Claude Code.** Managed settings can stop the plugin's hooks (`allowManagedHooksOnly`), or its commands and hooks together (a marketplace allowlist without the Jev marketplace). `jev doctor`, `jev_auto_status` and the setup wizard say so when that is the case, and say nothing otherwise. [Enterprise-managed Claude Code](docs/HOSTS.md#enterprise-managed-claude-code) gives the managed settings an administrator can add, and a `CLAUDE.md` section that makes the tools usable in the Claude desktop app meanwhile.
 
 ### VS Code, Antigravity, or the Claude desktop app
 
@@ -206,7 +206,7 @@ If your organization sets `allowManagedHooksOnly`, your own `settings.json` hook
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host vscode --workspace .
 ```
 
-Prints what it would change and writes nothing. Add `--write` to apply on supported macOS. An existing `.vscode/mcp.json` is merged — one `qualixar-jev` entry is added or updated and every other key is kept — and a file that does not parse is refused rather than overwritten. Restart VS Code afterwards; Copilot agent mode picks the server up from the workspace. `/jev-vscode` does the same from inside Claude Code. Linux registration is experimental and unverified; Windows CLI runtime commands are disabled in 1.0.11.
+Prints what it would change and writes nothing. Add `--write` to apply on supported macOS. An existing `.vscode/mcp.json` is merged — one `qualixar-jev` entry is added or updated and every other key is kept — and a file that does not parse is refused rather than overwritten. Restart VS Code afterwards; Copilot agent mode picks the server up from the workspace. `/jev-vscode` does the same from inside Claude Code. Linux registration is experimental and unverified; Windows CLI runtime commands are disabled in 1.0.12.
 
 ### Antigravity and Hermes
 
@@ -238,7 +238,7 @@ Support is **not uniform**, and this table separates what has been observed from
 
 | Host | Evidence | Boundary |
 |---|---|---|
-| **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on macOS; native Codex hook is a separate reviewed capability | Linux operation and automatic-hook coverage require separate host checks; Windows hosted runtime is disabled in 1.0.11 |
+| **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on macOS; native Codex hook is a separate reviewed capability | Linux operation and automatic-hook coverage require separate host checks; Windows hosted runtime is disabled in 1.0.12 |
 | **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; seven commands and three skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly and stays silent on an unenrolled workspace | A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are **not yet verified**. In the desktop app's **Code tab**, the plugin-provided MCP server does not load at all — see the install note above |
 | **Hermes** | Staged plugin doctor registers the declared tools and hook; installed copy awaits refresh | Native model/tool turn still needs verification |
 | **Antigravity** | Packaged PreInvocation advisory hook and skills; this adapter does not request PreToolUse authority | Native model/tool turn and portable MCP registration still need verification |

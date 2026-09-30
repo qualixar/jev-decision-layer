@@ -77,7 +77,10 @@ class DoctorOfflineTests(unittest.TestCase):
             root = Path(directory)
             workspace = root / "project"
             workspace.mkdir()
-            with patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")}):
+            # A computer without a Claude Code organization policy; the notice
+            # has its own tests in test_claude_policy_notice.py.
+            with patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")}), \
+                    patch("jev_auto.doctor.claude_policy_notice", return_value=None):
                 _code, payload, _stderr = _run(["doctor", "--workspace", str(workspace)])
         self.assertEqual(
             {check["id"] for check in payload["checks"]},

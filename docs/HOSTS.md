@@ -24,7 +24,7 @@ The adapters offer host-native tool registration where available. VS Code uses w
 
 ## Platform scope
 
-Version 1.0.11 is supported and verified on macOS, using Keychain for hosted TypeSafe Jev and OpenRouter. Linux remains experimental and unverified: generic Linux CI does not establish the complete Secret Service, broker, host, and provider path. Windows hosted runtime entry points fail closed because the native private-state contract did not pass CI; the Windows CI lane has been removed until that contract is deliberately revalidated. An adapter being present does not prove the full host + operating system + provider path works.
+Version 1.0.12 is supported and verified on macOS, using Keychain for hosted TypeSafe Jev and OpenRouter. Linux remains experimental and unverified: generic Linux CI does not establish the complete Secret Service, broker, host, and provider path. Windows hosted runtime entry points fail closed because the native private-state contract did not pass CI; the Windows CI lane has been removed until that contract is deliberately revalidated. An adapter being present does not prove the full host + operating system + provider path works.
 
 ## Shared enrollment
 
@@ -33,7 +33,7 @@ Codex, Claude Code, Hermes, Antigravity, and VS Code resolve workspace consent t
 `native_status` remains `NOT_RUN` for every host. The shared binding is covered by in-process adapter tests. That is not a native host session, and it does not change the macOS, Linux, or Windows platform scope above.
 
 
-Windows-specific filesystem, credential, pipe, and launcher code remains in the source tree for future work, but it is not a supported 1.0.11 runtime. The `jev_auto` broker refuses to start on Windows. Windows host configuration snippets do not enable or imply runtime support.
+Windows-specific filesystem, credential, pipe, and launcher code remains in the source tree for future work, but it is not a supported 1.0.12 runtime. The `jev_auto` broker refuses to start on Windows. Windows host configuration snippets do not enable or imply runtime support.
 
 Local Laya-MLX remains limited to a compatible Apple-Silicon Mac with a successful local installation attestation. It is not a Windows or Linux provider route. Hosted and local routes are separate choices; Jev-only does not silently fall back to Laya.
 
@@ -66,7 +66,7 @@ Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes
 **Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the desktop app's Code tab. This is a property of that surface, not of this plugin: in a Code tab session, every enabled plugin that ships an MCP server is equally absent, with no error and no failed entry. Commands and skills load normally there. To get the tools in the Code tab, register the launcher directly:
 
 ```sh
-claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.11/scripts/launch-jev"
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.12/scripts/launch-jev"
 ```
 
 For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. Note that `claude mcp list` reports on the CLI's own configuration and says nothing about what the desktop app can see — a green line there is not evidence the app loaded anything.
@@ -77,7 +77,7 @@ For the desktop app specifically, add the same command to `~/Library/Application
 plugins/qualixar-jev-decision-layer/scripts/jev vscode --workspace .
 ```
 
-This writes nothing. It prints the planned change, the config path, and `preserved_servers` — your existing servers, which are kept. On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified; Windows hosted runtime is disabled in 1.0.11. An existing `.vscode/mcp.json` is merged: exactly one `qualixar-jev` entry is added or updated and every other key is carried through. A file that does not parse is refused rather than overwritten, because rewriting it would discard servers the adapter cannot read. Restart VS Code afterwards; Copilot agent mode reads the workspace file.
+This writes nothing. It prints the planned change, the config path, and `preserved_servers` — your existing servers, which are kept. On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified; Windows hosted runtime is disabled in 1.0.12. An existing `.vscode/mcp.json` is merged: exactly one `qualixar-jev` entry is added or updated and every other key is carried through. A file that does not parse is refused rather than overwritten, because rewriting it would discard servers the adapter cannot read. Restart VS Code afterwards; Copilot agent mode reads the workspace file.
 
 ### Antigravity
 
@@ -87,11 +87,11 @@ Use the portable plugin source at `plugins/qualixar-jev-decision-layer` with Ant
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host antigravity
 ```
 
-On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified. Windows is outside the supported 1.0.11 runtime. A plugin-relative `mcp_config.json` is deliberately **not** shipped: Antigravity documents `command` as an executable or a binary name and says nothing about resolving a path relative to the plugin, so the adapter uses an absolute one in the documented global config. A repository test keeps that file from being added until the relative form is documented and verified.
+On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified. Windows is outside the supported 1.0.12 runtime. A plugin-relative `mcp_config.json` is deliberately **not** shipped: Antigravity documents `command` as an executable or a binary name and says nothing about resolving a path relative to the plugin, so the adapter uses an absolute one in the documented global config. A repository test keeps that file from being added until the relative form is documented and verified.
 
 ### Hermes
 
-Use the portable plugin source with Hermes's own plugin install path; it uses separate hook and tool entry points and an explicit tool allow-list. Hermes does not pass a working directory to `pre_llm_call`; the hook uses the same order Hermes does — its session working directory, then `TERMINAL_CWD`, then the launch directory — so worktree and messaging-gateway sessions resolve the workspace Hermes is working in. The 1.0.11 source includes offline self-test, `jev_verify`, and `jev_rerank` in that allow-list. A host manifest or tool-list handshake does not prove a native model/tool turn.
+Use the portable plugin source with Hermes's own plugin install path; it uses separate hook and tool entry points and an explicit tool allow-list. Hermes does not pass a working directory to `pre_llm_call`; the hook uses the same order Hermes does — its session working directory, then `TERMINAL_CWD`, then the launch directory — so worktree and messaging-gateway sessions resolve the workspace Hermes is working in. The 1.0.12 source includes offline self-test, `jev_verify`, and `jev_rerank` in that allow-list. A host manifest or tool-list handshake does not prove a native model/tool turn.
 
 ### Claude desktop app
 
@@ -99,7 +99,65 @@ Use the portable plugin source with Hermes's own plugin install path; it uses se
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host claude-desktop --write
 ```
 
-**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed. Re-run the command after every upgrade: the plugin cache path carries the release number. An entry that points at an older release of the same launcher in the same cache is replaced; any other existing `qualixar-jev` entry, including one with your own `env` or `args`, or a newer release, is refused as `HOST_MCP_ENTRY_CONFLICT`. This applies to every host `host-register` supports. Windows runtime commands are disabled in 1.0.11; do not use a generated configuration snippet as an indication of platform support.
+**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed. Re-run the command after every upgrade: the plugin cache path carries the release number. An entry that points at an older release of the same launcher in the same cache is replaced; any other existing `qualixar-jev` entry, including one with your own `env` or `args`, or a newer release, is refused as `HOST_MCP_ENTRY_CONFLICT`. This applies to every host `host-register` supports. Windows runtime commands are disabled in 1.0.12; do not use a generated configuration snippet as an indication of platform support. `host-register` prints the quit-the-app reminder only when it actually changed the file.
+
+### Enterprise-managed Claude Code
+
+An organization can manage Claude Code with [managed settings](https://code.claude.com/docs/en/managed-settings). Four keys decide whether the Jev plugin runs on its own there:
+
+| Managed key | What happens to Jev |
+|---|---|
+| `allowManagedHooksOnly: true` | Plugin hooks do not run, so sessions get no automatic guidance, unless the plugin is force-enabled in managed `enabledPlugins` |
+| `strictKnownMarketplaces` (or `allowedMarketplaces`) without the Jev marketplace | The plugin, its `/jev-*` commands and its hooks do not load |
+| `blockedMarketplaces` naming the Jev marketplace | The same |
+| `allowedMcpServers` that does not admit `qualixar-jev` | Claude Code may not start the plugin's MCP server. Servers the Claude desktop app delivers to its own sessions are governed by the organization's claude.ai settings instead |
+
+Your Jev grant is unaffected, and so are Codex, VS Code, Antigravity and Hermes.
+
+**How Jev tells you.** `jev doctor` adds a `claude_code_policy` check with status `NOTICE`, `jev_auto_status` adds a `claude_code_policy` field, and step 1 of the setup wizard shows a short notice. On a computer without such a policy none of them appear, and the output is the same as 1.0.11. The check is read-only. It reads the documented sources (the cached server-managed settings in the Claude configuration directory, the macOS configuration profile for `com.anthropic.claudecode`, the Windows `SOFTWARE\Policies\ClaudeCode` registry value, and the system `managed-settings.json` with its `managed-settings.d` drop-ins). It reports fixed codes, a label and location for each source, and fixed advice, and it never repeats any other policy value. Claude Code decides which managed source applies on a machine, so the notice says *may*; `claude doctor` and `/status` in Claude Code show the source actually in force.
+
+**What an administrator can change.** Allow the marketplace and force-enable the plugin. Hooks of a force-enabled plugin still run under `allowManagedHooksOnly`:
+
+```json
+{
+  "strictKnownMarketplaces": [
+    { "source": "github", "repo": "qualixar/jev-decision-layer" }
+  ],
+  "extraKnownMarketplaces": {
+    "qualixar": { "source": { "source": "github", "repo": "qualixar/jev-decision-layer" } }
+  },
+  "enabledPlugins": { "qualixar-jev-decision-layer@qualixar": true }
+}
+```
+
+Add the entry to the organization's existing allowlist rather than replacing it. If the organization also sets `allowedMcpServers`, admit the `qualixar-jev` server there; Claude Code's [managed MCP guide](https://code.claude.com/docs/en/managed-mcp) describes the entry forms.
+
+**What you can do meanwhile, in the Claude desktop app.** Quit the app, register the tools with the command in [Claude desktop app](#claude-desktop-app), then add this section to your user `CLAUDE.md` (`~/.claude/CLAUDE.md`, or `CLAUDE.md` in the directory `CLAUDE_CONFIG_DIR` points to). It does the job the session hook would have done: it tells Claude how to call the tools. Replace the two placeholders with your grant's values. `data_classification` is `public` for Jev public, `internal-minimized` for Jev internal or hybrid, and `restricted` for Jev maximum or Laya only.
+
+```markdown
+## Qualixar Jev Decision Layer
+
+My organization's Claude Code policy blocks plugin hooks, so Jev's session guidance does not arrive on its own. Its MCP tools (`mcp__qualixar-jev__*`) work. Follow this section instead.
+
+- `workspace_path`: the current working directory, as an absolute path. Only folders my Jev grant covers work; elsewhere Jev returns `WORKSPACE_NOT_ENROLLED`. Do not call it there, and never create or widen a grant.
+- `data_classification`: `<public | internal-minimized | restricted>`
+- `provider` (only `jev_typed_decide` takes it): `<typesafe | openrouter | laya-mlx>`
+
+When a bounded choice comes up, ask Jev instead of re-reasoning it:
+
+| Situation | Tool | Branch on |
+|---|---|---|
+| Pick one of 2–12 options (task, tool or skill) | `jev_route` | the selected id; `unknown` means use your own judgment |
+| Does an extraction match its source | `jev_verify` | `trustworthy`, never an empty suspect list |
+| Do retrieved passages answer the question | `jev_rerank` | `should_abstain` |
+| Where to focus a code review | `jev_review_diff` | advisory focus only |
+| Which files matter for a narrow task | `jev_prepare` | the shortlist |
+| Any other bounded, typed question | `jev_typed_decide` | the typed answer and its confidence |
+
+Answers are advisory. They never replace judgment, the permission prompt, tests or a completion check. Never put keys or secrets in any field. If a Jev call errors, continue without it and say so in one line. Subagents load this file too.
+```
+
+`jev_route`, `jev_verify`, `jev_rerank`, `jev_review_diff` and `jev_typed_decide` need generic typed queries turned on in your grant (the wizard's **Advisory Jev tools** choice); without it they return `GENERIC_QUERY_NOT_ENROLLED`.
 
 ## What is verified, and what is not
 

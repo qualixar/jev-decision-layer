@@ -2,6 +2,21 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.12] — 2026-09-30
+
+### Added
+
+- **Jev says when an organization's Claude Code policy stops the plugin.** Managed settings can block plugin hooks (`allowManagedHooksOnly`), keep the plugin from loading (a marketplace allowlist or blocklist), turn it off (`enabledPlugins`), or leave its MCP server off an allowlist (`allowedMcpServers`). Before this, the plugin simply went quiet in Claude Code and nothing said why. `jev doctor` now adds a `claude_code_policy` check with status `NOTICE`, `jev_auto_status` adds a `claude_code_policy` field, and step 1 of the setup wizard shows a short notice. Each names the affected source, what it stops, and what an administrator or you can do. The check is read-only and reads only the documented managed sources. It returns fixed codes and advice and never repeats any other policy value. A plugin force-enabled in managed `enabledPlugins` is recognised as keeping its hooks.
+- **An "Enterprise-managed Claude Code" section in the host guide.** It lists the managed settings an administrator can add to allow the Jev plugin, and a `CLAUDE.md` section that makes the Jev tools usable in the Claude desktop app in the meantime.
+
+### Changed
+
+- **`jev host-register --host claude-desktop` prints the quit-the-app reminder only after it actually changed the file.** A preview or an already-current entry no longer tells you to quit the app.
+
+### Unchanged
+
+- **Computers without such a policy see no difference.** `jev doctor`, `jev_auto_status` and the wizard produce the same output as 1.0.11, and a notice never changes the doctor's overall result or exit code. Hooks, consent, grants and routing are unchanged for every host. 20 MCP tools, 38 recipes, 114 synthetic offline fixtures. Supported and verified on macOS; Linux experimental; Windows hosted runtime disabled. `native_status` remains `NOT_RUN` for every host.
+
 ## [1.0.11] — 2026-09-30
 
 ### Changed

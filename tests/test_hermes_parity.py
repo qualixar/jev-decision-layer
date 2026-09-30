@@ -184,10 +184,10 @@ class HermesParityTests(unittest.TestCase):
     def test_workspace_paths_are_canonicalized_for_each_native_platform(self):
         from jev_auto.hermes_tool import _canonical_workspace_path
 
-        self.assertEqual(_canonical_workspace_path(r"C:\Users\Varun\repo\..\repo", windows=True),
-                         r"C:\Users\Varun\repo")
-        self.assertEqual(_canonical_workspace_path(r"C:/Users/Varun/repo", windows=True),
-                         r"C:\Users\Varun\repo")
+        self.assertEqual(_canonical_workspace_path(r"C:\Users\person\repo\..\repo", windows=True),
+                         r"C:\Users\person\repo")
+        self.assertEqual(_canonical_workspace_path(r"C:/Users/person/repo", windows=True),
+                         r"C:\Users\person\repo")
         for invalid in (r"C:relative\repo", r"\\server\share\repo", r"\\?\C:\repo",
                         r"\\.\PhysicalDrive0", "relative/repo", r"C:\x" + "\x00" + "repo"):
             with self.subTest(path=invalid):
@@ -199,15 +199,15 @@ class HermesParityTests(unittest.TestCase):
         from jev_auto import hermes_tool
 
         seen = []
-        arguments = {"workspace_path": r"C:\Users\Varun\repo\..\repo", "goal": "Prepare focused context"}
+        arguments = {"workspace_path": r"C:\Users\person\repo\..\repo", "goal": "Prepare focused context"}
         with patch.object(hermes_tool.sys, "platform", "win32"):
             result = hermes_tool.handle(
                 {"name": "jev_prepare", "arguments": arguments},
                 dispatcher=lambda _name, args: seen.append(args) or {"status": "ADVISORY"},
             )
         self.assertEqual(result, {"status": "ADVISORY"})
-        self.assertEqual(seen[0]["workspace_path"], r"C:\Users\Varun\repo")
-        self.assertEqual(arguments["workspace_path"], r"C:\Users\Varun\repo\..\repo")
+        self.assertEqual(seen[0]["workspace_path"], r"C:\Users\person\repo")
+        self.assertEqual(arguments["workspace_path"], r"C:\Users\person\repo\..\repo")
 
     def test_bridge_retains_serialized_argument_and_result_caps(self):
         from jev_auto import hermes_tool

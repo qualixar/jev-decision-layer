@@ -2,7 +2,7 @@
 
 The shortest useful path is: **install the host adapter → run the offline diagnosis → review one workspace's provider and text scope → run one synthetic bounded decision → inspect its returned status and receipt.** For `jev_recipe_try`, also inspect `host_action` and `policy_receipt_id`; those outputs remain advisory. The host retains its normal permissions. Host install and verification details differ, so use [the host guide](HOSTS.md) for the exact surface and its current evidence.
 
-Version 1.0.11 is supported and verified on macOS. Linux remains experimental and unverified; Windows hosted runtime entry points fail closed because its native private-state contract did not pass CI. Optional local Laya-MLX is supported only on a compatible Apple-Silicon Mac after local attestation. Host evidence is tracked separately; a packaged adapter does not prove a live provider turn.
+Version 1.0.12 is supported and verified on macOS. Linux remains experimental and unverified; Windows hosted runtime entry points fail closed because its native private-state contract did not pass CI. Optional local Laya-MLX is supported only on a compatible Apple-Silicon Mac after local attestation. Host evidence is tracked separately; a packaged adapter does not prove a live provider turn.
 
 ## Try it before you enrol
 
@@ -32,7 +32,7 @@ claude plugin marketplace add qualixar/jev-decision-layer
 claude plugin install qualixar-jev-decision-layer@qualixar
 ```
 
-Both packages use the shared runtime, while the host's plugin format, hooks, registration and available capabilities differ. The five adapters do not have identical surfaces or equal native evidence. Per-host detail is in [the host guide](HOSTS.md). Windows is outside the supported 1.0.11 runtime.
+Both packages use the shared runtime, while the host's plugin format, hooks, registration and available capabilities differ. The five adapters do not have identical surfaces or equal native evidence. Per-host detail is in [the host guide](HOSTS.md). Windows is outside the supported 1.0.12 runtime.
 
 To cover many projects with one approval, run setup on their parent folder (for example `~/Documents`). The wizard pre-selects child coverage for a folder that is not a Git repository and leaves it off for a single project; either way you confirm it separately on the review screen. That one grant applies in every harness where the plugin is installed and, from the wizard or `jev enroll`, lasts 365 days by default. From a terminal, the equivalent is `jev enroll --cover-descendants --generic-query` followed by typing `ENABLE` and then `COVER CHILDREN`. A nested repository with its own consent, or an explicit refusal, keeps that consent. This does not enroll your home directory.
 
@@ -68,7 +68,7 @@ Check that the response identifies the provider and model, reports its route sta
 
 You can also use the existing `jev probe --workspace /absolute/path/to/your/project` command after setup to make a separate explicit provider probe. It is provider activity, not part of `jev doctor`; do not treat the offline diagnosis as evidence of a provider turn.
 
-For `jev_recipe_try` specifically, the 1.0.11 live response is marked `EXPERIMENTAL_ADVISORY` and includes `host_action` and `policy_receipt_id`. Every shipped recipe is `SPECIFICATION_NOT_MODEL_EVALUATED`, so a result that would otherwise be `act` is capped to `verify`; an explicit `unknown` may return `ignore`. The host still makes and executes any authorized choice. The policy receipt records the gate outcome; it does not establish provider accuracy.
+For `jev_recipe_try` specifically, the 1.0.12 live response is marked `EXPERIMENTAL_ADVISORY` and includes `host_action` and `policy_receipt_id`. Every shipped recipe is `SPECIFICATION_NOT_MODEL_EVALUATED`, so a result that would otherwise be `act` is capped to `verify`; an explicit `unknown` may return `ignore`. The host still makes and executes any authorized choice. The policy receipt records the gate outcome; it does not establish provider accuracy.
 
 Do not create an `.env` file as a workaround for the OS credential-store setup; `.env.example` is a developer reference, not the ordinary setup path.
 

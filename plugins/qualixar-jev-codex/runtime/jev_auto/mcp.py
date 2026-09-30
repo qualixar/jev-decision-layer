@@ -147,7 +147,11 @@ def _default_workspace(args,schema):
     if not isinstance(project,str) or not project or not os.path.isabs(project):return args
     return {**args,'workspace_path':project}
 
-def dispatch(name,args,legacy,caller=None,setup_launcher=None):
+def _claude_policy():
+    from .host_policy import notice
+    return notice()
+
+def dispatch(name,args,legacy,caller=None,setup_launcher=None,claude_policy=None):
     if not isinstance(args,dict):raise AutoError('MCP_ARGUMENTS')
     known={t['name']:t for t in definitions(legacy)}
     if name not in known:raise AutoError('MCP_TOOL_NAME')
@@ -177,7 +181,11 @@ def dispatch(name,args,legacy,caller=None,setup_launcher=None):
                 if name=='jev_evaluate' and str(error)=='WORKSPACE_NOT_ENROLLED':return legacy.call(name,args,scope='global-hybrid')
                 raise
         call=caller or (lambda obj:request(path,obj))
-        if name=='jev_auto_status':return {'health':call({'op':'health'}),'usage':call({'op':'stats'})}
+        if name=='jev_auto_status':
+            status={'health':call({'op':'health'}),'usage':call({'op':'stats'})}
+            # Present only when a Claude Code organization policy restricts the plugin.
+            policy=(claude_policy or _claude_policy)()
+            return {**status,'claude_code_policy':policy} if policy else status
         if name=='jev_prepare':return call({'op':'prepare','goal':args['goal']})
         if name=='jev_reduce':return call({'op':'sieve','goal':args['goal'],'text':args['text'],'tool':'explicit_reduce'})
         if name=='jev_recall':return call({'op':'recall','receipt_id':args['receipt_id'],'start':args.get('start',1),'end':args.get('end',120)})

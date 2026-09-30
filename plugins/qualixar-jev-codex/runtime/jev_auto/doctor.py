@@ -14,9 +14,10 @@ import sqlite3
 import stat
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .common import AutoError, safe_path, state_dir
+from .host_policy import notice as claude_policy_notice
 from .recipe_fixtures import selftest
 from .settings import enrollment_binding, governing_workspace, load_policy
 
@@ -112,7 +113,7 @@ def _receipt_index(path: Path) -> dict[str, Any]:
     return _check("receipt_index", "PRESENT" if count else "NONE", count=count)
 
 
-def diagnose(path: Path) -> dict[str, Any]:
+def diagnose(path: Path, *, claude_policy: Callable[[], dict[str, Any] | None] | None = None) -> dict[str, Any]:
     """Return the stable public diagnostic schema without any provider activity."""
     policy_check, policy_document = _policy(path)
     receipt_target = governing_workspace(path) if policy_document is not None else path
@@ -125,6 +126,11 @@ def diagnose(path: Path) -> dict[str, Any]:
                detail="portable runtime present; Codex installation and live host turn are not checked"),
         _receipt_index(receipt_target),
     ]
+    # Added only when a Claude Code organization policy restricts the plugin.
+    # NOTICE never changes the overall result or the exit code.
+    policy_notice = (claude_policy or claude_policy_notice)()
+    if policy_notice is not None:
+        checks.append(_check("claude_code_policy", "NOTICE", **policy_notice))
     failed = any(check["status"] == "FAILED" for check in checks)
     action = next((check for check in checks if check["status"] == "ACTION_REQUIRED"), None)
     overall = "FAILED" if failed else "ACTION_REQUIRED" if action else "READY"

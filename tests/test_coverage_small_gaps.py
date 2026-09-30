@@ -166,6 +166,16 @@ class KeychainAvailabilityTests(unittest.TestCase):
                           side_effect=AssertionError("must not load the framework")):
             self.assertFalse(keychain.MacKeychain().available())
 
+    def test_a_framework_that_loads_reports_available_and_is_loaded_once(self):
+        backend = object()
+        with patch.object(keychain.platform, "system", return_value="Darwin"), \
+             patch.object(keychain, "_SecurityFrameworkBackend", return_value=backend) as load:
+            store = keychain.MacKeychain()
+            self.assertTrue(store.available())
+            self.assertTrue(store.available())
+        load.assert_called_once()
+        self.assertIs(store._native(), backend)
+
     def test_a_framework_that_fails_to_load_reports_unavailable(self):
         with patch.object(keychain.platform, "system", return_value="Darwin"), \
              patch.object(keychain, "_SecurityFrameworkBackend",

@@ -32,7 +32,7 @@ sys.path.insert(0, str(RUNTIME))
 # ---------------------------------------------------------------------------
 
 def _git(args, cwd):
-    """Run git fully isolated from Varun's real global config (no signing,
+    """Run git fully isolated from the developer's real global config (no signing,
     no identity prompts) so workspace_binding()/_revision_fingerprint() tests
     are deterministic regardless of the host machine's git setup."""
     env = dict(os.environ)
@@ -60,7 +60,7 @@ def _new_commit(path: Path, message: str = "second") -> None:
     _git(["-c", "commit.gpgsign=false", "commit", "--allow-empty", "-q", "-m", message], path)
 
 
-# Forces resolve_provider() to ignore whatever real provider env Varun's shell
+# Forces resolve_provider() to ignore whatever real provider env the developer's shell
 # happens to export, so tests are deterministic instead of host-dependent.
 NO_PROVIDER_ENV = {"JEV_PROVIDER": "", "TYPESAFE_API_KEY": "", "OPENROUTER_API_KEY": ""}
 

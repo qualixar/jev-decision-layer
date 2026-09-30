@@ -49,8 +49,8 @@ class _ScriptedTokenizer:
     """Fakes the laya_mlx Tokenizer interface (callable + .mask_token) with exactly one
     synthetic token per character, so a test can hit an exact length threshold by construction.
 
-    The real interface (laya_mlx.tokenizer.Tokenizer, laya-mlx==0.2.0, inspected live from the
-    dedicated venv at /Users/v.pratap.bhardwaj/.local/share/laya-venv) is:
+    The real interface (laya_mlx.tokenizer.Tokenizer, laya-mlx==0.2.0, inspected live from a
+    dedicated virtual environment) is:
         __call__(self, text, add_special_tokens=False) -> {"input_ids": [...]}
         .mask_token: str  -- the real constructor RAISES if it cannot resolve a mask token id,
         so mlx_preflight.py may assume .mask_token always exists as a plain string.
@@ -178,7 +178,7 @@ class MlxPreflightOptionsRenderingTests(unittest.TestCase):
     mismatch here does not crash -- it silently mis-predicts whether the real laya_mlx call
     would have had to truncate, which is the one thing this module exists to prevent. Expected
     shapes below are cross-checked against the installed laya-mlx==0.2.0
-    laya_mlx.common.render_options (see /Users/v.pratap.bhardwaj/.local/share/laya-venv)."""
+    laya_mlx.common.render_options."""
 
     def setUp(self):
         from jev_auto.mlx_preflight import options
@@ -215,8 +215,7 @@ class MlxPreflightOptionsRenderingTests(unittest.TestCase):
         an explicitly-supplied falsy criterion silently reverted to the long default text
         instead of being rendered -- unlike this SAME file's own `choice` branch, which
         correctly guarded with `v in (None, '')`, and unlike the real
-        laya_mlx.common.render_options (laya-mlx==0.2.0, installed at
-        /Users/v.pratap.bhardwaj/.local/share/laya-venv), which guards with
+        laya_mlx.common.render_options (laya-mlx==0.2.0), which guards with
         `false_crit not in (None, "")`:
             >>> import laya_mlx.common as c
             >>> c.render_options({"t": "noul", "ins": "x", "crit": {"false": 0, "true": 1}})

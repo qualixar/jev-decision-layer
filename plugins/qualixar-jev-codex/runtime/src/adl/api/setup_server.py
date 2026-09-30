@@ -28,6 +28,7 @@ from . import SetupSession
 from .host_inventory import inventory_hosts
 from .local_attestor import attest_local_config
 from .setup_controller import SetupChoice, SetupController, SetupError
+from jev_auto.host_policy import notice as claude_policy_notice
 from jev_auto.settings import descendant_root_allowed
 
 
@@ -134,12 +135,14 @@ def _page(title: str, content: str) -> bytes:
 
 class SetupServer(HTTPServer):
     def __init__(self, address: tuple[str, int], controller: SetupController,
-                 *, host_inventory: Callable[[], list[dict[str, object]]] = inventory_hosts):
+                 *, host_inventory: Callable[[], list[dict[str, object]]] = inventory_hosts,
+                 claude_policy: Callable[[], dict[str, object] | None] = claude_policy_notice):
         if address[0] != "127.0.0.1":
             raise ValueError("SETUP_LOOPBACK_ONLY")
         super().__init__(address, _SetupHandler)
         self.controller = controller
         self.host_inventory = host_inventory
+        self.claude_policy = claude_policy
         self.setup_session = SetupSession.create(port=self.server_port)
         self.applied = False
         self.request_count = 0
@@ -303,6 +306,7 @@ class _SetupHandler(BaseHTTPRequestHandler):
             "<p class='hint'>Step 1 of 2 · Choose how Jev will answer decisions in this workspace.</p>"
             + ("<p><a href='/status'>View current workspace settings</a></p>" if self.server.controller.policy_exists() else "") +
             f"<p><strong>{_HARNESS_SCOPE}</strong> You do not approve again per harness.</p>"
+            + self._claude_policy_notice() +
             "<p>This does not change any agent's own hook trust or permissions, and it does not grant access to your whole computer. "
             "Your provider key is entered only after you review this setup.</p>"
             f"<p><strong>Workspace:</strong> <code>{workspace_name}</code> "
@@ -336,6 +340,22 @@ class _SetupHandler(BaseHTTPRequestHandler):
             f"<ul>{host_rows}</ul><p class='hint'>Detection is not native adapter proof. No Auto mode is enabled by this page.</p></section></details>"
         )
         self._send(200, _page("Qualixar decision setup", content), cookie=True)
+
+    def _claude_policy_notice(self) -> str:
+        """Explain a Claude Code organization policy, or add nothing."""
+        try:
+            policy = self.server.claude_policy()
+        except Exception:
+            policy = None
+        if not isinstance(policy, dict):
+            return ""
+        items = "".join(f"<li>{_safe(line)}</li>" for line in [*policy.get("effects", []), *policy.get("options", [])])
+        return (
+            "<section aria-label='Claude Code organization policy'>"
+            f"<p><strong>Claude Code on this computer.</strong> {_safe(policy.get('summary', ''))}</p>"
+            f"<ul>{items}</ul><p class='hint'>{_safe(policy.get('unaffected', ''))} "
+            "You can still save this setup; it applies wherever the Jev plugin runs.</p></section>"
+        )
 
     def _form(self) -> dict[str, str] | None:
         if not self._host_ok() or self.headers.get("Origin") != f"http://127.0.0.1:{self.server.server_port}":
