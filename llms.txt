@@ -18,4 +18,4 @@ Hosted TypeSafe Jev and OpenRouter target macOS, Linux and Windows; native Windo
 - [MIT license](LICENSE)
 - [Third-party notices](plugins/qualixar-jev-decision-layer/THIRD_PARTY_NOTICES.md)
 
-The 1.0.10 release candidate contains 38 recipes and 114 synthetic offline fixtures. To evaluate the candidate without a key, provider call or enrolled workspace, run `plugins/qualixar-jev-decision-layer/scripts/jev selftest`: it replays the fixture set through the real gate offline. A passing run is a contract check on the shipped gate, never evidence of provider accuracy.
+Release 1.0.11 contains 38 recipes and 114 synthetic offline fixtures. To evaluate it without a key, provider call or enrolled workspace, run `plugins/qualixar-jev-decision-layer/scripts/jev selftest`: it replays the fixture set through the real gate offline. A passing run is a contract check on the shipped gate, never evidence of provider accuracy.

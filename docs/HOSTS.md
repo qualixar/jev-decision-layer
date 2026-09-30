@@ -24,7 +24,7 @@ The adapters offer host-native tool registration where available. VS Code uses w
 
 ## Platform scope
 
-Version 1.0.10 is supported and verified on macOS, using Keychain for hosted TypeSafe Jev and OpenRouter. Linux remains experimental and unverified: generic Linux CI does not establish the complete Secret Service, broker, host, and provider path. Windows hosted runtime entry points fail closed because the native private-state contract did not pass CI; the Windows CI lane has been removed until that contract is deliberately revalidated. An adapter being present does not prove the full host + operating system + provider path works.
+Version 1.0.11 is supported and verified on macOS, using Keychain for hosted TypeSafe Jev and OpenRouter. Linux remains experimental and unverified: generic Linux CI does not establish the complete Secret Service, broker, host, and provider path. Windows hosted runtime entry points fail closed because the native private-state contract did not pass CI; the Windows CI lane has been removed until that contract is deliberately revalidated. An adapter being present does not prove the full host + operating system + provider path works.
 
 ## Shared enrollment
 
@@ -33,7 +33,7 @@ Codex, Claude Code, Hermes, Antigravity, and VS Code resolve workspace consent t
 `native_status` remains `NOT_RUN` for every host. The shared binding is covered by in-process adapter tests. That is not a native host session, and it does not change the macOS, Linux, or Windows platform scope above.
 
 
-Windows-specific filesystem, credential, pipe, and launcher code remains in the source tree for future work, but it is not a supported 1.0.10 runtime. The `jev_auto` broker refuses to start on Windows. Windows host configuration snippets do not enable or imply runtime support.
+Windows-specific filesystem, credential, pipe, and launcher code remains in the source tree for future work, but it is not a supported 1.0.11 runtime. The `jev_auto` broker refuses to start on Windows. Windows host configuration snippets do not enable or imply runtime support.
 
 Local Laya-MLX remains limited to a compatible Apple-Silicon Mac with a successful local installation attestation. It is not a Windows or Linux provider route. Hosted and local routes are separate choices; Jev-only does not silently fall back to Laya.
 
@@ -77,7 +77,7 @@ For the desktop app specifically, add the same command to `~/Library/Application
 plugins/qualixar-jev-decision-layer/scripts/jev vscode --workspace .
 ```
 
-This writes nothing. It prints the planned change, the config path, and `preserved_servers` — your existing servers, which are kept. On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified; Windows hosted runtime is disabled in 1.0.10. An existing `.vscode/mcp.json` is merged: exactly one `qualixar-jev` entry is added or updated and every other key is carried through. A file that does not parse is refused rather than overwritten, because rewriting it would discard servers the adapter cannot read. Restart VS Code afterwards; Copilot agent mode reads the workspace file.
+This writes nothing. It prints the planned change, the config path, and `preserved_servers` — your existing servers, which are kept. On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified; Windows hosted runtime is disabled in 1.0.11. An existing `.vscode/mcp.json` is merged: exactly one `qualixar-jev` entry is added or updated and every other key is carried through. A file that does not parse is refused rather than overwritten, because rewriting it would discard servers the adapter cannot read. Restart VS Code afterwards; Copilot agent mode reads the workspace file.
 
 ### Antigravity
 
@@ -87,11 +87,11 @@ Use the portable plugin source at `plugins/qualixar-jev-decision-layer` with Ant
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host antigravity
 ```
 
-On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified. Windows is outside the supported 1.0.10 runtime. A plugin-relative `mcp_config.json` is deliberately **not** shipped: Antigravity documents `command` as an executable or a binary name and says nothing about resolving a path relative to the plugin, so the adapter uses an absolute one in the documented global config. A repository test keeps that file from being added until the relative form is documented and verified.
+On supported macOS, add `--write` to apply. Linux registration code is experimental and unverified. Windows is outside the supported 1.0.11 runtime. A plugin-relative `mcp_config.json` is deliberately **not** shipped: Antigravity documents `command` as an executable or a binary name and says nothing about resolving a path relative to the plugin, so the adapter uses an absolute one in the documented global config. A repository test keeps that file from being added until the relative form is documented and verified.
 
 ### Hermes
 
-Use the portable plugin source with Hermes's own plugin install path; it uses separate hook and tool entry points and an explicit tool allow-list. Hermes does not pass a working directory to `pre_llm_call`; the hook uses the same order Hermes does — its session working directory, then `TERMINAL_CWD`, then the launch directory — so worktree and messaging-gateway sessions resolve the workspace Hermes is working in. The 1.0.10 source includes offline self-test, `jev_verify`, and `jev_rerank` in that allow-list. A host manifest or tool-list handshake does not prove a native model/tool turn.
+Use the portable plugin source with Hermes's own plugin install path; it uses separate hook and tool entry points and an explicit tool allow-list. Hermes does not pass a working directory to `pre_llm_call`; the hook uses the same order Hermes does — its session working directory, then `TERMINAL_CWD`, then the launch directory — so worktree and messaging-gateway sessions resolve the workspace Hermes is working in. The 1.0.11 source includes offline self-test, `jev_verify`, and `jev_rerank` in that allow-list. A host manifest or tool-list handshake does not prove a native model/tool turn.
 
 ### Claude desktop app
 
@@ -99,7 +99,7 @@ Use the portable plugin source with Hermes's own plugin install path; it uses se
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host claude-desktop --write
 ```
 
-**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed. Re-run the command after every upgrade: the plugin cache path carries the release number. An entry that points at an older release of the same launcher in the same cache is replaced; any other existing `qualixar-jev` entry, including one with your own `env` or `args`, or a newer release, is refused as `HOST_MCP_ENTRY_CONFLICT`. This applies to every host `host-register` supports. Windows runtime commands are disabled in 1.0.10; do not use a generated configuration snippet as an indication of platform support.
+**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed. Re-run the command after every upgrade: the plugin cache path carries the release number. An entry that points at an older release of the same launcher in the same cache is replaced; any other existing `qualixar-jev` entry, including one with your own `env` or `args`, or a newer release, is refused as `HOST_MCP_ENTRY_CONFLICT`. This applies to every host `host-register` supports. Windows runtime commands are disabled in 1.0.11; do not use a generated configuration snippet as an indication of platform support.
 
 ## What is verified, and what is not
 
@@ -109,7 +109,7 @@ plugins/qualixar-jev-decision-layer/scripts/jev host-register --host claude-desk
 |---|---|---|
 | **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on macOS. The Codex hook uses the shared enrollment binding, including an approved root grant over a nested repository, in process | Does not establish a native Codex hook firing, Linux operation, or Windows runtime support. `native_status` remains `NOT_RUN` |
 | **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; seven commands and three skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly and follows the shared enrollment binding for an approved root; in process, the hook emits argument-bearing guidance for each consent state, including `SubagentStart` | Hook output is pinned by in-process tests, not by a live session's model context. A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are not yet verified. In the desktop app's Code tab the plugin-provided server does not load at all. `native_status` remains `NOT_RUN` |
-| **Hermes** | Staged 1.0.10 source registers twelve declared tools including self-test, verify and rerank, plus its hook. The hook follows the shared enrollment binding | Native model/tool turn still needs verification. `native_status` remains `NOT_RUN` |
+| **Hermes** | Staged 1.0.11 source registers twelve declared tools including self-test, verify and rerank, plus its hook. The hook follows the shared enrollment binding | Native model/tool turn still needs verification. `native_status` remains `NOT_RUN` |
 | **Antigravity** | Packaged PreInvocation advisory hook and skills; this adapter does not request PreToolUse authority. The hook follows the shared enrollment binding | Native model/tool turn and portable MCP registration still need verification. `native_status` remains `NOT_RUN` |
 | **VS Code** | Adapter writes a valid `.vscode/mcp.json` against the documented `servers` format; merge, refusal and symlink behaviour covered by tests. The registered server uses the shared enrollment binding | No live Copilot agent-mode turn has been run. No extension ships; registration is the whole integration. `native_status` remains `NOT_RUN` |
 
