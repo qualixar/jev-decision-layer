@@ -70,6 +70,24 @@ class SelfUpgradeTests(unittest.TestCase):
         with self.assertRaisesRegex(AutoError, "HOST_MCP_ENTRY_CONFLICT"):
             host_mcp.merge("antigravity", document, NEW)
 
+    def test_a_symlinked_spelling_of_the_same_cache_is_recognised(self):
+        with tempfile.TemporaryDirectory() as directory:
+            real = Path(directory).resolve() / "real" / "qualixar-jev-decision-layer"
+            (real / "1.0.7" / "scripts").mkdir(parents=True)
+            (real / "1.0.11" / "scripts").mkdir(parents=True)
+            alias = Path(directory).resolve() / "alias"
+            alias.symlink_to(real.parent)
+            old = alias / "qualixar-jev-decision-layer" / "1.0.7" / "scripts" / "launch-jev"
+            new = real / "1.0.11" / "scripts" / "launch-jev"
+            merged = host_mcp.merge("antigravity", _document(str(old)), new)
+            self.assertEqual(merged["mcpServers"][host_mcp.SERVER_NAME]["command"], str(new))
+
+    def test_dot_dot_segments_cannot_smuggle_a_different_location(self):
+        sneaky = Path("/opt/cache/qualixar/qualixar-jev-decision-layer/1.0.7/../../../../elsewhere/"
+                      "qualixar-jev-decision-layer/1.0.7/scripts/launch-jev")
+        with self.assertRaisesRegex(AutoError, "HOST_MCP_ENTRY_CONFLICT"):
+            host_mcp.merge("antigravity", _document(str(sneaky)), NEW)
+
     def test_the_plan_reports_an_update_and_shows_the_replaced_entry(self):
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)

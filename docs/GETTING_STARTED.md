@@ -34,7 +34,7 @@ claude plugin install qualixar-jev-decision-layer@qualixar
 
 Both packages use the shared runtime, while the host's plugin format, hooks, registration and available capabilities differ. The five adapters do not have identical surfaces or equal native evidence. Per-host detail is in [the host guide](HOSTS.md). Windows is outside the supported 1.0.10 runtime.
 
-Enrollment is exact by default. To let one reviewed root cover child directories and nested repositories, approve descendant coverage separately in the setup wizard, or run `jev enroll --cover-descendants` and type `COVER CHILDREN` after `ENABLE`. A nested repository with its own consent, or an explicit refusal, keeps that consent. This does not enroll your home directory.
+To cover many projects with one approval, run setup on their parent folder (for example `~/Documents`). The wizard pre-selects child coverage for a folder that is not a Git repository and leaves it off for a single project; either way you confirm it separately on the review screen. That one grant applies in every harness where the plugin is installed and lasts 365 days by default. From a terminal, the equivalent is `jev enroll --cover-descendants --generic-query` followed by typing `ENABLE` and then `COVER CHILDREN`. A nested repository with its own consent, or an explicit refusal, keeps that consent. This does not enroll your home directory.
 
 If the plugin is already installed and you are moving to a newer version, use the upgrade steps below instead — they quit the host first, which a fresh install does not need.
 
@@ -50,7 +50,7 @@ plugins/qualixar-jev-decision-layer/scripts/jev doctor --workspace /absolute/pat
 
 ## Enrol a workspace
 
-After installing, start a new task and say: **"Set up Qualixar Jev Decision Layer for this workspace."** The agent calls `jev_setup`, which opens a private local two-step wizard for that exact project folder. No terminal command is needed and you never paste a key into chat. The same action later opens a reviewed scope-upgrade flow rather than silently widening an existing grant.
+After installing, start a new task and say: **"Set up Qualixar Jev Decision Layer for this workspace."** The agent calls `jev_setup`, which opens a private local two-step wizard for that folder — the current project, or a parent folder you name, such as `/jev-setup ~/Documents` in Claude Code. No terminal command is needed and you never paste a key into chat. The same action later opens a reviewed scope-upgrade flow rather than silently widening an existing grant.
 
 On the first screen, select a decision mode: Jev public, Jev reviewed internal, Jev maximum (reviewed workspace text to the chosen hosted provider), Jev + Laya hybrid, or Laya-only. TypeSafe is the direct hosted Jev route; OpenRouter is separate. Laya modes are available only after the local installation passes attestation, and the local route stays off until you turn it on — Jev-only never silently switches to Laya. Jev maximum can include client or confidential text only if you are permitted to share it; the extra confirmation is not permission from the data owner. Secret screening is best-effort, not comprehensive DLP. Advanced controls set consent duration, daily attempts and bytes. Explicit generic Jev tools start on after reviewed setup; automatic prompt guidance starts **off** and must be turned on explicitly. Laya-only makes no automatic Jev call. Prompt guidance sends only bounded prompt terms and candidate titles; it does not run on every turn or make a tool call on your behalf.
 

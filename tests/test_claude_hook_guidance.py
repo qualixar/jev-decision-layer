@@ -119,6 +119,8 @@ class UnenrolledGuidanceTests(_Isolated):
         text = handle(self.event("SessionStart", self.parent))
         self.assertIn("no active grant", text)
         self.assertIn("/jev-setup", text)
+        self.assertIn("parent folder", text)
+        self.assertIn("every harness", text)
         self.assertIn("Do not", text)
         self.assertEqual(text.count("\n"), 0)
 

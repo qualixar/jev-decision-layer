@@ -150,7 +150,7 @@ Hook files are **per host and never merged** — the plugin-root variable differ
 
 ## Five operating modes
 
-The first-run wizard shows the exact folder, provider, text scope, expiry, and daily limits before you confirm. A globally installed plugin is available in every project, but **each workspace gets one reviewed scope**; installation alone does not authorize uploading future private repositories.
+The first-run wizard shows the exact folder, provider, text scope, expiry, and daily limits before you confirm. **Approve once for a parent folder and every project under it is covered, in every harness where the plugin is installed** — for example `/jev-setup ~/Documents` with child coverage ticked, which the wizard pre-selects for a folder that is not a Git repository. Permission lasts 365 days by default. Installation alone authorizes nothing, and a folder you revoke stays off.
 
 | Mode | Where a decision goes | Reviewed text scope |
 |---|---|---|
@@ -226,9 +226,9 @@ plugins/qualixar-jev-decision-layer/scripts/jev doctor --workspace /absolute/pat
 
 `jev doctor` is **offline-only** and makes no provider call. It checks the packaged runtime, Python requirement, workspace policy, offline fixtures, local receipt index, and presence of the portable runtime. Before setup, `ACTION_REQUIRED` with `NOT_ENROLLED` and exit status `2` is expected; this check does not prove that the host loaded the plugin or completed a live turn. After private setup, make any provider check separately through an explicit Jev route or the existing `jev probe --workspace /absolute/path/to/your/project` command. That is provider activity, not part of `doctor`. If you installed from the marketplace without cloning the repository, follow the [first-use guide](docs/GETTING_STARTED.md) for the host wizard; the plugin install does not add a global `jev` shell command.
 
-A root grant covers only that workspace unless you also approve descendant coverage for child directories and nested repositories. A child with its own consent, including a refusal, keeps it.
+A root grant covers only that workspace unless you also approve descendant coverage for child directories and nested repositories. A child with its own consent, including a refusal, keeps it. A child grant that simply expired falls back to the covering root.
 
-Say: **“Set up Qualixar Jev Decision Layer for this workspace.”** The `jev_setup` tool opens a private two-step browser wizard; ordinary users do not need a terminal command for the key or workspace enrollment. Explicit Jev tools are enabled by default after reviewed setup; automatic prompt guidance is **off until you turn it on** in that wizard. Review any native hook-trust prompt separately. The [first-use guide](docs/GETTING_STARTED.md) shows how to verify the provider and receipt without exposing a key.
+Say: **“Set up Qualixar Jev Decision Layer for this workspace.”** — or, in Claude Code, run `/jev-setup ~/Documents` to cover every project under a parent folder at once. The `jev_setup` tool opens a private two-step browser wizard; ordinary users do not need a terminal command for the key or workspace enrollment. Explicit Jev tools are enabled by default after reviewed setup; automatic prompt guidance is **off until you turn it on** in that wizard. Review any native hook-trust prompt separately. The [first-use guide](docs/GETTING_STARTED.md) shows how to verify the provider and receipt without exposing a key.
 
 Then try: **“Use Jev to route this synthetic duplicate-charge request between billing and engineering; show the selected candidate, provider, model, and receipt.”** A live result should name the chosen provider and a local receipt ID. A fixture result is simulated and does not verify provider access. The actual answer may vary; the important proof is the native tool and recorded provider call.
 

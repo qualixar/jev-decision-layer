@@ -70,8 +70,9 @@ _ADVISORY = (
 _UNENROLLED = (
     "Qualixar Jev Decision Layer is installed, but no active grant covers this "
     "folder, so its workspace tools will return WORKSPACE_NOT_ENROLLED here. Do "
-    "not call them and do not try to enroll the folder; if the user wants Jev "
-    "here, they can run /jev-setup themselves."
+    "not call them and do not try to enroll the folder. If the user wants Jev "
+    "here, they can run /jev-setup themselves; `/jev-setup <parent folder>` with "
+    "child coverage ticked covers every project under that folder once, for every harness."
 )
 
 

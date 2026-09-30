@@ -230,7 +230,14 @@ def _is_older_release_of(current: Any, proposed: dict[str, Any]) -> bool:
     old, new = current.get("command"), proposed.get("command")
     if not isinstance(old, str) or not isinstance(new, str):
         return False
-    old_path, new_path = Path(old), Path(new)
+    # Resolve both spellings so a symlinked cache prefix is recognised, and so
+    # `..` segments are normalised before the location comparison below.
+    if not Path(old).is_absolute() or not Path(new).is_absolute():
+        return False
+    try:
+        old_path, new_path = Path(old).resolve(), Path(new).resolve()
+    except (OSError, RuntimeError, ValueError):
+        return False
     if len(old_path.parts) < 4 or len(new_path.parts) < 4:
         return False
     if old_path.name != new_path.name or old_path.parent.name != "scripts" or new_path.parent.name != "scripts":

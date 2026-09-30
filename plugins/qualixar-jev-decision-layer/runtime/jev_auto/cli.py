@@ -38,7 +38,7 @@ def main(argv=None):
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('mcp')
     en=sub.add_parser('enroll');en.add_argument('--workspace',required=True);en.add_argument('--provider',choices=['existing','typesafe','openrouter','laya-mlx'],default='existing')
-    en.add_argument('--days',type=int,default=30);en.add_argument('--daily-calls',type=int,default=1000);en.add_argument('--daily-bytes',type=int,default=20_000_000)
+    en.add_argument('--days',type=int,default=365);en.add_argument('--daily-calls',type=int,default=1000);en.add_argument('--daily-bytes',type=int,default=20_000_000)
     en.add_argument('--classification',choices=['public','internal-minimized'],default='public');en.add_argument('--browser-origin',action='append',default=[])
     en.add_argument('--generic-query',action='store_true',help='Include explicit advisory typed queries in this workspace consent')
     en.add_argument('--cover-descendants',action='store_true',help='Also cover child directories and nested repositories after a second confirmation')

@@ -41,7 +41,7 @@ def _rewrite(path: Path, **changes) -> None:
     write_private(policy_file, {**json.loads(policy_file.read_text()), **changes})
 
 
-class ExpiredGrantFallthroughTests(unittest.TestCase):
+class _Tree(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
@@ -63,6 +63,8 @@ class ExpiredGrantFallthroughTests(unittest.TestCase):
     def _child_grant(self):
         save_policy_new(self.child, make_policy(self.child, "openrouter"))
 
+
+class ExpiredGrantFallthroughTests(_Tree):
     def test_an_expired_child_falls_through_to_the_covering_parent(self):
         parent = self._cover_parent()
         self._child_grant()
@@ -119,7 +121,36 @@ class ExpiredGrantFallthroughTests(unittest.TestCase):
             enrollment_binding(self.child)
 
 
-class EnrollmentStateTests(ExpiredGrantFallthroughTests):
+class WithdrawalShapesTests(_Tree):
+    """Only a clean, enabled, expired grant may fall through. Every other shape blocks."""
+
+    def _assert_blocks(self):
+        with self.assertRaisesRegex(AutoError, "AUTO_DISABLED_OR_EXPIRED|POLICY_|DESCENDANT_|UNSAFE|PRIVATE"):
+            enrollment_binding(self.child)
+
+    def test_an_enabled_expired_refusal_record_still_blocks(self):
+        self._cover_parent()
+        self._child_grant()
+        _rewrite(self.child, consent="refused", expires_at=time.time() - 60)
+        self._assert_blocks()
+
+    def test_a_missing_or_non_boolean_enabled_flag_blocks(self):
+        self._cover_parent()
+        self._child_grant()
+        for value in ("yes", 1, None):
+            with self.subTest(value=value):
+                _rewrite(self.child, enabled=value, expires_at=time.time() - 60)
+                self._assert_blocks()
+
+    def test_a_corrupt_child_policy_file_blocks(self):
+        self._cover_parent()
+        self._child_grant()
+        (state_dir(self.child) / "policy.json").write_bytes(b"{not json")
+        with self.assertRaises(Exception):
+            enrollment_binding(self.child)
+
+
+class EnrollmentStateTests(_Tree):
     def test_states_distinguish_expiry_from_withdrawal(self):
         self.assertEqual(enrollment_state(self.child)["state"], "not_enrolled")
         self._child_grant()

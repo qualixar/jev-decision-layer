@@ -15,6 +15,7 @@ import hmac
 import json
 import os
 import secrets
+import subprocess
 import threading
 import time
 import webbrowser
@@ -27,6 +28,7 @@ from . import SetupSession
 from .host_inventory import inventory_hosts
 from .local_attestor import attest_local_config
 from .setup_controller import SetupChoice, SetupController, SetupError
+from jev_auto.settings import descendant_root_allowed
 
 
 _MAX_BODY = 16_384
@@ -58,6 +60,46 @@ _SETUP_ERROR_HELP = {
 
 def _safe(value: object) -> str:
     return html.escape(str(value), quote=True)
+
+
+_HARNESS_SCOPE = (
+    "One approval covers every harness: this grant applies wherever the Jev plugin is installed "
+    "(Claude Code, Codex, VS Code, Antigravity and Hermes)."
+)
+
+
+def _expiry(value: object) -> str:
+    if not isinstance(value, (int, float)) or isinstance(value, bool) or value != value:
+        return "unknown"
+    try:
+        return time.strftime("%Y-%m-%d", time.localtime(value))
+    except (OverflowError, OSError, ValueError):
+        return "unknown"
+
+
+def _is_git_repository(root: Path) -> bool:
+    try:
+        result = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+                                capture_output=True, timeout=3, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return True  # unknown: never pre-tick
+    return result.returncode == 0
+
+
+def _suggest_coverage(root: Path, current: dict, exists: bool) -> bool:
+    """Pre-tick child coverage for a parent folder; respect an existing grant's own choice.
+
+    This only sets the initial checkbox. Saving still needs the review screen
+    and its separate descendant confirmation.
+    """
+    if exists:
+        return isinstance(current, dict) and current.get("covers_descendants") is True
+    try:
+        if not descendant_root_allowed(root):
+            return False
+    except Exception:
+        return False
+    return not _is_git_repository(root)
 
 
 def _page(title: str, content: str) -> bytes:
@@ -174,6 +216,10 @@ class _SetupHandler(BaseHTTPRequestHandler):
                 f"{_safe(policy.get('max_bytes_per_day', 'unknown'))} request bytes/day.</p>"
                 f"<p>Automatic prompt guidance: {'Enabled' if policy.get('auto_prepare_jev') is True else 'Disabled'}. "
                 f"Optional local Laya: {'Enabled' if policy.get('local_laya_enabled') is True else 'Disabled'}.</p>"
+                f"<p>Generic typed queries: <strong>{'Enabled' if policy.get('generic_query_enabled') is True else 'Disabled'}</strong>.</p>"
+                f"<p>Covers child folders and projects: <strong>{'Yes' if policy.get('covers_descendants') is True else 'No'}</strong>.</p>"
+                f"<p>Expires: <strong>{_safe(_expiry(policy.get('expires_at')))}</strong>.</p>"
+                f"<p>{_HARNESS_SCOPE}</p>"
                 "<p>No provider key or prompt text is shown here. <a href='/setup'>Review settings</a>.</p>"
             )
             self._send(200, _page("Jev workspace status", content))
@@ -203,6 +249,8 @@ class _SetupHandler(BaseHTTPRequestHandler):
         selected_provider = current.get("provider") if current.get("provider") in ("typesafe", "openrouter") else "typesafe"
         generic_on = current.get("generic_query_enabled", True) is True
         auto_on = current.get("auto_prepare_jev", False) is True
+        cover_on = _suggest_coverage(self.server.controller.workspace, current,
+                                     self.server.controller.policy_exists())
         def selected(value: str, actual: str) -> str:
             return " selected" if value == actual else ""
         mode_options = (
@@ -230,14 +278,15 @@ class _SetupHandler(BaseHTTPRequestHandler):
             hosts = []
         host_rows = "".join(
             f"<li><strong>{_safe(host.get('label', 'Unknown host'))}</strong>: "
-            f"{'Detected, not verified' if host.get('detected') is True else 'Not detected'}. "
-            "Native adapter not tested; Auto disabled.</li>"
+            f"{'Detected' if host.get('detected') is True else 'Not detected'}. "
+            "Uses this grant once the Jev plugin is installed there (native session not yet verified).</li>"
             for host in hosts if isinstance(host, dict)
         )
         content = (
             "<p class='hint'>Step 1 of 2 · Choose how Jev will answer decisions in this workspace.</p>"
             + ("<p><a href='/status'>View current workspace settings</a></p>" if self.server.controller.policy_exists() else "") +
-            "<p>This does not change Codex hook trust or grant access to your whole computer. "
+            f"<p><strong>{_HARNESS_SCOPE}</strong> You do not approve again per harness.</p>"
+            "<p>This does not change any agent's own hook trust or permissions, and it does not grant access to your whole computer. "
             "Your provider key is entered only after you review this setup.</p>"
             f"<p><strong>Workspace:</strong> <code>{workspace_name}</code> "
             "<span class='hint'>Full folder path appears before you confirm.</span></p>"
@@ -252,17 +301,19 @@ class _SetupHandler(BaseHTTPRequestHandler):
             "Optional Laya needs a verified Apple-Silicon installation.</p>"
             f"<label>Advisory Jev tools <select name='generic'>{generic_options}</select></label>"
             f"<label>Automatic Jev prompt guidance <select name='auto_prepare'>{auto_options}</select>. Turning this on sends minimized prompt terms and candidate titles to your selected provider and uses your daily call budget; it never executes a tool. Laya-only makes no Jev call.</label>"
-            "<label><input name='cover_descendants' type='checkbox' value='yes'> "
-            "Also cover child directories and nested repositories under this root. "
-            "A child workspace with its own consent is unchanged.</label>"
+            f"<label><input name='cover_descendants' type='checkbox' value='yes'{' checked' if cover_on else ''}> "
+            "Cover every folder and project under this one, in every harness. "
+            "Pre-selected for a parent folder such as Documents; a single project leaves it off. "
+            "A child folder with its own consent keeps it.</label>"
             "<p class='hint'>The next screen shows your exact choices before saving.</p>"
             "<details><summary>Advanced limits</summary>"
-            "<label>Permission days <input name='days' type='number' min='1' max='365' value='30' required></label>"
+            "<label>Permission days <input name='days' type='number' min='1' max='365' value='365' required> "
+            "<span class='hint'>One year, the maximum. Jev tells the agent when a grant has expired.</span></label>"
             "<label>Maximum attempts per day <input name='daily_calls' type='number' min='1' max='100000' value='100' required></label>"
             "<label>Maximum bytes per day <input name='daily_bytes' type='number' min='1000' value='2000000' required></label>"
             "</details>"
             "<p class='hint'>The selected Jev mode sends reviewed text to your chosen hosted provider. Credentials and obvious secrets are screened only on a best-effort basis, not by comprehensive DLP; do not submit credentials. Jev-only never silently switches to Laya."
-            " Native host permissions and hook trust are separate.</p><button type='submit'>Review before saving</button></form>"
+            " Each agent's own permissions and hook trust are separate and unchanged.</p><button type='submit'>Review before saving</button></form>"
             "<details><summary>Other agent integrations</summary><section aria-label='Agent frameworks'>"
             "<h2>Agent frameworks on this computer</h2>"
             f"<ul>{host_rows}</ul><p class='hint'>Detection is not native adapter proof. No Auto mode is enabled by this page.</p></section></details>"
@@ -387,7 +438,7 @@ class _SetupHandler(BaseHTTPRequestHandler):
                     if _requires_external_scope_confirmation(choice) else ""
                 )
                 descendant_field = (
-                    "<p>Child directories and nested repositories under this root use this grant unless they have their own consent.</p>"
+                    "<p>Every folder and project under this root uses this grant, in every harness where the Jev plugin is installed, unless it has its own consent.</p>"
                     "<label><input name='confirm_descendants' type='checkbox' value='yes' required> I approve descendant coverage for this root.</label>"
                     if choice.cover_descendants else
                     "<p>Descendant coverage: not requested.</p>"
@@ -405,7 +456,7 @@ class _SetupHandler(BaseHTTPRequestHandler):
                     f"<p>Automatic Jev prompt guidance: {'Enabled' if choice.auto_prepare_jev else 'Disabled'}. "
                     "When enabled, eligible coding prompts send up to 24 short terms and 12 candidate titles to the provider; the answer is advisory, not permission to act.</p>"
                     f"<p>Optional local Laya: {'Enabled for private routing and local context reduction' if choice.local_laya_enabled else 'Disabled'}.</p>"
-                    "<p>User review required: Codex hook trust and other host permissions are separate. No live call has run.</p>"
+                    f"<p>{_HARNESS_SCOPE} Each agent's own hook trust and permissions are separate and unchanged. No live call has run.</p>"
                     "<form method='post' action='/apply' autocomplete='off'>"
                     f"<input type='hidden' name='csrf' value=\"{csrf}\">"
                     f"<input type='hidden' name='review_nonce' value=\"{_safe(nonce)}\">{inputs}"

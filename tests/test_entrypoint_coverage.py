@@ -1399,9 +1399,13 @@ class ClaudeHookHandleTests(unittest.TestCase):
             state = self._enrolled(Path(directory).resolve(), generic_query_enabled=True)
             result = handle({"hook_event_name": "SessionStart", "cwd": directory},
                              state_loader=lambda _p: state)
+            expected_path = json.dumps(str(Path(directory).resolve()))
             self.assertEqual(result, _guidance("SessionStart", state, Path(directory).resolve()))
         self.assertIn("enrolled for this workspace", result)
         self.assertIn("jev_route", result)
+        self.assertIn("workspace_path=" + expected_path, result)
+        self.assertIn('data_classification="public"', result)
+        self.assertIn('provider="typesafe"', result)
 
     def test_enrolled_user_prompt_submit_returns_the_prompt_hint(self):
         from jev_auto.claude_hook import _guidance, handle
@@ -1410,8 +1414,11 @@ class ClaudeHookHandleTests(unittest.TestCase):
             state = self._enrolled(Path(directory).resolve(), generic_query_enabled=True)
             result = handle({"hook_event_name": "UserPromptSubmit", "cwd": directory},
                              state_loader=lambda _p: state)
+            expected_path = json.dumps(str(Path(directory).resolve()))
             self.assertEqual(result, _guidance("UserPromptSubmit", state, Path(directory).resolve()))
         self.assertIn("Ignore this if it does not apply", result)
+        self.assertIn("workspace_path=" + expected_path, result)
+        self.assertIn('data_classification="public"', result)
 
     def test_unregistered_pretooluse_is_ignored_before_policy_loading(self):
         """PreToolUse stays out of the manifest until a native event run
