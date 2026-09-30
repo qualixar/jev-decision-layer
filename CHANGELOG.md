@@ -2,6 +2,22 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] — 2026-09-30
+
+### Changed
+
+- **Claude Code guidance tells the model how to call Jev, and only what will work.** In an enrolled workspace the hook names the exact `workspace_path`, `data_classification` and `provider` the grant accepts, and warns that absolute home paths in content fields are rejected by the secret screen. It lists `jev_route`, `jev_typed_decide`, `jev_verify`, `jev_rerank`, `jev_review_diff` and `jev_recipe_try` only when the grant enables generic typed queries. Otherwise it says they will return `GENERIC_QUERY_NOT_ENROLLED` and points to the tools that do work. A folder covered by a parent grant is told which grant covers it.
+- **Claude Code subagents receive the same guidance.** The plugin now registers `SubagentStart` and returns the session guidance as `hookSpecificOutput.additionalContext`. A subagent does not inherit SessionStart context, so before this every subagent ran without knowing Jev was there. `SubagentStart` cannot block, and no permission field is ever emitted. `PreToolUse` stays unregistered.
+- **A Claude Code session with no active grant is told so once.** Before this, a folder with no grant, or one whose grant had expired, produced no output at all, so Jev went dark after thirty days with nothing to say why. Session start now gets one line saying no active grant covers the folder, that its tools will return `WORKSPACE_NOT_ENROLLED`, and that the model must not enroll it. Prompts and subagents stay silent. A folder you revoked or refused stays fully silent, as before.
+- **An expired child grant no longer switches off a folder its parent covers.** An exact grant that simply passed its expiry now falls through to an approved ancestor grant. A child you revoked, and a recorded refusal, still block the ancestor, so `jev revoke` keeps meaning "not here". This applies to every host.
+- **`jev host-register` can upgrade its own entry.** The plugin cache path carries the release number, and registration refused its own previous entry as a conflict, so the Claude desktop app kept launching the old release after every upgrade. An entry that is the same launcher at an older release in the same cache is now replaced. A newer release, a different location, or an entry carrying your own `env` or `args` is still refused. This applies to every host `host-register` supports.
+- **A missing `workspace_path` falls back to `CLAUDE_PROJECT_DIR`** when Claude Code set it for the server. Advertised schemas are unchanged for every host, and a host that does not set the variable still gets `MCP_ARGUMENTS`.
+- **Enrollment messages no longer name Codex** when you enroll from another host.
+
+### Unchanged
+
+- **20 MCP tools, 38 recipes, and 114 synthetic offline fixtures.** Codex, Antigravity, Hermes and VS Code hook files and adapters are unchanged. Supported and verified on macOS; Linux experimental; Windows hosted runtime disabled. `native_status` remains `NOT_RUN` for every host.
+
 ## [1.0.10] — 2026-09-29
 
 ### Fixed

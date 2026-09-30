@@ -137,11 +137,22 @@ def definitions(legacy):
     ]
     return tools
 
+def _default_workspace(args,schema):
+    """Fill a missing workspace_path from CLAUDE_PROJECT_DIR, which Claude Code
+    sets for the stdio servers it spawns. Other hosts do not set it, so for
+    them a missing workspace_path is still refused, and the advertised schema
+    is identical for every host."""
+    if 'workspace_path' in args or 'workspace_path' not in schema['properties']:return args
+    project=os.environ.get('CLAUDE_PROJECT_DIR')
+    if not isinstance(project,str) or not project or not os.path.isabs(project):return args
+    return {**args,'workspace_path':project}
+
 def dispatch(name,args,legacy,caller=None,setup_launcher=None):
     if not isinstance(args,dict):raise AutoError('MCP_ARGUMENTS')
     known={t['name']:t for t in definitions(legacy)}
     if name not in known:raise AutoError('MCP_TOOL_NAME')
     schema=known[name]['inputSchema']
+    args=_default_workspace(args,schema)
     if set(args)-set(schema['properties']) or set(schema.get('required',[]))-set(args):raise AutoError('MCP_ARGUMENTS')
     for k,v in args.items():
         spec=schema['properties'][k];kind=spec.get('type')

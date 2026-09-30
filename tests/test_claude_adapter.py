@@ -22,7 +22,9 @@ class ClaudePluginRegistrationTests(unittest.TestCase):
     def test_registered_hooks_are_only_fixed_advisory_lifecycle_events(self):
         config = json.loads((PLUGIN / "hooks" / "claude-hooks.json").read_text())
         hooks = config["hooks"]
-        self.assertEqual(set(hooks), {"SessionStart", "UserPromptSubmit"})
+        # SubagentStart cannot block (hook reference: exit code and stderr are
+        # ignored) and a subagent does not inherit SessionStart context.
+        self.assertEqual(set(hooks), {"SessionStart", "UserPromptSubmit", "SubagentStart"})
         for event, groups in hooks.items():
             with self.subTest(event=event):
                 self.assertEqual(len(groups), 1)

@@ -28,7 +28,7 @@ Version 1.0.10 is supported and verified on macOS, using Keychain for hosted Typ
 
 ## Shared enrollment
 
-Codex, Claude Code, Hermes, Antigravity, and VS Code resolve workspace consent through one binding. An exact policy wins. A root grant covers child directories and nested repositories only after a separate approval in the setup wizard or `jev enroll --cover-descendants`. A child policy, including a local refusal, stays in force and is not reopened by the root. Home directories and filesystem tops cannot be descendant roots. The broker and budget stay on the grant root.
+Codex, Claude Code, Hermes, Antigravity, and VS Code resolve workspace consent through one binding. An exact policy wins. A root grant covers child directories and nested repositories only after a separate approval in the setup wizard or `jev enroll --cover-descendants`. A child policy that you revoked, or a local refusal, stays in force and is not reopened by the root. A child grant that simply expired no longer switches the folder off: it falls through to an approved root. Home directories and filesystem tops cannot be descendant roots. The broker and budget stay on the grant root.
 
 `native_status` remains `NOT_RUN` for every host. The shared binding is covered by in-process adapter tests. That is not a native host session, and it does not change the macOS, Linux, or Windows platform scope above.
 
@@ -59,10 +59,14 @@ claude plugin install qualixar-jev-decision-layer@qualixar
 
 Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes`, `/jev-review`, `/jev-selftest`, `/jev-vscode` — plus the shared skills and the `qualixar-jev` MCP server.
 
+**Hooks.** The plugin registers `SessionStart`, `UserPromptSubmit` and `SubagentStart`; none of them can grant or deny a tool call, and `PreToolUse` is not registered. In an enrolled workspace the guidance names the exact `workspace_path`, `data_classification` and `provider` the grant accepts, and lists the typed tools only when the grant enables generic typed queries. `SubagentStart` returns the same guidance as `hookSpecificOutput.additionalContext`, because a subagent does not inherit SessionStart context. A folder with no active grant, including one whose grant expired, gets one line at session start that says so and tells the model not to enroll it. A folder you revoked or refused stays silent.
+
+**Missing `workspace_path`.** When Claude Code spawns the server with `CLAUDE_PROJECT_DIR` set and a tool call omits `workspace_path`, the server uses that directory. Every advertised schema still requires the argument, and hosts that do not set the variable are unaffected.
+
 **Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the desktop app's Code tab. This is a property of that surface, not of this plugin: in a Code tab session, every enabled plugin that ships an MCP server is equally absent, with no error and no failed entry. Commands and skills load normally there. To get the tools in the Code tab, register the launcher directly:
 
 ```sh
-claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.10/scripts/launch-jev"
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.11/scripts/launch-jev"
 ```
 
 For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. Note that `claude mcp list` reports on the CLI's own configuration and says nothing about what the desktop app can see — a green line there is not evidence the app loaded anything.
@@ -95,7 +99,7 @@ Use the portable plugin source with Hermes's own plugin install path; it uses se
 plugins/qualixar-jev-decision-layer/scripts/jev host-register --host claude-desktop --write
 ```
 
-**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed. Windows runtime commands are disabled in 1.0.10; do not use a generated configuration snippet as an indication of platform support.
+**Quit the app first.** It holds its config in memory and flushes it on exit, so an edit made while it is running is silently discarded — measured, not assumed. Re-run the command after every upgrade: the plugin cache path carries the release number. An entry that points at an older release of the same launcher in the same cache is replaced; any other existing `qualixar-jev` entry, including one with your own `env` or `args`, or a newer release, is refused as `HOST_MCP_ENTRY_CONFLICT`. This applies to every host `host-register` supports. Windows runtime commands are disabled in 1.0.10; do not use a generated configuration snippet as an indication of platform support.
 
 ## What is verified, and what is not
 
@@ -104,7 +108,7 @@ plugins/qualixar-jev-decision-layer/scripts/jev host-register --host claude-desk
 | Harness | Evidence | Boundary |
 |---|---|---|
 | **Codex** | Installed MCP tools and live synthetic TypeSafe routing verified on macOS. The Codex hook uses the shared enrollment binding, including an approved root grant over a nested repository, in process | Does not establish a native Codex hook firing, Linux operation, or Windows runtime support. `native_status` remains `NOT_RUN` |
-| **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; seven commands and three skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly, stays silent on an unenrolled workspace, and follows the shared enrollment binding for an approved root | A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are not yet verified. In the desktop app's Code tab the plugin-provided server does not load at all. `native_status` remains `NOT_RUN` |
+| **Claude Code** | Plugin installs from the repo marketplace and `claude plugin validate` passes; seven commands and three skills load; the MCP launcher answers an `initialize` handshake; the hook launcher exits cleanly and follows the shared enrollment binding for an approved root; in process, the hook emits argument-bearing guidance for each consent state, including `SubagentStart` | Hook output is pinned by in-process tests, not by a live session's model context. A native MCP tool turn inside a live session, and hook firing under a host that permits plugin hooks, are not yet verified. In the desktop app's Code tab the plugin-provided server does not load at all. `native_status` remains `NOT_RUN` |
 | **Hermes** | Staged 1.0.10 source registers twelve declared tools including self-test, verify and rerank, plus its hook. The hook follows the shared enrollment binding | Native model/tool turn still needs verification. `native_status` remains `NOT_RUN` |
 | **Antigravity** | Packaged PreInvocation advisory hook and skills; this adapter does not request PreToolUse authority. The hook follows the shared enrollment binding | Native model/tool turn and portable MCP registration still need verification. `native_status` remains `NOT_RUN` |
 | **VS Code** | Adapter writes a valid `.vscode/mcp.json` against the documented `servers` format; merge, refusal and symlink behaviour covered by tests. The registered server uses the shared enrollment binding | No live Copilot agent-mode turn has been run. No extension ships; registration is the whole integration. `native_status` remains `NOT_RUN` |

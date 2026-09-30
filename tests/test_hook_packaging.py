@@ -17,7 +17,8 @@ class HookPackagingTests(unittest.TestCase):
         self.assertEqual(manifest["hooks"], "./hooks/claude-hooks.json")
         self.assertFalse((PORTABLE / "hooks/hooks.json").exists())
         hooks = json.loads((PORTABLE / manifest["hooks"]).read_text())["hooks"]
-        self.assertEqual(set(hooks), {"SessionStart", "UserPromptSubmit"})
+        self.assertEqual(set(hooks), {"SessionStart", "UserPromptSubmit", "SubagentStart"})
+        self.assertNotIn("PreToolUse", hooks)
         self.assertNotIn("calibrated", manifest["description"].lower())
 
     def test_codex_overlay_points_to_codex_hooks_in_the_portable_source(self):

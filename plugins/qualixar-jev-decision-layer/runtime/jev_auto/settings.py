@@ -230,8 +230,29 @@ def _inherited_root(path, base=None):
     return None
 
 
+def _expired_not_withdrawn(path, base=None) -> bool:
+    """True only for an exact grant that is still enabled and has passed its expiry.
+
+    A revoked grant (`enabled` false) and a recorded refusal are withdrawals and
+    must keep blocking an ancestor. A malformed expiry is not a plain expiry.
+    """
+    try:
+        policy = _read_exact_file(path, base)
+    except (AutoError, OSError, ValueError):
+        return False
+    if not isinstance(policy, dict) or policy.get('enabled') is not True or policy.get('consent') == 'refused':
+        return False
+    expires = policy.get('expires_at')
+    return number(expires, 0, 10**12) and expires <= time.time()
+
+
 def enrollment_binding(path, base=None):
-    """Exact consent wins. A disabled or expired child is never reopened by a parent."""
+    """Exact consent wins. A disabled or refused child is never reopened by a parent.
+
+    An exact grant that merely expired falls through to an approved ancestor:
+    the person approved that ancestor's coverage, and letting a stale child
+    grant switch the folder off contradicts it.
+    """
     try:
         policy = _load_exact(path, base)
     except AutoError as error:
@@ -242,6 +263,11 @@ def enrollment_binding(path, base=None):
             # A file inside a workspace is not an exact grant; resolve it as
             # a descendant candidate instead of rejecting it outright.
             pass
+        elif code == 'AUTO_DISABLED_OR_EXPIRED' and _expired_not_withdrawn(path, base):
+            root = _inherited_root(path, base)
+            if root is None:
+                raise
+            return {'scope': 'descendant', 'workspace': root, 'policy': _load_exact(root, base)}
         else:
             raise
     else:
@@ -250,6 +276,24 @@ def enrollment_binding(path, base=None):
     if root is None:
         raise AutoError('WORKSPACE_NOT_ENROLLED')
     return {'scope': 'descendant', 'workspace': root, 'policy': _load_exact(root, base)}
+
+
+def enrollment_state(path, base=None):
+    """Classify consent for advisory surfaces without changing any decision.
+
+    Returns `enrolled` (with the binding), `not_enrolled`, `expired`, or
+    `withdrawn`. Any other failure is raised unchanged.
+    """
+    try:
+        binding = enrollment_binding(path, base)
+    except AutoError as error:
+        code = str(error)
+        if code == 'WORKSPACE_NOT_ENROLLED':
+            return {'state': 'not_enrolled'}
+        if code == 'AUTO_DISABLED_OR_EXPIRED':
+            return {'state': 'expired' if _expired_not_withdrawn(path, base) else 'withdrawn'}
+        raise
+    return {'state': 'enrolled', **binding}
 
 
 def load_policy(path,base=None):

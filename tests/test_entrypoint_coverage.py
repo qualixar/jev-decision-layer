@@ -1310,9 +1310,15 @@ class ServerMainArgvTests(unittest.TestCase):
 # ==========================================================================
 
 class ClaudeHookHandleTests(unittest.TestCase):
-    """handle() takes an explicit policy_loader precisely so tests can inject
-    one; this is the same pattern already used for the sibling agy_hook
-    module in test_core_contracts.py."""
+    """handle() takes an explicit state_loader precisely so tests can inject
+    one; the sibling agy_hook module uses the same pattern with a
+    policy_loader in test_core_contracts.py."""
+
+    @staticmethod
+    def _enrolled(path, **policy):
+        return {"state": "enrolled", "scope": "exact", "workspace": Path(path),
+                "policy": {"enabled": True, "data_classification": "public",
+                           "provider": "typesafe", **policy}}
 
     def test_non_dict_payload_is_silently_ignored(self):
         from jev_auto.claude_hook import handle
@@ -1323,19 +1329,19 @@ class ClaudeHookHandleTests(unittest.TestCase):
 
     def test_unhandled_event_names_are_silently_ignored(self):
         """An unhandled event name must short-circuit BEFORE workspace
-        resolution or policy_loader - proven here with a loader that records
+        resolution or state_loader - proven here with a loader that records
         whether it was ever called, not just by checking the return value
         (an empty return could otherwise also happen because "/x" does not
         exist, which would prove the wrong thing)."""
         from jev_auto.claude_hook import handle
 
-        for name in ("Stop", "PostToolUse", "PreToolUse", "SubagentStart", "SomethingNew", None):
+        for name in ("Stop", "PostToolUse", "PreToolUse", "SubagentStop", "SomethingNew", None):
             with self.subTest(name=name):
                 seen = []
                 result = handle({"hook_event_name": name, "cwd": "/x"},
-                                 policy_loader=lambda _p: seen.append(True) or {"enabled": True})
+                                 state_loader=lambda _p: seen.append(True) or {"state": "enrolled"})
                 self.assertEqual(result, "")
-                self.assertEqual(seen, [], "policy_loader must not run for an unhandled event name")
+                self.assertEqual(seen, [], "state_loader must not run for an unhandled event name")
 
     def test_missing_cwd_field_is_silently_ignored(self):
         """Same proof-of-non-invocation as above, for each way `cwd` can be
@@ -1347,13 +1353,13 @@ class ClaudeHookHandleTests(unittest.TestCase):
                       {"hook_event_name": "SessionStart", "cwd": 42}):
             with self.subTest(event=event):
                 seen = []
-                result = handle(event, policy_loader=lambda _p: seen.append(True) or {"enabled": True})
+                result = handle(event, state_loader=lambda _p: seen.append(True) or {"state": "enrolled"})
                 self.assertEqual(result, "")
-                self.assertEqual(seen, [], "policy_loader must not run without a valid cwd")
+                self.assertEqual(seen, [], "state_loader must not run without a valid cwd")
 
     def test_a_failing_policy_loader_is_treated_as_silence_never_raises(self):
         """`cwd` must resolve for real here: workspace() runs BEFORE
-        policy_loader, so a nonexistent path would make this pass for the
+        state_loader, so a nonexistent path would make this pass for the
         wrong reason (it would never even reach `blow_up`). A `seen` marker
         proves the loader was actually invoked."""
         from jev_auto.claude_hook import handle
@@ -1365,7 +1371,7 @@ class ClaudeHookHandleTests(unittest.TestCase):
             raise RuntimeError("disk on fire")
 
         with tempfile.TemporaryDirectory() as directory:
-            result = handle({"hook_event_name": "SessionStart", "cwd": directory}, policy_loader=blow_up)
+            result = handle({"hook_event_name": "SessionStart", "cwd": directory}, state_loader=blow_up)
         self.assertEqual(result, "")
         self.assertEqual(seen, [True], "the failing loader must actually have been called")
 
@@ -1373,32 +1379,39 @@ class ClaudeHookHandleTests(unittest.TestCase):
         from jev_auto.claude_hook import handle
 
         with tempfile.TemporaryDirectory() as directory:
-            self.assertEqual(handle({"hook_event_name": "UserPromptSubmit", "cwd": directory},
-                                     policy_loader=lambda _p: {"enabled": False}), "")
-            self.assertEqual(handle({"hook_event_name": "UserPromptSubmit", "cwd": directory},
-                                     policy_loader=lambda _p: {}), "")
+            for state in ({"state": "withdrawn"}, {"state": "not_enrolled"}, {"state": "expired"}, {}):
+                with self.subTest(state=state):
+                    self.assertEqual(handle({"hook_event_name": "UserPromptSubmit", "cwd": directory},
+                                             state_loader=lambda _p, s=state: s), "")
+            self.assertEqual(handle({"hook_event_name": "SessionStart", "cwd": directory},
+                                     state_loader=lambda _p: {"state": "withdrawn"}), "")
 
     def test_enrolled_session_start_returns_the_session_hint(self):
         """`cwd` must be a real, existing directory: handle() resolves it
-        through common.workspace() BEFORE calling policy_loader, and that
+        through common.workspace() BEFORE calling state_loader, and that
         resolution raises (silently, fail-open) for a path that does not
         exist - a first draft of this test used the literal string "/x" and
         got "" back for that reason, not because the injected loader was
         ignored."""
-        from jev_auto.claude_hook import _SESSION_HINT, handle
+        from jev_auto.claude_hook import _guidance, handle
 
         with tempfile.TemporaryDirectory() as directory:
+            state = self._enrolled(Path(directory).resolve(), generic_query_enabled=True)
             result = handle({"hook_event_name": "SessionStart", "cwd": directory},
-                             policy_loader=lambda _p: {"enabled": True})
-        self.assertEqual(result, _SESSION_HINT)
+                             state_loader=lambda _p: state)
+            self.assertEqual(result, _guidance("SessionStart", state, Path(directory).resolve()))
+        self.assertIn("enrolled for this workspace", result)
+        self.assertIn("jev_route", result)
 
     def test_enrolled_user_prompt_submit_returns_the_prompt_hint(self):
-        from jev_auto.claude_hook import _PROMPT_HINT, handle
+        from jev_auto.claude_hook import _guidance, handle
 
         with tempfile.TemporaryDirectory() as directory:
+            state = self._enrolled(Path(directory).resolve(), generic_query_enabled=True)
             result = handle({"hook_event_name": "UserPromptSubmit", "cwd": directory},
-                             policy_loader=lambda _p: {"enabled": True})
-        self.assertEqual(result, _PROMPT_HINT)
+                             state_loader=lambda _p: state)
+            self.assertEqual(result, _guidance("UserPromptSubmit", state, Path(directory).resolve()))
+        self.assertIn("Ignore this if it does not apply", result)
 
     def test_unregistered_pretooluse_is_ignored_before_policy_loading(self):
         """PreToolUse stays out of the manifest until a native event run
@@ -1409,7 +1422,7 @@ class ClaudeHookHandleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             seen = []
             result = handle({"hook_event_name": "PreToolUse", "cwd": directory},
-                             policy_loader=lambda _p: seen.append(True) or {"enabled": True})
+                             state_loader=lambda _p: seen.append(True) or {"state": "enrolled"})
         self.assertEqual(result, "")
         self.assertEqual(seen, [])
 
@@ -1422,7 +1435,7 @@ class ClaudeHookHandleTests(unittest.TestCase):
         seen = []
         with tempfile.TemporaryDirectory() as directory:
             handle({"hook_event_name": "SessionStart", "cwd": directory},
-                   policy_loader=lambda p: seen.append(p) or {"enabled": True})
+                   state_loader=lambda p: seen.append(p) or {"state": "withdrawn"})
         self.assertEqual(len(seen), 1)
         self.assertEqual(seen[0], Path(directory).resolve())
 

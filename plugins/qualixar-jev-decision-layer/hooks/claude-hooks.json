@@ -5,6 +5,9 @@
     ],
     "UserPromptSubmit": [
       {"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/launch-claude-hook", "timeout": 20}]}
+    ],
+    "SubagentStart": [
+      {"hooks": [{"type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/launch-claude-hook", "timeout": 20}]}
     ]
   }
 }

@@ -6,7 +6,7 @@
 Route tasks, tools, skills, tests, and reviews through TypeSafe Jev, with optional local Laya-MLX on Apple Silicon.</p>
 
 <p align="center">
-<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.10"><img src="https://img.shields.io/badge/version-1.0.10-7655d9?style=flat-square" alt="Version 1.0.10"></a>
+<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.11"><img src="https://img.shields.io/badge/version-1.0.11-7655d9?style=flat-square" alt="Version 1.0.11"></a>
 <img src="https://img.shields.io/badge/host%20adapters-5-7655d9?style=flat-square" alt="Five host adapters; verification varies by host">
 <img src="https://img.shields.io/badge/MCP%20tools-20-4f46e5?style=flat-square" alt="Twenty MCP tools">
 <img src="https://img.shields.io/badge/offline%20fixtures-114-d97706?style=flat-square" alt="114 offline fixtures">
@@ -29,7 +29,7 @@ One shared runtime has adapters for **Codex, Claude Code, VS Code, Hermes, and A
 
 **The model recommends; the host retains execution authority.** A Jev or Laya answer does not grant shell, file, browser, deployment, or publishing permission. Host support is not equally verified; see the [evidence and boundary table](#supported-hosts).
 
-**Current release: 1.0.10** — 20 MCP tools, 38 recipes for bounded decisions, 114 synthetic offline fixtures, and five host adapters. The live recipe gate caps every would-be passing result to `verify` until a recipe has been evaluated against labeled provider answers. Version 1.0.10 is supported and verified on macOS. Linux remains experimental and unverified; Windows hosted operation is disabled in this release because its native private-state contract did not pass CI. Local Laya-MLX is limited to supported Apple-Silicon Macs. See the [host evidence](docs/HOSTS.md) and [changelog](CHANGELOG.md).
+**Current release: 1.0.11** — 20 MCP tools, 38 recipes for bounded decisions, 114 synthetic offline fixtures, and five host adapters. The live recipe gate caps every would-be passing result to `verify` until a recipe has been evaluated against labeled provider answers. Version 1.0.10 is supported and verified on macOS. Linux remains experimental and unverified; Windows hosted operation is disabled in this release because its native private-state contract did not pass CI. Local Laya-MLX is limited to supported Apple-Silicon Macs. See the [host evidence](docs/HOSTS.md) and [changelog](CHANGELOG.md).
 
 Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent open-source integration, not an official TypeSafe, OpenAI, Anthropic, Google, Microsoft, or Laya product.
 
@@ -193,7 +193,7 @@ Adds seven commands — `/jev-setup`, `/jev-status`, `/jev-route`, `/jev-recipes
 **Where the MCP server loads.** Plugin-provided MCP servers are read by the Claude Code CLI and by on-machine Cowork sessions. They are **not** loaded by the Claude desktop app's Code tab: there, every enabled plugin that ships a server is equally absent, ours included, with no error and no failed entry. Commands and skills load normally. If you work in the Code tab and want the tools, register the launcher directly instead:
 
 ```sh
-claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.10/scripts/launch-jev"
+claude mcp add qualixar-jev -- "$HOME/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.11/scripts/launch-jev"
 ```
 
 For the desktop app specifically, add the same command to `~/Library/Application Support/Claude/claude_desktop_config.json` and restart it. `claude mcp list` reports on the CLI's own config and says nothing about what the desktop app can see.

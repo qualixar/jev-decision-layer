@@ -141,7 +141,7 @@ def main(argv=None):
             print('Provider:',provider,'Days:',args.days,'Maximum attempts/day:',args.daily_calls)
             print('Explicit generic typed queries:', 'ENABLED' if args.generic_query else 'DISABLED')
             print('Descendant coverage:', 'REQUESTED' if args.cover_descendants else 'NOT REQUESTED')
-            print('No per-turn grants. Native Codex/browser permissions stay unchanged. Same-user local controls are not tamper-proof.')
+            print('No per-turn grants. Native host and browser permissions stay unchanged. Same-user local controls are not tamper-proof.')
             if input('Type ENABLE to activate: ').strip()!='ENABLE':raise AutoError('SETUP_CANCELLED')
             if args.cover_descendants:
                 print('Child directories and nested repositories will use this grant unless they have their own consent.')
@@ -152,7 +152,7 @@ def main(argv=None):
             p=make_policy(path,provider,args.days,**fields)
             if provider=='laya-mlx':p['mlx']=read_private(home_root()/'mlx-installation.json',100_000)
             save_policy(path,p);bridge_record(path,p);ensure(path)
-            print('Jev Decision Layer enabled. Restart Codex after plugin update and review changed hooks once.');return 0
+            print('Jev Decision Layer enabled. Restart your agent host after a plugin update and review changed hooks once.');return 0
         if args.command=='route-local':
             p=load_policy(path);p['mlx']=read_private(home_root()/'mlx-installation.json',100_000)
             if not args.recipe:raise AutoError('SELECT_LOCAL_RECIPE')

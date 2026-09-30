@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -206,8 +207,43 @@ def _read(config: Path) -> dict[str, Any] | None:
     return document
 
 
+_RELEASE_DIR = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
+
+
+def _release(label: str) -> tuple[int, int, int] | None:
+    match = _RELEASE_DIR.fullmatch(label)
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
+def _is_older_release_of(current: Any, proposed: dict[str, Any]) -> bool:
+    """True only for our own launcher at an older versioned cache path.
+
+    A host plugin cache lays releases out as `<cache>/<plugin>/<X.Y.Z>/scripts/<launcher>`.
+    Every other key must match exactly, so a user's own `env`, `args` or any
+    extra field is never discarded. A downgrade, a different install location
+    or any non-release directory is still a conflict.
+    """
+    if not isinstance(current, dict) or set(current) != set(proposed):
+        return False
+    if any(current[key] != proposed[key] for key in proposed if key != "command"):
+        return False
+    old, new = current.get("command"), proposed.get("command")
+    if not isinstance(old, str) or not isinstance(new, str):
+        return False
+    old_path, new_path = Path(old), Path(new)
+    if len(old_path.parts) < 4 or len(new_path.parts) < 4:
+        return False
+    if old_path.name != new_path.name or old_path.parent.name != "scripts" or new_path.parent.name != "scripts":
+        return False
+    if old_path.parents[2] != new_path.parents[2]:
+        return False
+    old_release, new_release = _release(old_path.parents[1].name), _release(new_path.parents[1].name)
+    return old_release is not None and new_release is not None and old_release < new_release
+
+
 def merge(host: str, existing: dict[str, Any] | None, launcher: Path | None = None) -> dict[str, Any]:
-    """Add one server, or leave an identical entry untouched; never replace conflicts."""
+    """Add one server, leave an identical entry untouched, or replace an older
+    release of our own launcher; never replace anything else."""
     target = _target(host)
     if existing is not None and not isinstance(existing, dict):
         raise AutoError("HOST_MCP_CONFIG_UNPARSEABLE")
@@ -220,7 +256,7 @@ def merge(host: str, existing: dict[str, Any] | None, launcher: Path | None = No
     servers = dict(servers)
     proposed = server_entry(host, launcher)
     current = servers.get(SERVER_NAME)
-    if current is not None and current != proposed:
+    if current is not None and current != proposed and not _is_older_release_of(current, proposed):
         raise AutoError("HOST_MCP_ENTRY_CONFLICT")
     servers[SERVER_NAME] = proposed
     document[target.key] = servers
