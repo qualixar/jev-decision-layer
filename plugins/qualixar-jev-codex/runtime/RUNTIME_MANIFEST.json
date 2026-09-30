@@ -129,7 +129,7 @@
     "src/adl/api/local_attestor.py": "955fae8b542257b1cc931d4a76cfe70b4761a7e3841f6af813f34949deff1854",
     "src/adl/api/recipe_workbench_server.py": "ac18dcf97d7ba170ec69e48a40c929c47b285a2a1d5c4ccf7475c435939818b1",
     "src/adl/api/setup_controller.py": "df99c6eab749df0b59c5172fb1062cc4b487132eaeff0433a324bfb3c8cda03f",
-    "src/adl/api/setup_server.py": "7f0d968c54fb3d7f091e02eb403838776b28b9d6b4b830ae1d0a27c0ca56cf46",
+    "src/adl/api/setup_server.py": "f085d9ce7a2d125f921a8427ccdc53738ca96f38dbf173b9cd2a59c4f5ba0f29",
     "src/adl/api/workbench/app.css": "0e470beacf582c7fd6f70be24a84efd7dfbb5c77a34fec931e423d5a6027e1bc",
     "src/adl/api/workbench/app.js": "3de1641bfef747be53566938454386282b539eb6dd3c16da16af530f0a77b824",
     "src/adl/api/workbench/index.html": "d65fe1fefa411f4649ecafce484b6366fd3e64b3781559d23ceca4e258af08fe",

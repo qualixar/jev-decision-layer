@@ -69,7 +69,7 @@ _HARNESS_SCOPE = (
 
 
 def _expiry(value: object) -> str:
-    """Render a policy expiry; anything outside the policy validator's range is unknown."""
+    """Render a policy expiry; zero, negative, or beyond the validator's 10**12 bound is unknown."""
     if not isinstance(value, (int, float)) or isinstance(value, bool) or value != value:
         return "unknown"
     if not 0 < value <= 10**12:
@@ -88,6 +88,10 @@ def _is_plain_folder(root: Path) -> bool:
     """
     try:
         if not root.is_dir():
+            return False
+        # Git reports an unreadable `.git` as "not a git repository", so a
+        # `.git` entry here or in any parent is never treated as plain.
+        if any(os.path.lexists(folder / ".git") for folder in (root, *root.parents)):
             return False
         result = subprocess.run(["git", "-C", str(root), "rev-parse", "--git-dir"],
                                 capture_output=True, timeout=3, check=False,

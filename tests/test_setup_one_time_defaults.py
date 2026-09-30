@@ -85,6 +85,18 @@ class WizardDefaultTests(unittest.TestCase):
             self.assertFalse(setup_server._suggest_coverage(folder, {}, False))
         self.assertFalse(setup_server._suggest_coverage(self.root / "missing", {}, False))
 
+    def test_an_unreadable_repository_is_not_mistaken_for_a_plain_folder(self):
+        import os
+
+        repo = self.root / "locked"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q", str(repo)], check=True, capture_output=True)
+        (repo / "sub").mkdir()
+        os.chmod(repo / ".git", 0)
+        self.addCleanup(os.chmod, repo / ".git", 0o755)
+        self.assertFalse(setup_server._suggest_coverage(repo, {}, False))
+        self.assertFalse(setup_server._suggest_coverage(repo / "sub", {}, False))
+
     def test_expiry_outside_the_policy_range_renders_as_unknown(self):
         for value in (0, -1, 10**13, float("nan"), True, "soon", None):
             with self.subTest(value=value):
