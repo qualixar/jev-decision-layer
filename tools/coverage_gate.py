@@ -57,14 +57,32 @@ def _leaked_state(root: Path) -> list[str]:
     return sorted(str(path.relative_to(root)) for path in root.rglob("*") if path.is_file())
 
 
+def _real_state_roots() -> list[Path]:
+    """Where a test that ignored XDG_STATE_HOME would write: the home fallback,
+    and the XDG location of the environment that invoked the gate."""
+    import os
+    roots = {Path.home() / ".local" / "state" / "qualixar-jev-decision-layer"}
+    configured = os.environ.get("XDG_STATE_HOME")
+    if configured and Path(configured).is_absolute():
+        roots.add(Path(configured) / "qualixar-jev-decision-layer")
+    return sorted(roots)
+
+
+def _entries(roots: list[Path]) -> set[str]:
+    return {str(entry) for root in roots if root.is_dir() for entry in root.iterdir()}
+
+
 def _measure() -> dict[str, int]:
     """Run the suite under coverage and return percent covered per module.
 
     The suite runs against a private XDG_STATE_HOME. Every test is meant to
     isolate its own state, so anything written there is a test that did not,
     and the gate fails naming it rather than letting the suite write grants
-    into the developer's real state directory.
+    into the developer's real state directory. A test can also bypass the
+    variable, so the real state roots are compared before and after the run.
     """
+    real_roots = _real_state_roots()
+    before = _entries(real_roots)
     with tempfile.TemporaryDirectory(prefix="jev-gate-state-") as state:
         environment = {"COVERAGE_FILE": str(COVERAGE_DATA), "XDG_STATE_HOME": state}
         run = subprocess.run(
@@ -72,12 +90,15 @@ def _measure() -> dict[str, int]:
              "pytest", "tests/", "-q"],
             cwd=ROOT, capture_output=True, text=True, env={**_environ(), **environment})
         leaked = _leaked_state(Path(state))
+    leaked += sorted(_entries(real_roots) - before)
     if run.returncode != 0:
         raise SystemExit("the test suite failed; fix it before gating coverage\n"
                          + run.stdout[-4000:] + run.stderr[-2000:])
     if leaked:
         raise SystemExit("the test suite wrote to the state directory instead of isolating it:\n"
-                         + "\n".join(f"  {name}" for name in leaked[:20]))
+                         + "\n".join(f"  {name}" for name in leaked[:20])
+                         + "\n(an entry in a real state root can also be a real enrollment made "
+                           "while the gate ran)")
     report = subprocess.run(
         [sys.executable, "-m", "coverage", "json", "-o", "-"],
         cwd=ROOT, capture_output=True, text=True, env={**_environ(), **environment})

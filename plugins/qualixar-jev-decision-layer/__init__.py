@@ -8,6 +8,7 @@ import re
 import selectors
 import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -184,14 +185,19 @@ def _hermes_working_directory() -> str | None:
     TERMINAL_CWD, then the launch directory. Worktree mode and the messaging
     gateway set TERMINAL_CWD while the process cwd stays elsewhere. That
     resolver is Hermes-internal, so each step falls back rather than trusting it.
+
+    The resolver is consulted only if Hermes has already loaded it. Importing
+    it here would run whichever `agent` package is first on sys.path inside
+    Hermes's hook thread.
     """
-    try:
-        from agent.runtime_cwd import resolve_agent_cwd
-        resolved = _usable_directory(resolve_agent_cwd())
-        if resolved is not None:
-            return resolved
-    except Exception:
-        pass
+    resolver = getattr(sys.modules.get("agent.runtime_cwd"), "resolve_agent_cwd", None)
+    if callable(resolver):
+        try:
+            resolved = _usable_directory(resolver())
+            if resolved is not None:
+                return resolved
+        except Exception:
+            pass
     configured = _usable_directory(os.environ.get("TERMINAL_CWD"))
     if configured is not None:
         return configured

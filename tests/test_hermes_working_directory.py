@@ -95,6 +95,24 @@ class HermesWorkingDirectoryTests(unittest.TestCase):
         with patch.dict(os.environ, {"TERMINAL_CWD": str(self.worktree)}):
             self.assertEqual(self._call(), str(self.session))
 
+    def test_an_agent_package_hermes_did_not_load_is_never_imported(self):
+        """The hook must not import `agent.runtime_cwd` itself: whatever
+        `agent` package sits first on sys.path would run inside Hermes's hook
+        thread and could name any directory. Only a module Hermes already
+        loaded is consulted."""
+        planted = Path(self._tmp.name) / "planted"
+        (planted / "agent").mkdir(parents=True)
+        marker = planted / "side-effect-ran"
+        (planted / "agent" / "__init__.py").write_text(f"open({str(marker)!r}, 'w').write('x')\n")
+        (planted / "agent" / "runtime_cwd.py").write_text(
+            f"from pathlib import Path\ndef resolve_agent_cwd():\n    return Path({str(self.session)!r})\n")
+        sys.path.insert(0, str(planted))
+        self.addCleanup(sys.path.remove, str(planted))
+        with patch.dict(os.environ, {"TERMINAL_CWD": str(self.worktree)}):
+            self.assertEqual(self._call(), str(self.worktree))
+        self.assertFalse(marker.exists(), "the hook imported a package Hermes never loaded")
+        self.assertNotIn("agent.runtime_cwd", sys.modules)
+
     def test_a_broken_or_odd_resolver_falls_back_to_terminal_cwd(self):
         for result in (RuntimeError("boom"), self.launch / "missing", "relative/dir", 42):
             with self.subTest(result=result):

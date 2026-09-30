@@ -62,6 +62,33 @@ class GateStateIsolationTests(unittest.TestCase):
         self.assertIn("wrote to the state directory", str(ctx.exception))
         self.assertIn("qualixar-jev-decision-layer/abc/policy.json", str(ctx.exception))
 
+    def test_a_test_that_bypasses_the_variable_and_writes_real_state_fails_the_gate(self):
+        """A test can ignore XDG_STATE_HOME and write through Path.home(); the
+        gate also compares the real state roots before and after the run."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            real = Path(directory) / "real-state"
+            (real / "already-there").mkdir(parents=True)
+            base = self._fake_run(leak=False)
+
+            def run(command, **kwargs):
+                if "json" not in command:
+                    (real / "written-by-a-test").mkdir()
+                return base(command, **kwargs)
+
+            with patch.object(self.gate, "_real_state_roots", return_value=[real]), \
+                 patch.object(self.gate.subprocess, "run", run), \
+                 self.assertRaises(SystemExit) as ctx:
+                self.gate._measure()
+        message = str(ctx.exception)
+        self.assertIn("written-by-a-test", message)
+        self.assertNotIn("already-there", message)
+
+    def test_the_real_state_roots_include_the_home_fallback(self):
+        roots = self.gate._real_state_roots()
+        self.assertIn(Path.home() / ".local" / "state" / "qualixar-jev-decision-layer", roots)
+
     def test_leaked_state_lists_files_only(self):
         import tempfile
 
