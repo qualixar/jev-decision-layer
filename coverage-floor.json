@@ -16,6 +16,7 @@
     "jev_auto/hermes_tool.py": 100,
     "jev_auto/hooks.py": 96,
     "jev_auto/host_mcp.py": 100,
+    "jev_auto/host_policy.py": 99,
     "jev_auto/ipc.py": 100,
     "jev_auto/mcp.py": 100,
     "jev_auto/measure.py": 100,
