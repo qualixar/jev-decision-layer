@@ -131,11 +131,18 @@ class ExistingFileTests(unittest.TestCase):
             real.write_text("data")
             link = root / "link.txt"
             link.symlink_to(real)
-            self.assertFalse(settings._existing_file(link))
+            self.assertIsNone(settings._containing_folder(link))
 
     def test_a_plain_missing_path_is_not_an_existing_file(self):
         with tempfile.TemporaryDirectory() as directory:
-            self.assertFalse(settings._existing_file(Path(directory) / "missing.txt"))
+            self.assertIsNone(settings._containing_folder(Path(directory) / "missing.txt"))
+
+    def test_a_directory_has_no_containing_folder_and_a_file_has_its_own(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / "a.txt").write_text("data")
+            self.assertIsNone(settings._containing_folder(root))
+            self.assertEqual(settings._containing_folder(root / "a.txt"), root)
 
 
 class MakePolicyConfigGuardTests(_TempWorkspace):
@@ -247,7 +254,7 @@ class InheritedRootAnchorSearchTests(unittest.TestCase):
             def parents(self):
                 return [_Boom()]
 
-        with patch.object(settings, "safe_path", return_value=_FakeResolved()):
+        with patch.object(settings, "trusted_path", return_value=_FakeResolved()):
             self.assertIsNone(settings._inherited_root("/whatever-not-real"))
 
     def test_no_ancestor_is_ever_a_directory_returns_none(self):
@@ -262,7 +269,7 @@ class InheritedRootAnchorSearchTests(unittest.TestCase):
             def parents(self):
                 return [self]
 
-        with patch.object(settings, "safe_path", return_value=_FakeResolved()):
+        with patch.object(settings, "trusted_path", return_value=_FakeResolved()):
             self.assertIsNone(settings._inherited_root("/whatever-not-real"))
 
 

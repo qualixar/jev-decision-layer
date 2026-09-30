@@ -17,6 +17,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
+
+# Derived from the recipe sources, so adding a recipe never means editing a count here.
+RECIPE_COUNT = len(list((ROOT / "recipes").rglob("*.json")))
 sys.path.insert(0, str(RUNTIME))
 
 
@@ -117,7 +120,7 @@ class CoreContractTests(unittest.TestCase):
         from jev_auto.recipe_runtime import catalog_preview, prepare_recipe
 
         catalog = catalog_preview()
-        self.assertEqual(len(catalog["recipes"]), 38)
+        self.assertEqual(len(catalog["recipes"]), RECIPE_COUNT)
         prepared = prepare_recipe("qualixar.brief-fit", {
             "query": "Explain the idea plainly", "candidate": "This paragraph explains the idea plainly.",
         })
@@ -434,18 +437,22 @@ class CoreContractTests(unittest.TestCase):
             result = dispatch("jev_setup", {"workspace_path": str(workspace)},
                               SimpleNamespace(tools=lambda scope: []),
                               setup_launcher=lambda path: observed.append(path) or {
-                                  "status": "SETUP_WIZARD_OPEN", "url": "http://127.0.0.1:54321/setup"})
+                                  "status": "SETUP_WIZARD_OPEN"})
         self.assertEqual(observed, [workspace.resolve()])
-        self.assertEqual(result["url"], "http://127.0.0.1:54321/setup")
+        self.assertEqual(result, {"status": "SETUP_WIZARD_OPEN"})
 
-    def test_setup_url_parser_accepts_only_the_packaged_loopback_line(self):
-        from jev_auto.mcp import _extract_setup_url
+    def test_setup_line_parser_accepts_only_the_two_fixed_launcher_lines(self):
+        from jev_auto.mcp import _setup_outcome
 
-        self.assertEqual(_extract_setup_url(
-            b"Qualixar setup: http://127.0.0.1:54321/setup. Enter keys only in the local browser, never in chat.\n"),
-            "http://127.0.0.1:54321/setup")
-        with self.assertRaises(ValueError):
-            _extract_setup_url(b"Qualixar setup: http://example.com/setup. Enter keys only in the local browser.\n")
+        self.assertEqual(_setup_outcome(
+            b"Qualixar setup opened in your browser. Enter keys only in the local browser, never in chat.\n"), "opened")
+        self.assertEqual(_setup_outcome(
+            b"Qualixar setup could not open a browser. Run open-setup in a terminal to get a private link.\n"),
+            "no_browser")
+        for line in (b"Qualixar setup: http://127.0.0.1:54321/setup. Enter keys only in the local browser, never in chat.\n",
+                     b"Qualixar setup: http://example.com/setup. Enter keys only in the local browser.\n", "text"):
+            with self.assertRaises(ValueError):
+                _setup_outcome(line)
 
     def test_setup_tool_returns_a_fixed_error_if_browser_process_cannot_start(self):
         from jev_auto.common import AutoError
@@ -474,12 +481,13 @@ class CoreContractTests(unittest.TestCase):
             def wait(self, timeout=None):
                 return 0
 
-        good = FakeProcess(b"Qualixar setup: http://127.0.0.1:54321/setup. Enter keys only in the local browser, never in chat.\n")
+        good = FakeProcess(b"Qualixar setup opened in your browser. Enter keys only in the local browser, never in chat.\n")
         with tempfile.TemporaryDirectory() as directory:
             with patch("jev_auto.mcp.workspace", side_effect=lambda value: Path(value)), patch(
                     "jev_auto.mcp.subprocess.Popen", return_value=good):
                 result = _open_setup(directory)
-            self.assertEqual(result["url"], "http://127.0.0.1:54321/setup")
+            self.assertEqual(result["status"], "SETUP_WIZARD_OPEN")
+            self.assertNotIn("url", result)
             bad = FakeProcess(b"Qualixar setup: http://example.com/setup. Enter keys only in the local browser.\n")
             with patch("jev_auto.mcp.workspace", side_effect=lambda value: Path(value)), patch(
                     "jev_auto.mcp.subprocess.Popen", return_value=bad), patch("jev_auto.mcp.os.killpg") as killed:
@@ -511,7 +519,7 @@ class CoreContractTests(unittest.TestCase):
         from jev_auto.agy_hook import handle
 
         result = handle({"invocationNum": 0, "workspacePaths": ["/synthetic/project"]},
-                        policy_loader=lambda _path: (_ for _ in ()).throw(RuntimeError("not enrolled")))
+                        binding_loader=lambda _path: (_ for _ in ()).throw(RuntimeError("not enrolled")))
         self.assertEqual(result, {})
 
     def test_hermes_hook_adds_only_a_bounded_shortlist(self):
@@ -570,8 +578,8 @@ class CoreContractTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             event = {"invocationNum": 0, "workspacePaths": [directory]}
-            enabled = handle(event, policy_loader=lambda _path: {"enabled": True})
-            later = handle({**event, "invocationNum": 1}, policy_loader=lambda _path: {"enabled": True})
+            enabled = handle(event, binding_loader=lambda _path: {"policy": {"enabled": True, "provider": "typesafe"}, "workspace": _path, "scope": "exact"})
+            later = handle({**event, "invocationNum": 1}, binding_loader=lambda _path: {"policy": {"enabled": True, "provider": "typesafe"}, "workspace": _path, "scope": "exact"})
         self.assertIn("injectSteps", enabled)
         self.assertEqual(later, {})
 

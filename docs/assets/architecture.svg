@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 690" role="img" aria-labelledby="title desc">
   <title id="title">Qualixar Jev Decision Layer architecture</title>
-  <desc id="desc">An agent sends a bounded decision request to a local broker. With workspace consent the broker routes to hosted TypeSafe or OpenRouter Jev, or optional attested local Laya. The response and a private local receipt return to the agent. The agent retains execution and verification authority.</desc>
+  <desc id="desc">An AI assistant sends a bounded decision request to a local service on the user's computer. With per-folder consent the service routes it to hosted Jev (TypeSafe or OpenRouter), to verified local Laya, or, under Jev + Laya, restricted decisions to Laya and the rest to Jev. The answer and a private local receipt return to the assistant, which keeps execution and verification authority.</desc>
   <defs>
   </defs>
   <rect width="1200" height="690" rx="26" fill="#fbf9f5"/>
   <rect x="1" y="1" width="1198" height="688" rx="25" fill="none" stroke="#ddd7f3"/>
-  <text x="42" y="58" font-family="ui-sans-serif,system-ui,sans-serif" font-size="29" font-weight="780" fill="#252331">One bounded question. One advisory route. The agent stays in control.</text>
+  <text x="42" y="58" font-family="ui-sans-serif,system-ui,sans-serif" font-size="29" font-weight="780" fill="#252331">One bounded question. One advisory route. Your assistant stays in control.</text>
   <text x="42" y="91" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#696477">Local policy and consent shape the request; host permissions still govern execution.</text>
 
   <!-- Connections are deliberately drawn behind the cards. -->
-  <line x1="272" y1="262" x2="312" y2="262" stroke="#6555d2" stroke-width="3"/>
+  <line x1="292" y1="262" x2="312" y2="262" stroke="#6555d2" stroke-width="3"/>
   <line x1="324" y1="518" x2="230" y2="518" stroke="#6555d2" stroke-width="3"/>
   <line x1="230" y1="518" x2="198" y2="518" stroke="#6555d2" stroke-width="3"/>
   <line x1="198" y1="518" x2="198" y2="377" stroke="#6555d2" stroke-width="3"/>
@@ -28,10 +28,10 @@
 
   <!-- Local device boundary. -->
   <rect x="32" y="130" width="766" height="474" rx="20" fill="none" stroke="#8a7bdd" stroke-width="2" stroke-dasharray="9 7"/>
-  <text x="52" y="158" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="750" fill="#5d50be" letter-spacing="1.1">ON THE USER'S COMPUTER</text>
+  <text x="52" y="158" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="750" fill="#5d50be" letter-spacing="1.1">ON YOUR COMPUTER</text>
 
   <g>
-    <rect x="52" y="190" width="220" height="175" rx="15" fill="#fff" stroke="#d8d2ec" stroke-width="2"/>
+    <rect x="52" y="190" width="240" height="175" rx="15" fill="#fff" stroke="#d8d2ec" stroke-width="2"/>
     <rect x="324" y="176" width="440" height="220" rx="16" fill="#fff" stroke="#8a7bdd" stroke-width="2"/>
     <rect x="324" y="458" width="440" height="114" rx="16" fill="#fff" stroke="#d9c58e" stroke-width="2"/>
     <rect x="858" y="170" width="288" height="112" rx="16" fill="#fff7e6" stroke="#e1bd6a" stroke-width="2"/>
@@ -39,31 +39,32 @@
     <rect x="858" y="378" width="288" height="108" rx="15" fill="#fff" stroke="#d8857c" stroke-width="2"/>
   </g>
 
-  <text x="72" y="228" font-family="ui-sans-serif,system-ui,sans-serif" font-size="21" font-weight="750" fill="#292637">Coding agent</text>
-  <text x="72" y="259" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#625d72">Codex · Claude Code</text>
-  <text x="72" y="284" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#625d72">Antigravity · Hermes · VS Code</text>
-  <path d="M72 306H250" stroke="#e6e1f0"/>
+  <text x="72" y="228" font-family="ui-sans-serif,system-ui,sans-serif" font-size="21" font-weight="750" fill="#292637">AI assistant</text>
+  <text x="72" y="259" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#625d72">Claude Code · Codex</text>
+  <text x="72" y="284" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#625d72">VS Code · Antigravity · Hermes</text>
+  <path d="M72 306H272" stroke="#e6e1f0"/>
   <text x="72" y="334" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" font-weight="700" fill="#5145bb">Executes and verifies</text>
 
-  <text x="350" y="215" font-family="ui-sans-serif,system-ui,sans-serif" font-size="22" font-weight="760" fill="#292637">Local decision broker</text>
-  <text x="350" y="247" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#625d72">1  Workspace-scoped consent</text>
+  <text x="350" y="215" font-family="ui-sans-serif,system-ui,sans-serif" font-size="22" font-weight="760" fill="#292637">Local decision service</text>
+  <text x="350" y="247" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#625d72">1  Per-folder consent</text>
   <text x="350" y="276" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#625d72">2  Secret screen + daily budget</text>
   <text x="350" y="305" font-family="ui-sans-serif,system-ui,sans-serif" font-size="15" fill="#625d72">3  Bounded typed request + provider scope</text>
   <rect x="350" y="329" width="385" height="42" rx="10" fill="#f0edff"/>
   <text x="365" y="356" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" font-weight="700" fill="#5145bb">A model recommendation grants no tool authority</text>
 
   <text x="350" y="493" font-family="ui-sans-serif,system-ui,sans-serif" font-size="19" font-weight="740" fill="#292637">Advisory answer + local receipt</text>
-  <text x="350" y="524" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#625d72">Choice · Score · Noul probability; agent inspects the result</text>
-  <text x="350" y="549" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" fill="#7a6c4d">Private evidence stays on the user's computer</text>
+  <text x="350" y="524" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#625d72">Choice · Score · Noul; your assistant inspects it</text>
+  <text x="350" y="549" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" fill="#7a6c4d">Receipts stay on your computer</text>
 
   <text x="880" y="204" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" font-weight="750" fill="#9a6d1c" letter-spacing=".8">HOSTED PROVIDER</text>
   <text x="880" y="233" font-family="ui-sans-serif,system-ui,sans-serif" font-size="20" font-weight="740" fill="#302b35">Jev</text>
   <text x="880" y="259" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#70634d">TypeSafe or OpenRouter</text>
 
-  <text x="862" y="367" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="750" fill="#b4504d" letter-spacing=".8">OPTIONAL · ON THIS COMPUTER</text>
+  <text x="862" y="367" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" font-weight="750" fill="#b4504d" letter-spacing=".8">OPTIONAL · ALSO ON YOUR COMPUTER</text>
   <text x="880" y="415" font-family="ui-sans-serif,system-ui,sans-serif" font-size="20" font-weight="740" fill="#302b35">Local Laya</text>
-  <text x="880" y="443" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#70606a">Attested MLX · user-selected</text>
-  <text x="880" y="465" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" fill="#8c6b72">No silent fallback from Jev-only</text>
+  <text x="880" y="439" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#70606a">Verified install · you choose it</text>
+  <text x="880" y="459" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" fill="#8c6b72">Jev + Laya: restricted decisions stay here</text>
+  <text x="880" y="477" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" fill="#8c6b72">Jev-only never falls back to it</text>
 
   <rect x="42" y="630" width="1116" height="1" fill="#ded9eb"/>
   <text x="46" y="660" font-family="ui-sans-serif,system-ui,sans-serif" font-size="13" font-weight="650" fill="#706b7c">Advisory answer only</text>

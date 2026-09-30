@@ -32,6 +32,7 @@ class CliWorkbenchTests(unittest.TestCase):
             service = object()
             server = Mock()
             server.server_port = 43127
+            server.launch_url = "http://127.0.0.1:43127/?t=" + "L" * 43
             server.session = SimpleNamespace(token="session-token", csrf="csrf-token", expires_at=123.0)
             server.reviews = {"review": ("value", 123.0, False)}
             server.serve_forever.side_effect = KeyboardInterrupt
@@ -41,9 +42,11 @@ class CliWorkbenchTests(unittest.TestCase):
                     patch("webbrowser.open", return_value=True) as browser_open:
                 result, stdout, stderr = self.run_cli(["workbench", "--workspace", str(workspace)])
 
-        expected_url = "http://127.0.0.1:43127/"
+        expected_url = server.launch_url
         self.assertEqual(result, 0)
-        self.assertIn(expected_url, stdout)
+        # Output captured through a pipe never carries the private link.
+        self.assertNotIn(expected_url, stdout)
+        self.assertIn("Recipe workbench opened in your browser.", stdout)
         self.assertEqual(stderr, "")
         service_factory.assert_called_once_with(workspace.resolve())
         server_factory.assert_called_once_with(("127.0.0.1", 0), service)
@@ -55,21 +58,38 @@ class CliWorkbenchTests(unittest.TestCase):
         self.assertEqual(server.session.expires_at, 0)
         self.assertEqual(server.reviews, {})
 
-    def test_browser_open_failure_does_not_prevent_manual_workbench_url(self):
+    def _no_browser(self, *, tty):
         with tempfile.TemporaryDirectory() as directory:
             server = Mock()
             server.server_port = 43210
+            server.launch_url = "http://127.0.0.1:43210/?t=" + "L" * 43
             server.session = SimpleNamespace(token="t", csrf="c", expires_at=1.0)
             server.reviews = {}
             server.serve_forever.side_effect = KeyboardInterrupt
+            stdout, stderr = io.StringIO(), io.StringIO()
+            stdout.isatty = lambda: tty
             with patch("jev_auto.recipe_workbench.RecipeWorkbench"), \
                     patch("src.adl.api.recipe_workbench_server.WorkbenchServer", return_value=server), \
-                    patch("webbrowser.open", side_effect=RuntimeError("no browser")):
-                result, stdout, _stderr = self.run_cli(["workbench", "--workspace", directory])
+                    patch("webbrowser.open", side_effect=RuntimeError("no browser")), \
+                    redirect_stdout(stdout), redirect_stderr(stderr):
+                result = cli.main(["workbench", "--workspace", directory])
+        return server, result, stdout.getvalue(), stderr.getvalue()
 
+    def test_browser_open_failure_still_gives_a_terminal_user_the_link(self):
+        server, result, stdout, _stderr = self._no_browser(tty=True)
         self.assertEqual(result, 0)
-        self.assertIn("http://127.0.0.1:43210/", stdout)
+        self.assertIn(server.launch_url, stdout)
+        server.serve_forever.assert_called_once()
         server.server_close.assert_called_once()
+
+    def test_browser_open_failure_over_a_pipe_stops_without_printing_the_link(self):
+        server, result, stdout, stderr = self._no_browser(tty=False)
+        self.assertEqual(result, 2)
+        self.assertNotIn("http://", stdout)
+        self.assertIn("WORKBENCH_BROWSER_UNAVAILABLE", stderr)
+        server.serve_forever.assert_not_called()
+        server.server_close.assert_called_once()
+        self.assertEqual(server.session.token, "")
 
 
 class CliWindowsHostRegisterTests(unittest.TestCase):

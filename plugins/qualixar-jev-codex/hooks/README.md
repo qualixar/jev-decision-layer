@@ -9,21 +9,23 @@ points nowhere. Nothing errors. The host simply has no hooks, or no tools.
 
 | File | Host | Plugin-root variable |
 |---|---|---|
-| `hooks.json` | Codex | `${PLUGIN_ROOT}` |
+| `codex-hooks.json` | Codex | `${PLUGIN_ROOT}` |
 | `claude-hooks.json` | Claude Code | `${CLAUDE_PLUGIN_ROOT}` |
 
 Antigravity's `PreInvocation` hook is declared separately in the plugin-root
 `hooks.json` (one level up), not here.
 
 **Do not merge these.** The variable names differ per host, and Codex
-registers a `PostToolUse` matcher that Claude Code deliberately does not:
-`tests/test_codex_hook_coverage.py` asserts that matcher exists and covers
-only documented read-only tools.
+registers a `PostToolUse` matcher on `Bash` and `mcp__filesystem__read_file`
+that Claude Code deliberately does not: `tests/test_codex_hook_coverage.py`
+asserts that matcher exists. The handler acts only in folders that route text
+reduction to local Laya, and only on successful output.
 
-Claude Code finds `hooks.json` by default, so the Claude file MUST stay
-declared explicitly via `"hooks": "./hooks/claude-hooks.json"` in
-`.claude-plugin/plugin.json` — otherwise Claude Code would load Codex's
-hooks, whose `${PLUGIN_ROOT}` it cannot resolve.
+Claude Code merges `hooks/hooks.json` by default. That is why Codex's file is
+named `codex-hooks.json` and no `hooks/hooks.json` exists: a file at the
+default name would be loaded by Claude Code too, with a `${PLUGIN_ROOT}` it
+cannot resolve. The Claude file is declared explicitly via
+`"hooks": "./hooks/claude-hooks.json"` in `.claude-plugin/plugin.json`.
 
 The Codex package does not ship `claude-hooks.json` at all: it is another
 host's file, and `tools/build_codex_package.py` excludes it by name.

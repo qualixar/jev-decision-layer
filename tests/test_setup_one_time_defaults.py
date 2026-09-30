@@ -39,7 +39,7 @@ def _page(project: Path, **controller_kwargs) -> str:
     thread.start()
     try:
         connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
-        connection.request("GET", "/setup")
+        connection.request("GET", server.launch_path)
         response = connection.getresponse()
         body = response.read().decode("utf-8")
         connection.close()
@@ -146,6 +146,9 @@ class _Server:
     def request(self, method, path, values=None):
         from urllib.parse import urlencode
 
+        if path == "/setup" and self.cookie is None:
+            # The first visit is the browser opening the one-time launch link.
+            path = self.server.launch_path
         connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=3)
         body = urlencode(values).encode() if values is not None else None
         headers = {"Origin": f"http://127.0.0.1:{self.server.server_port}",

@@ -1596,8 +1596,9 @@ def _serve_setup(test_case: unittest.TestCase, controller, *, host_inventory=lam
     return server
 
 
-def _get_setup_page(port: int) -> tuple[str, str, bytes]:
-    status, headers, body = _http_request(port, "GET", "/setup")
+def _get_setup_page(port: int, path: str) -> tuple[str, str, bytes]:
+    """Open the wizard as the browser does: through its one-time launch link."""
+    status, headers, body = _http_request(port, "GET", path)
     assert status == 200, body
     cookie = headers["Set-Cookie"].split(";", 1)[0]
     csrf = re.search(rb"name=['\"]csrf['\"] value=['\"]([^'\"]+)", body).group(1).decode()
@@ -1663,8 +1664,15 @@ class SetupServerRateLimitAndRoutingTests(unittest.TestCase):
 
     def test_the_101st_request_is_rejected_with_a_fixed_rate_limit_code(self):
         server = _serve_setup(self, self._controller())
+        cookie, csrf, _page = _get_setup_page(server.server_port, server.launch_path)
         server.request_count = 100
-        status, _headers, body = _http_request(server.server_port, "GET", "/setup")
+        # Reading the page is not a consent attempt and is never limited.
+        status, _headers, _body = _http_request(server.server_port, "GET", "/setup", cookie=cookie)
+        self.assertEqual(status, 200)
+        status, _headers, body = _http_request(
+            server.server_port, "POST", "/preview", cookie=cookie,
+            values={"csrf": csrf, "provider": "typesafe", "mode": "jev-public", "days": "1",
+                    "daily_calls": "2", "daily_bytes": "2000"})
         self.assertEqual(status, 429)
         self.assertIn(b"SETUP_REQUEST_LIMIT", body)
 
@@ -1731,7 +1739,7 @@ class SetupServerHostAndSessionTests(unittest.TestCase):
         controller = _StubSetupController(self.workspace, policy_exists=False,
                                           load_existing=lambda: (_ for _ in ()).throw(RuntimeError("no policy")))
         server = _serve_setup(self, controller)
-        cookie, _csrf, _page = _get_setup_page(server.server_port)
+        cookie, _csrf, _page = _get_setup_page(server.server_port, server.launch_path)
         status, _headers, body = _http_request(server.server_port, "GET", "/status", cookie=cookie)
         self.assertEqual(status, 200)
         self.assertIn(b"Not enrolled", body)
@@ -1742,7 +1750,7 @@ class SetupServerHostAndSessionTests(unittest.TestCase):
                     "local_laya_enabled": False}
         controller = _StubSetupController(self.workspace, policy_exists=True, load_existing=lambda: existing)
         server = _serve_setup(self, controller)
-        cookie, _csrf, _page = _get_setup_page(server.server_port)
+        cookie, _csrf, _page = _get_setup_page(server.server_port, server.launch_path)
         status, _headers, body = _http_request(server.server_port, "GET", "/status", cookie=cookie)
         self.assertEqual(status, 200)
         self.assertIn(b"TypeSafe", body)
@@ -1764,13 +1772,13 @@ class SetupServerLocalReadyDuckTypeTests(unittest.TestCase):
         controller = _StubSetupController(self.workspace, local_attestor=lambda cfg: cfg)
         self.assertFalse(hasattr(controller, "local_ready"))
         server = _serve_setup(self, controller)
-        _cookie, _csrf, page = _get_setup_page(server.server_port)
+        _cookie, _csrf, page = _get_setup_page(server.server_port, server.launch_path)
         self.assertNotIn(b"value='hybrid' disabled", page)
 
     def test_no_local_attestor_and_no_local_ready_disables_local_options(self):
         controller = _StubSetupController(self.workspace, local_attestor=None)
         server = _serve_setup(self, controller)
-        _cookie, _csrf, page = _get_setup_page(server.server_port)
+        _cookie, _csrf, page = _get_setup_page(server.server_port, server.launch_path)
         self.assertIn(b"value='hybrid' disabled", page)
 
 
@@ -1788,7 +1796,7 @@ class SetupServerHostInventoryFailureTests(unittest.TestCase):
                                          bridge=lambda *_: None, start=lambda *_: None)
             server = _serve_setup(self, controller,
                                   host_inventory=lambda: (_ for _ in ()).throw(RuntimeError("boom")))
-            status, _headers, body = _http_request(server.server_port, "GET", "/setup")
+            status, _headers, body = _http_request(server.server_port, "GET", server.launch_path)
         self.assertEqual(status, 200)
         self.assertIn(b"<ul></ul>", body)
 
@@ -1808,7 +1816,7 @@ class SetupServerFormBoundaryTests(unittest.TestCase):
         self.controller = SetupController(self.workspace, keychain=_FakeKeychainStore(),
                                           bridge=lambda *_: None, start=lambda *_: None)
         self.server = _serve_setup(self, self.controller)
-        self.cookie, self.csrf, _page = _get_setup_page(self.server.server_port)
+        self.cookie, self.csrf, _page = _get_setup_page(self.server.server_port, self.server.launch_path)
 
     def _fields(self, **overrides):
         return {"csrf": self.csrf, "provider": "typesafe", "mode": "jev-public",
@@ -1912,7 +1920,7 @@ class SetupServerChoiceAndRouteTests(unittest.TestCase):
         self.controller = SetupController(self.workspace, keychain=_FakeKeychainStore(),
                                           bridge=lambda *_: None, start=lambda *_: None)
         self.server = _serve_setup(self, self.controller)
-        self.cookie, self.csrf, _page = _get_setup_page(self.server.server_port)
+        self.cookie, self.csrf, _page = _get_setup_page(self.server.server_port, self.server.launch_path)
 
     def _post(self, path, **fields):
         return _http_request(self.server.server_port, "POST", path,
@@ -1983,7 +1991,7 @@ class SetupServerPreviewAndApplyFlowTests(unittest.TestCase):
                  "model_dir": "/synthetic/model", "artifact_manifest": "/synthetic/manifest"}
         controller = self._controller(local_config=lambda: model, local_attestor=lambda cfg: dict(cfg))
         server = _serve_setup(self, controller)
-        cookie, csrf, _page = _get_setup_page(server.server_port)
+        cookie, csrf, _page = _get_setup_page(server.server_port, server.launch_path)
         status, _headers, body = _http_request(
             server.server_port, "POST", "/preview",
             values={"csrf": csrf, "provider": "typesafe", "classification": "internal-minimized",
@@ -2000,7 +2008,7 @@ class SetupServerPreviewAndApplyFlowTests(unittest.TestCase):
         # enough for this test's OWN second request to deterministically reach the
         # `self.server.applied` guard, instead of racing a real shutdown.
         server.shutdown = lambda: None
-        cookie, csrf, _page = _get_setup_page(server.server_port)
+        cookie, csrf, _page = _get_setup_page(server.server_port, server.launch_path)
         fields = {"csrf": csrf, "provider": "typesafe", "mode": "jev-public", "days": "1",
                   "daily_calls": "2", "daily_bytes": "2000", "generic": "on"}
         status, _headers, review = _http_request(
@@ -2026,7 +2034,7 @@ class SetupServerPreviewAndApplyFlowTests(unittest.TestCase):
         controller = self._controller(policy_exists=lambda: True,
                                       load_existing=lambda: (_ for _ in ()).throw(AutoError("CORRUPT_POLICY")))
         server = _serve_setup(self, controller)
-        cookie, csrf, _page = _get_setup_page(server.server_port)
+        cookie, csrf, _page = _get_setup_page(server.server_port, server.launch_path)
         fields = {"csrf": csrf, "provider": "typesafe", "mode": "jev-public", "days": "1",
                   "daily_calls": "2", "daily_bytes": "2000", "generic": "on"}
         status, _headers, body = _http_request(
@@ -2037,7 +2045,7 @@ class SetupServerPreviewAndApplyFlowTests(unittest.TestCase):
     def test_an_unexpected_exception_during_apply_is_a_fixed_500(self):
         controller = self._controller()
         server = _serve_setup(self, controller)
-        cookie, csrf, _page = _get_setup_page(server.server_port)
+        cookie, csrf, _page = _get_setup_page(server.server_port, server.launch_path)
         fields = {"csrf": csrf, "provider": "typesafe", "mode": "jev-public", "days": "1",
                   "daily_calls": "2", "daily_bytes": "2000", "generic": "on"}
         status, _headers, review = _http_request(
@@ -2081,13 +2089,23 @@ class SetupServerCliEntrypointTests(unittest.TestCase):
             fake_server.__enter__.return_value = fake_server
             fake_server.__exit__.return_value = False
             fake_server.server_port = 54321
+            fake_server.launch_url = "http://127.0.0.1:54321/setup?t=" + "L" * 43
+            printed = io.StringIO()
+            printed.isatty = lambda: False
             with patch.object(setup_server, "SetupServer", return_value=fake_server) as server_cls, \
                  patch.object(setup_server, "webbrowser") as fake_browser, \
                  patch.dict(os.environ, {"ADL_SETUP_NO_BROWSER": "1"}), \
+                 patch.object(sys, "stdout", printed), \
                  patch.object(sys, "argv", ["adl-setup", "--workspace", str(workspace)]):
-                setup_server.main()
+                with self.assertRaises(SystemExit) as stopped:
+                    setup_server.main()
             server_cls.assert_called_once()
             fake_browser.open.assert_not_called()
+            # Nobody could reach the wizard, so it does not wait unreachable,
+            # and a pipe never sees the private link.
+            self.assertEqual(stopped.exception.code, 4)
+            fake_server.serve_forever.assert_not_called()
+            self.assertNotIn("http://", printed.getvalue())
 
 
 # ============================================================================================

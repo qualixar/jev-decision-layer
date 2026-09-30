@@ -12,6 +12,10 @@ from .common import AutoError
 
 _ID = re.compile(r"[A-Za-z][A-Za-z0-9_.-]{0,127}\Z")
 _PUBLIC_FIELDS = ("id", "title", "audience", "input_schema", "questions", "status", "limitations")
+# The hosted query refuses any string over 8,000 characters
+# (src/adl/queries/typed.py). Accepting more here let a pasted input pass local
+# validation and then fail at the provider step.
+_MAX_INPUT_CHARS = 8_000
 
 
 def _validate_catalog(recipes: Any) -> list[dict[str, Any]]:
@@ -147,7 +151,7 @@ def prepare_recipe(recipe_id: str, values: Any) -> dict[str, Any]:
             not isinstance(rule, dict) or rule.get("type") != "string"
             or not isinstance(value, str) or not value.strip()
             or len(value) < rule.get("minLength", 1)
-            or len(value) > min(rule.get("maxLength", 12_000), 12_000)
+            or len(value) > min(rule.get("maxLength", _MAX_INPUT_CHARS), _MAX_INPUT_CHARS)
         ):
             raise AutoError("RECIPE_INPUT_INVALID")
     questions = recipe.get("questions")

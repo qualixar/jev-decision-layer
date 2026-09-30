@@ -7,7 +7,7 @@ Check the Qualixar Jev decision gate without spending anything.
 
 Arguments: `$ARGUMENTS`
 
-Call `jev_recipe_selftest` on the `qualixar-jev` MCP server. With no arguments it replays all 96 shipped fixtures — 32 recipes across nominal, uncertain and adversarial — and returns the counts. Given a recipe id (and optionally a variant) it replays that single case and shows expected against observed.
+Call `jev_recipe_selftest` on the `qualixar-jev` MCP server. With no arguments it replays every shipped fixture — three per recipe: nominal, uncertain and adversarial — and returns the counts. Given a recipe id (and optionally a variant) it replays that single case and shows expected against observed.
 
 This is fully offline: no provider is contacted, no key is used, and the workspace does not need to be enrolled. Run it when adopting the layer, or when a live gate result looks wrong and you need to know whether the gate itself is sound.
 

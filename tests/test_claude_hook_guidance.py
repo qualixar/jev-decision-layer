@@ -93,6 +93,24 @@ class EnrolledGuidanceTests(_Isolated):
         self.assertIn("workspace_path=" + json.dumps(str(workspace(self.child))), text)
         self.assertIn("covered by the grant on " + json.dumps(str(workspace(self.parent))), text)
 
+    def test_a_jev_plus_laya_grant_says_how_to_keep_private_content_on_this_mac(self):
+        save_policy_new(self.parent, make_policy(self.parent, "typesafe", generic_query_enabled=True,
+                                                 local_laya_enabled=True, mlx={"repository": "aac6fef/laya-mlx"},
+                                                 data_classification="internal-minimized"))
+        for event in ("SessionStart", "UserPromptSubmit", "SubagentStart"):
+            with self.subTest(event=event):
+                text = handle(self.event(event, self.parent))
+                self.assertIn('data_classification="restricted"', text)
+                self.assertIn("Laya on this Mac", text)
+        self.assertIn('provider="laya-mlx" for jev_typed_decide', handle(self.event("SessionStart", self.parent)))
+
+    def test_jev_only_and_laya_only_grants_do_not_mention_the_split(self):
+        for folder, provider, fields in ((self.parent, "typesafe", {}),
+                                         (self.child, "laya-mlx", {"data_classification": "restricted"})):
+            with self.subTest(provider=provider):
+                save_policy_new(folder, make_policy(folder, provider, generic_query_enabled=True, **fields))
+                self.assertNotIn("Laya on this Mac", handle(self.event("SessionStart", folder)))
+
     def test_prompt_hint_is_short_and_still_carries_the_arguments(self):
         save_policy_new(self.parent, make_policy(self.parent, "typesafe", generic_query_enabled=True))
         text = handle(self.event("UserPromptSubmit", self.parent))

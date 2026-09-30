@@ -202,7 +202,8 @@ class RequestWindowsBranchTests(unittest.TestCase):
                  patch.object(ipc, "os", FAKE_NT_OS):
                 result = ipc.request(workspace, {"op": "probe"}, base, timeout=9)
 
-        self.assertEqual(result, {"echo": {"op": "probe"}})
+        # Every request names the folder it is for, so the broker can re-check consent.
+        self.assertEqual(result, {"echo": {"op": "probe", "requested_path": str(workspace)}})
         self.assertEqual([c[1]["op"] for c in calls], ["health", "probe"])
         self.assertEqual(calls[0][2], 1, "the health precheck caps at min(timeout, 1)")
         self.assertEqual(calls[1][2], 9, "the real call keeps the caller's own timeout")

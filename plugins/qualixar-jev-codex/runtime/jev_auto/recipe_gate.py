@@ -35,6 +35,11 @@ _REQUIRED_THRESHOLDS = {
 # Accept limited rounding while refusing omitted alternatives. This bound is
 # a structural check, not a guarantee that provider probabilities are accurate.
 _MASS_TOLERANCE = 0.01
+# Outcomes that hold work back rather than let it through. Only these may be
+# declared `safe_outcomes`: the offline adversarial proof lets a gate act on a
+# safe outcome, because a model that resisted an injection answers confidently
+# and its honest answer is to review, quarantine or leave the item alone.
+SAFE_ACTIONS = frozenset({"abstain", "request_review", "quarantine_candidate"})
 
 
 def _number(value: Any) -> float | None:
@@ -92,7 +97,16 @@ def validate_gates(gates: Any) -> list[dict[str, Any]]:
             # A gate that cannot tell clean from dirty costs the host a review
             # it did not need, which is the cost this layer exists to remove.
             raise AutoError("RECIPE_GATES_INVALID")
+        if "safe_outcomes" in policy and not _safe_outcomes_valid(policy):
+            raise AutoError("RECIPE_GATES_INVALID")
     return gates
+
+
+def _safe_outcomes_valid(policy: dict[str, Any]) -> bool:
+    safe = policy["safe_outcomes"]
+    outcomes = {policy["positive_outcome"], policy["negative_outcome"]}
+    return (isinstance(safe, list) and all(isinstance(item, str) for item in safe)
+            and len(set(safe)) == len(safe) and set(safe) <= outcomes & SAFE_ACTIONS)
 
 
 def _probability_of(answer: dict[str, Any], label: Any) -> float | None:
@@ -182,6 +196,9 @@ def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
         "status": "REVIEW",
         "host_action": VERIFY,
         "recommendation": None,
+        # The label a choice answer selected. Every non-unknown label clears to
+        # the same outcome, so without it `route_to_queue` names no queue.
+        "selected_label": None,
         "confidence": None,
         "probability": None,
         "outcome_probability": None,
@@ -240,6 +257,8 @@ def evaluate(policy: Any, answer: Any, provider: Any = None) -> dict[str, Any]:
 
     if kind == "choice":
         label = answer.get("choice")
+        if isinstance(label, str) and label:
+            result["selected_label"] = label
         probability = _probability_of(answer, label)
         min_probability = _unit(policy.get("min_selected_probability"))
         result["probability"] = probability

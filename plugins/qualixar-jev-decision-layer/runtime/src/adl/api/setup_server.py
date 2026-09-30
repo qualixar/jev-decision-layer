@@ -2,7 +2,10 @@
 
 The server does not expose consent creation through MCP. It keeps session and
 CSRF values in process memory, accepts bounded form bodies, and never logs or
-reflects a credential. Same-user local processes are outside this boundary.
+reflects a credential. The page opens only from a one-time launch link that is
+handed to the browser opener, so another local program that finds the port
+gets no session. A same-user process that can read the browser's history or
+memory is still outside this boundary.
 """
 
 from __future__ import annotations
@@ -15,11 +18,14 @@ import hmac
 import json
 import os
 import secrets
+import shutil
 import subprocess
+import sys
+import tempfile
 import threading
 import time
 import webbrowser
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable
 from urllib.parse import parse_qs
@@ -56,7 +62,17 @@ _SETUP_ERROR_HELP = {
     ),
     "CREDENTIAL_STORE_UNAVAILABLE": "The operating system credential manager is unavailable. Check the signed-in user session, then retry setup.",
     "CREDENTIAL_STORE_UNSUPPORTED": "Hosted credential storage is not supported on this operating system.",
+    "SETUP_LINK_REQUIRED": (
+        "Setup opens only from the private link it opened in your browser, and that link works once. "
+        "Return to that browser window, or open setup again for a new link."
+    ),
 }
+
+# The only lines a non-terminal caller (the MCP server) ever reads. Neither
+# carries the launch link: that goes to the browser opener alone.
+SETUP_OPENED_LINE = "Qualixar setup opened in your browser. Enter keys only in the local browser, never in chat."
+SETUP_NO_BROWSER_LINE = ("Qualixar setup could not open a browser. "
+                         "Run open-setup in a terminal to get a private link.")
 
 
 def _safe(value: object) -> str:
@@ -120,6 +136,29 @@ def _suggest_coverage(root: Path, current: dict, exists: bool) -> bool:
     return _is_plain_folder(root)
 
 
+def _laya_unavailable_hint() -> str:
+    """Say why Laya cannot be chosen yet, and how to fix it on this computer."""
+    import platform
+
+    if platform.system() != "Darwin" or platform.machine() != "arm64":
+        return ("<p class='hint'>Laya runs on this computer only with an Apple-Silicon Mac, so the Laya modes are "
+                "unavailable here. Jev modes work normally.</p>")
+    jev = Path(__file__).resolve().parents[4] / "scripts" / "jev"
+    home = str(Path.home())
+    shown = "~" + str(jev)[len(home):] if str(jev).startswith(home + os.sep) else str(jev)
+    return ("<p class='hint'><strong>Laya is not installed yet.</strong> Laya is free and runs on this Mac. "
+            f"To install it, run <code>{_safe(shown)} laya-install</code> in Terminal, or ask Claude to run it, "
+            "then reopen this page. It needs macOS 14 or later, Python 3.11 or later, and git.</p>")
+
+
+def _with_code(text: object) -> str:
+    """Escape text, showing `backticked` spans as code. Unbalanced backticks stay literal."""
+    parts = str(text).split("`")
+    if len(parts) % 2 == 0:
+        return _safe(text)
+    return "".join(f"<code>{_safe(part)}</code>" if index % 2 else _safe(part) for index, part in enumerate(parts))
+
+
 def _page(title: str, content: str) -> bytes:
     return (
         "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
@@ -133,27 +172,77 @@ def _page(title: str, content: str) -> bytes:
     ).encode("utf-8")
 
 
-class SetupServer(HTTPServer):
+class SetupServer(ThreadingHTTPServer):
+    # One thread per connection, so an idle or slow connection (a browser's
+    # speculative preconnect, or any local program) cannot hold up the page.
+    # Connections beyond the bound are closed at once.
+    daemon_threads = True
+    max_connections = 16
+
     def __init__(self, address: tuple[str, int], controller: SetupController,
                  *, host_inventory: Callable[[], list[dict[str, object]]] = inventory_hosts,
                  claude_policy: Callable[[], dict[str, object] | None] = claude_policy_notice):
         if address[0] != "127.0.0.1":
             raise ValueError("SETUP_LOOPBACK_ONLY")
+        self._connection_slots = threading.BoundedSemaphore(self.max_connections)
+        self.state_lock = threading.Lock()
         super().__init__(address, _SetupHandler)
         self.controller = controller
         self.host_inventory = host_inventory
         self.claude_policy = claude_policy
         self.setup_session = SetupSession.create(port=self.server_port)
+        # 256-bit, single use, exchanged for the session cookie on the first GET.
+        self._launch_token = secrets.token_urlsafe(32)
+        self._launch_used = False
+        self._launch_lock = threading.Lock()
         self.applied = False
         self.request_count = 0
         self.review: tuple[str, str, float] | None = None
         self._watch_stop = threading.Event()
 
+    @property
+    def launch_path(self) -> str:
+        return f"/setup?t={self._launch_token}"
+
+    @property
+    def launch_url(self) -> str:
+        """The private link for the browser opener. Never print it to a pipe or return it over MCP."""
+        return f"http://127.0.0.1:{self.server_port}{self.launch_path}"
+
+    def redeem_launch_token(self, supplied: str) -> bool:
+        """True exactly once, for the exact token; every replay is refused."""
+        if not isinstance(supplied, str) or not supplied.isascii():
+            return False
+        with self._launch_lock:
+            if self._launch_used or not hmac.compare_digest(supplied.encode("ascii"), self._launch_token.encode("ascii")):
+                return False
+            self._launch_used = True
+            return True
+
+    def process_request(self, request, client_address) -> None:
+        if not self._connection_slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._connection_slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._connection_slots.release()
+
     def serve_forever(self, poll_interval: float = 0.2) -> None:
         def expire_session() -> None:
             while not self._watch_stop.wait(0.05):
                 if time.monotonic() >= self.setup_session.expires_at:
-                    self.shutdown()
+                    # A save already in progress finishes first; a new one is
+                    # refused, because the session no longer matches.
+                    with self.state_lock:
+                        self.shutdown()
                     return
 
         watcher = threading.Thread(target=expire_session, daemon=True, name="adl-setup-expiry")
@@ -177,6 +266,8 @@ def _requires_external_scope_confirmation(choice: SetupChoice) -> bool:
 
 class _SetupHandler(BaseHTTPRequestHandler):
     server: SetupServer
+    # A connection that sends nothing, or stalls mid-request, is closed.
+    timeout = 5
 
     def log_message(self, _format: str, *_args: object) -> None:
         # Never log request paths, form data, cookies, or credentials.
@@ -201,6 +292,24 @@ class _SetupHandler(BaseHTTPRequestHandler):
     def _host_ok(self) -> bool:
         return self.headers.get("Host") == f"127.0.0.1:{self.server.server_port}"
 
+    def _session_cookie_ok(self) -> bool:
+        values = [part.strip()[len("adl_setup="):] for header in self.headers.get_all("Cookie", [])
+                  for part in header.split(";") if part.strip().startswith("adl_setup=")]
+        return (len(values) == 1 and values[0].isascii()
+                and self.server.setup_session.matches(session=values[0], csrf=self.server.setup_session.csrf))
+
+    def _redeem_launch_link(self) -> bool:
+        """Accept only `/setup?t=<token>`, once. Anything else is not a launch link."""
+        _route, separator, query = self.path.partition("?")
+        if not separator:
+            return False
+        try:
+            fields = parse_qs(query, keep_blank_values=True, strict_parsing=True, max_num_fields=1)
+        except ValueError:
+            return False
+        tokens = fields.get("t", [])
+        return set(fields) == {"t"} and len(tokens) == 1 and self.server.redeem_launch_token(tokens[0])
+
     def _limited(self) -> bool:
         self.server.request_count += 1
         if self.server.request_count > 100:
@@ -209,16 +318,11 @@ class _SetupHandler(BaseHTTPRequestHandler):
         return True
 
     def do_GET(self) -> None:
-        if not self._limited():
-            return
         if not self._host_ok():
             self._error(403, "CROSS_ORIGIN_REJECTED")
             return
         if self.path == "/status":
-            cookies = [part.strip()[len("adl_setup="):] for part in self.headers.get("Cookie", "").split(";")
-                       if part.strip().startswith("adl_setup=")]
-            if len(cookies) != 1 or not self.server.setup_session.matches(
-                    session=cookies[0], csrf=self.server.setup_session.csrf):
+            if not self._session_cookie_ok():
                 self._error(403, "SESSION_INVALID")
                 return
             try:
@@ -244,11 +348,17 @@ class _SetupHandler(BaseHTTPRequestHandler):
             )
             self._send(200, _page("Jev workspace status", content))
             return
-        if self.path != "/setup":
+        if self.path != "/setup" and not self.path.startswith("/setup?"):
             self._error(404, "ROUTE_NOT_FOUND")
             return
         if not self.server.setup_session.matches(session=self.server.setup_session.session, csrf=self.server.setup_session.csrf):
             self._error(410, "SETUP_SESSION_EXPIRED")
+            return
+        # The browser that holds the cookie may reload; anyone else needs the
+        # unused launch link. A stale cookie from an earlier wizard falls
+        # through to the link check.
+        if not self._session_cookie_ok() and not self._redeem_launch_link():
+            self._error(403, "SETUP_LINK_REQUIRED")
             return
         workspace_name = _safe(self.server.controller.workspace.name or self.server.controller.workspace)
         csrf = _safe(self.server.setup_session.csrf)
@@ -315,7 +425,7 @@ class _SetupHandler(BaseHTTPRequestHandler):
             f"<input type='hidden' name='csrf' value=\"{csrf}\">"
             f"<label>Decision mode <select name='mode' size='5' required>{mode_options}</select></label>"
             f"<label>Hosted Jev provider (unused for Laya-only) <select name='provider'>{provider_options}</select></label>"
-            + ("" if local_available else "<p class='hint'>Laya local requires a verified model before it can be selected. Jev setup is available now.</p>")
+            + ("" if local_available else _laya_unavailable_hint())
             +
             "<p class='hint'>Hosted setup uses the device's credential manager: macOS Keychain, Linux Secret Service "
             "(libsecret's secret-tool plus an active user D-Bus session), or Windows Credential Manager. "
@@ -349,7 +459,7 @@ class _SetupHandler(BaseHTTPRequestHandler):
             policy = None
         if not isinstance(policy, dict):
             return ""
-        items = "".join(f"<li>{_safe(line)}</li>" for line in [*policy.get("effects", []), *policy.get("options", [])])
+        items = "".join(f"<li>{_with_code(line)}</li>" for line in [*policy.get("effects", []), *policy.get("options", [])])
         return (
             "<section aria-label='Claude Code organization policy'>"
             f"<p><strong>Claude Code on this computer.</strong> {_safe(policy.get('summary', ''))}</p>"
@@ -358,7 +468,12 @@ class _SetupHandler(BaseHTTPRequestHandler):
         )
 
     def _form(self) -> dict[str, str] | None:
-        if not self._host_ok() or self.headers.get("Origin") != f"http://127.0.0.1:{self.server.server_port}":
+        # A browser labels every request with Sec-Fetch-Site; a form post from
+        # this page is always same-origin. A client that omits it still has to
+        # pass the Origin, cookie and CSRF checks.
+        fetch_sites = self.headers.get_all("Sec-Fetch-Site", [])
+        if (not self._host_ok() or self.headers.get("Origin") != f"http://127.0.0.1:{self.server.server_port}"
+                or len(fetch_sites) > 1 or (fetch_sites and fetch_sites[0] != "same-origin")):
             self._error(403, "CROSS_ORIGIN_REJECTED")
             return None
         if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Type") != "application/x-www-form-urlencoded":
@@ -382,8 +497,9 @@ class _SetupHandler(BaseHTTPRequestHandler):
         if set(parsed) - _FORM_KEYS or any(len(values) != 1 for values in parsed.values()):
             self._error(400, "SETUP_FORM_INVALID")
             return None
-        cookie_values = [part.strip()[len("adl_setup="):] for part in self.headers.get("Cookie", "").split(";") if part.strip().startswith("adl_setup=")]
-        if len(cookie_values) != 1 or not self.server.setup_session.matches(session=cookie_values[0], csrf=parsed.get("csrf", [""])[0]):
+        csrf = parsed.get("csrf", [""])[0]
+        if not self._session_cookie_ok() or not csrf.isascii() or not self.server.setup_session.matches(
+                session=self.server.setup_session.session, csrf=csrf):
             self._error(403, "SESSION_INVALID")
             return None
         return {name: values[0] for name, values in parsed.items()}
@@ -421,14 +537,20 @@ class _SetupHandler(BaseHTTPRequestHandler):
             raise SetupError("SETUP_SCOPE_INVALID") from error
 
     def do_POST(self) -> None:
-        if not self._limited():
-            return
         if self.path not in ("/preview", "/apply"):
             self._error(404, "ROUTE_NOT_FOUND")
             return
         form = self._form()
         if form is None:
             return
+        # Only posts that carry this browser's session count toward the limit,
+        # so another local program cannot lock the user out. One post at a
+        # time, so two posts cannot race the review or the save.
+        with self.server.state_lock:
+            if self._limited():
+                self._post(form)
+
+    def _post(self, form: dict[str, str]) -> None:
         if self.path == "/preview" and ("credential" in form or "confirm" in form):
             self._error(400, "SETUP_FORM_INVALID")
             return
@@ -547,6 +669,65 @@ def build_controller(workspace: Path) -> SetupController:
     return SetupController(workspace, local_attestor=attest_local_config)
 
 
+def open_private_link(url: str) -> bool:
+    """Open the one-time link in the browser without putting it on a command line.
+
+    On Linux the browser opener is a separate process whose arguments other
+    local accounts can read, so a private page that forwards to the link is
+    opened instead. macOS hands the link to the browser over a pipe.
+    """
+    if os.environ.get("ADL_SETUP_NO_BROWSER") == "1":
+        return False
+    target = url
+    if sys.platform.startswith("linux"):
+        try:
+            target = _private_forwarding_page(url)
+        except OSError:
+            return False
+    try:
+        return bool(webbrowser.open(target))
+    except Exception:
+        return False
+
+
+def _private_forwarding_page(url: str) -> str:
+    folder = Path(tempfile.mkdtemp(prefix="jev-open-"))  # 0700
+    page = folder / "open.html"
+    descriptor = os.open(page, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+    link = html.escape(url, quote=True)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        stream.write(f'<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={link}">'
+                     f'<a href="{link}">Open Qualixar setup</a>\n')
+    # The link works once; the page is not needed after the browser has read it.
+    threading.Timer(120, shutil.rmtree, args=(folder,), kwargs={"ignore_errors": True}).start()
+    return page.as_uri()
+
+
+_open_browser = open_private_link
+
+
+def _announce(url: str, opened: bool) -> bool:
+    """Tell the caller where setup is. Return False when nobody could reach it.
+
+    Only a person at a terminal sees the private link, so they can paste it if
+    no browser window appeared. A pipe (an agent, the MCP server, a log) gets a
+    fixed line without it.
+    """
+    try:
+        interactive = sys.stdout.isatty()
+    except (AttributeError, ValueError, OSError):
+        interactive = False
+    if interactive:
+        state = "opened in your browser" if opened else "is ready"
+        print(f"Qualixar setup {state}. If no browser window appeared, paste this private link into your browser "
+              "(it works once):", flush=True)
+        print(url, flush=True)
+        print("Enter keys only in the local browser, never in chat.", flush=True)
+        return True
+    print(SETUP_OPENED_LINE if opened else SETUP_NO_BROWSER_LINE, flush=True)
+    return opened
+
+
 def main() -> None:
     if os.name == "nt":
         raise SystemExit("WINDOWS_UNSUPPORTED_IN_1_0_8")
@@ -555,10 +736,9 @@ def main() -> None:
     args = parser.parse_args()
     controller = build_controller(args.workspace)
     with SetupServer(("127.0.0.1", 0), controller) as server:
-        url = f"http://127.0.0.1:{server.server_port}/setup"
-        if os.environ.get("ADL_SETUP_NO_BROWSER") != "1":
-            webbrowser.open(url)
-        print(f"Qualixar setup: {url}. Enter keys only in the local browser, never in chat.", flush=True)
+        url = server.launch_url
+        if not _announce(url, _open_browser(url)):
+            raise SystemExit(4)
         server.serve_forever(poll_interval=0.2)
 
 

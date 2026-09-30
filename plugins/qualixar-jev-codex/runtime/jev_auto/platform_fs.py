@@ -537,8 +537,19 @@ def user_state_root() -> Path:
 
 
 def _verify_posix_ancestors(path: Path) -> None:
-    """Reject ancestors another user can replace; allow root-owned sticky temp."""
-    for parent in reversed(path.parents):
+    """Reject ancestors another user can replace; allow root-owned sticky temp.
+
+    A path reached through a trusted symlinked folder is checked twice: as
+    written, and as the folders it actually resolves to.
+    """
+    resolved = path.resolve()
+    chains = (path.parents,) if resolved == path else (path.parents, resolved.parents)
+    for parents in chains:
+        _verify_chain(parents)
+
+
+def _verify_chain(parents) -> None:
+    for parent in reversed(parents):
         try:
             st = parent.stat()
         except FileNotFoundError:
@@ -558,8 +569,8 @@ def ensure_private_dir(path: Path) -> Path:
             if isinstance(exc, AutoError):
                 raise
             _error("WINDOWS_PRIVATE_STATE_UNVERIFIED")
-    from .common import safe_path
-    p = safe_path(path)
+    from .common import trusted_path
+    p = trusted_path(path)
     _verify_posix_ancestors(p)
     p.mkdir(mode=0o700, parents=True, exist_ok=True)
     st = p.stat()
@@ -579,8 +590,8 @@ def verify_private_dir(path: Path) -> None:
             if isinstance(exc, AutoError):
                 raise
             _error("WINDOWS_PRIVATE_STATE_UNVERIFIED")
-    from .common import safe_path
-    p = safe_path(path)
+    from .common import trusted_path
+    p = trusted_path(path)
     _verify_posix_ancestors(p)
     st = p.stat()
     if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.getuid() or st.st_mode & 0o077:
@@ -596,8 +607,8 @@ def open_private_file(path: Path, flags: int, mode: int = 0o600) -> int:
             if isinstance(exc, AutoError):
                 raise
             _error("WINDOWS_PRIVATE_STATE_UNVERIFIED")
-    from .common import safe_path
-    p = safe_path(path)
+    from .common import trusted_path
+    p = trusted_path(path)
     _verify_posix_ancestors(p)
     fd = os.open(p, flags | getattr(os, "O_NOFOLLOW", 0), mode)
     try:
@@ -633,8 +644,8 @@ def atomic_write_private(path: Path, data: bytes, *, replace: bool) -> None:
             if isinstance(exc, AutoError):
                 raise
             _error("WINDOWS_PRIVATE_STATE_UNVERIFIED")
-    from .common import safe_path
-    p = safe_path(path)
+    from .common import trusted_path
+    p = trusted_path(path)
     ensure_private_dir(p.parent)
     fd, temporary = tempfile.mkstemp(prefix=".auto-", dir=p.parent)
     try:
@@ -667,8 +678,12 @@ def atomic_write_private(path: Path, data: bytes, *, replace: bool) -> None:
 
 
 @contextmanager
-def file_lock(path: Path, *, blocking: bool = True):
-    """Yield False if a nonblocking POSIX lock is held elsewhere."""
+def file_lock(path: Path, *, blocking: bool = True, shared: bool = False):
+    """Yield False if a nonblocking POSIX lock is held elsewhere.
+
+    `shared` takes a POSIX shared lock that any number of holders can take at
+    once while an exclusive holder waits. Windows always locks exclusively.
+    """
     if os.name == "nt":
         ops = _windows_ops()
         fd = open_private_file(path, os.O_RDWR | os.O_CREAT)
@@ -686,7 +701,7 @@ def file_lock(path: Path, *, blocking: bool = True):
     acquired = False
     try:
         try:
-            fcntl.flock(fd, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+            fcntl.flock(fd, (fcntl.LOCK_SH if shared else fcntl.LOCK_EX) | (0 if blocking else fcntl.LOCK_NB))
             acquired = True
         except BlockingIOError:
             if blocking:

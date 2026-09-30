@@ -53,6 +53,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
+
+# Derived from the recipe sources, so adding a recipe never means editing a count here.
+RECIPE_COUNT = len(list((ROOT / "recipes").rglob("*.json")))
 sys.path.insert(0, str(RUNTIME))
 
 
@@ -234,7 +237,7 @@ class CliHostRegisterTests(unittest.TestCase):
             rc, out, err = _run_cli(["host-register", "--host", "claude-desktop", "--write"])
         self.assertEqual(rc, 0)
         self.assertEqual(json.loads(out)["written"], True)
-        self.assertIn("Quit the Claude desktop app", err)
+        self.assertIn("quit it now and run this command again", err)
         installed.assert_called_once_with("claude-desktop", None)
 
     def test_claude_desktop_plan_without_write_never_touches_the_real_config(self):
@@ -245,7 +248,7 @@ class CliHostRegisterTests(unittest.TestCase):
             rc, out, err = _run_cli(["host-register", "--host", "claude-desktop"])
         self.assertEqual(rc, 0)
         self.assertIn("Nothing written", err)
-        self.assertNotIn("Quit the Claude desktop app", err, "the quit-app warning is --write only")
+        self.assertNotIn("quit it now", err, "the quit-app reminder follows a real write only")
         planned.assert_called_once_with("claude-desktop", None)
 
 
@@ -278,7 +281,7 @@ class CliSelftestCommandTests(unittest.TestCase):
         result = json.loads(out)
         self.assertEqual(rc, 0)
         self.assertTrue(result["all_passed"])
-        self.assertEqual(result["recipes"], 38)
+        self.assertEqual(result["recipes"], RECIPE_COUNT)
 
     def test_single_recipe_and_variant(self):
         rc, out, _err = _run_cli(["selftest", "--recipe", "qualixar.brief-fit", "--variant", "nominal"])
@@ -1028,31 +1031,27 @@ class ServerSlotLimitTests(unittest.TestCase):
     and process_request_thread must always release its slot."""
 
     def test_process_request_rejects_when_all_eight_slots_are_taken(self):
+        """The refusal is written only after the request was read, so a client
+        still sending receives it; the refused request is never dispatched."""
         with tempfile.TemporaryDirectory() as directory:
             import jev_auto.server as server
 
             addr = Path(directory) / "s.sock"
-            srv = server.Server(addr, SimpleNamespace(dispatch=lambda r: {}))
+            dispatched = []
+            srv = server.Server(addr, SimpleNamespace(dispatch=lambda r: dispatched.append(r) or {}))
+            a, b = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
             try:
                 srv.slots._value = 0  # whitebox: simulate all 8 slots in use
-
-                class FakeRequest:
-                    def __init__(self):
-                        self.sent = None
-                        self.closed = False
-
-                    def sendall(self, data):
-                        self.sent = data
-
-                    def close(self):
-                        self.closed = True
-
-                fake = FakeRequest()
-                srv.process_request(fake, ("peer",))
+                b.settimeout(5)
+                b.sendall(b'{"op":"x"}\n')
+                srv.process_request(a, ("peer",))
+                reply = b.recv(65536)
+                self.assertEqual(b.recv(65536), b"", "the refused connection is closed")
             finally:
+                b.close()
                 srv.server_close()
-        self.assertEqual(json.loads(fake.sent.decode()), {"ok": False, "error": "BROKER_BUSY"})
-        self.assertTrue(fake.closed)
+        self.assertEqual(json.loads(reply.decode()), {"ok": False, "error": "BROKER_BUSY"})
+        self.assertEqual(dispatched, [])
 
     def test_process_request_delegates_to_the_real_handler_when_a_slot_is_free(self):
         """The mirror image of the BROKER_BUSY test above: with a slot

@@ -2,7 +2,7 @@
   "$schema": "./capabilities.schema.json",
   "schema_version": 2,
   "name": "Qualixar Jev Decision Layer",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "license": "MIT",
   "publisher": "Qualixar / Varun Pratap Bhardwaj",
   "primary_decision_model": "TypeSafe Jev",
@@ -19,10 +19,10 @@
   ],
   "recipe_counts": {
     "legacy_contracts": 20,
-    "additional_specifications": 38,
-    "unique_recipes": 38,
+    "additional_specifications": 55,
+    "unique_recipes": 55,
     "legacy_contracts_represented_in_recipes": 20,
-    "counting_note": "The 20 legacy workflow contracts map into 20 of the 38 recipe specifications; these counts are not additive."
+    "counting_note": "The 20 legacy workflow contracts map into 20 of the 55 recipe specifications; these counts are not additive."
   },
   "decision_modes": [
     {
@@ -147,7 +147,7 @@
   "measured_host_cost_savings": null,
   "offline_fixtures": {
     "per_recipe": 3,
-    "total": 114,
+    "total": 165,
     "variants": [
       "nominal",
       "uncertain",

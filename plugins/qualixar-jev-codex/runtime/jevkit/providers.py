@@ -53,10 +53,10 @@ _PRIVATE_ENV_KEYS = frozenset(
 
 
 def default_config_root() -> Path:
-    base = os.environ.get("XDG_CONFIG_HOME")
-    if base:
-        return Path(base).expanduser() / "qualixar-jev-decision-layer"
-    return Path.home() / ".config" / "qualixar-jev-decision-layer"
+    # XDG: an empty or relative value is invalid and must be ignored.
+    configured = os.environ.get("XDG_CONFIG_HOME")
+    base = Path(configured).expanduser() if configured else None
+    return (base if base is not None and base.is_absolute() else Path.home() / ".config") / "qualixar-jev-decision-layer"
 
 
 def provider_profile(provider_id: str) -> ProviderProfile:

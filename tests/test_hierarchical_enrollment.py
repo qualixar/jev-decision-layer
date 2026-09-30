@@ -152,9 +152,10 @@ class HierarchicalEnrollmentTests(unittest.TestCase):
         outside.mkdir()
         link = self.parent / "alias"
         link.symlink_to(outside, target_is_directory=True)
+        # The link resolves to its real folder, which no grant covers.
         with self.assertRaises(AutoError) as ctx:
             load_policy(link)
-        self.assertEqual(str(ctx.exception), "SYMLINK_NOT_ALLOWED")
+        self.assertEqual(str(ctx.exception), "WORKSPACE_NOT_ENROLLED")
 
     def test_setup_refuses_descendant_coverage_without_the_separate_confirmation(self):
         choice = SetupChoice("typesafe", "public", 7, 10, 2000, cover_descendants=True)

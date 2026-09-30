@@ -53,12 +53,10 @@ _ROUTES = (
 
 
 def _config_root() -> Path:
+    # XDG: an empty or relative value is invalid and must be ignored.
     configured = os.environ.get("XDG_CONFIG_HOME")
-    return (
-        Path(configured).expanduser() / "qualixar-jev-decision-layer"
-        if configured
-        else Path.home() / ".config" / "qualixar-jev-decision-layer"
-    )
+    base = Path(configured).expanduser() if configured else None
+    return (base if base is not None and base.is_absolute() else Path.home() / ".config") / "qualixar-jev-decision-layer"
 
 
 def _advisory_mode(value: str | None) -> str:

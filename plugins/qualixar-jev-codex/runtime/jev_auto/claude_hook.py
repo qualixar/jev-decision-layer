@@ -115,6 +115,11 @@ def _guidance(event_name: str, binding: dict[str, Any], here: Path) -> str:
     if typed:
         arguments += f" and data_classification={classification} (plus provider={provider} for jev_typed_decide)"
     arguments += "."
+    if typed and policy.get("local_laya_enabled") is True and policy.get("provider") != "laya-mlx":
+        # Jev + Laya: only a restricted decision stays local, so say how to ask for one.
+        arguments += (' For private or client content pass data_classification="restricted" instead'
+                      ' (and provider="laya-mlx" for jev_typed_decide): it is decided by Laya on this Mac'
+                      ' and never sent to Jev.')
 
     if event_name not in _FULL_GUIDANCE_EVENTS:
         use = ("For a bounded decision (routing, ranking, triage, claim verification) use the Jev MCP tools"
@@ -137,6 +142,11 @@ def _guidance(event_name: str, binding: dict[str, Any], here: Path) -> str:
         f"{arguments} Put relative paths, not absolute home paths, inside content fields: "
         f"the secret screen rejects those. {_ADVISORY}"
     )
+
+
+def guidance(event_name: str, binding: dict[str, Any], here: Path) -> str:
+    """The same argument guidance, for every host adapter that injects context."""
+    return _guidance(event_name, binding, here)
 
 
 def handle(

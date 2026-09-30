@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs
 
 from jev_auto.common import AutoError
 
@@ -121,6 +122,29 @@ class WorkbenchServer(HTTPServer):
             csrf=secrets.token_urlsafe(32),
             expires_at=time.monotonic() + session_lifetime,
         )
+        # 256-bit, single use: the first GET of the launch link gets the cookie.
+        self._launch_token = secrets.token_urlsafe(32)
+        self._launch_used = False
+        self._launch_lock = threading.Lock()
+
+    @property
+    def launch_path(self) -> str:
+        return f"/?t={self._launch_token}"
+
+    @property
+    def launch_url(self) -> str:
+        """The private link for the browser opener. Never print it to a pipe."""
+        return f"http://127.0.0.1:{self.server_port}{self.launch_path}"
+
+    def redeem_launch_token(self, supplied: str) -> bool:
+        """True exactly once, for the exact token; every replay is refused."""
+        if not isinstance(supplied, str) or not supplied.isascii():
+            return False
+        with self._launch_lock:
+            if self._launch_used or not hmac.compare_digest(supplied.encode("ascii"), self._launch_token.encode("ascii")):
+                return False
+            self._launch_used = True
+            return True
 
     def server_close(self) -> None:
         with self._review_lock:
@@ -177,8 +201,15 @@ class _WorkbenchHandler(BaseHTTPRequestHandler):
         if not self._begin_request() or not self._host_ok():
             return
         path = self.path
-        if path == "/":
-            self._send_page()
+        route, separator, query = path.partition("?")
+        if route == "/":
+            # The browser holding the cookie may reload; anyone else needs the
+            # unused launch link. Nothing else gets the cookie or the CSRF value.
+            if not self._cookie_token_ok() and not self._redeem_launch_link(separator, query):
+                self._send_json(403, {"error": {"code": "SESSION_REJECTED", "message": "Restart the local workbench and open its new address."}})
+                return
+            if self._count_request():
+                self._send_page()
             return
         if not self._session_ok(require_csrf=False):
             return
@@ -302,12 +333,17 @@ class _WorkbenchHandler(BaseHTTPRequestHandler):
             self.close_connection = True
             self._send_json(405, {"error": {"code": "METHOD_NOT_ALLOWED", "message": "That method is not available."}}, extra={"Allow": "GET, POST", "Connection": "close"})
 
-    def _begin_request(self) -> bool:
+    def _count_request(self) -> bool:
+        """Count only requests that carry this browser's session, so another
+        local program cannot use up the limit and lock the user out."""
         self.server.request_count += 1
         if self.server.request_count > self.server.request_limit:
             self.close_connection = True
             self._send_json(429, {"error": {"code": "REQUEST_LIMIT", "message": "Restart the local workbench to continue."}}, extra={"Connection": "close"})
             return False
+        return True
+
+    def _begin_request(self) -> bool:
         if time.monotonic() >= self.server.session.expires_at:
             self.close_connection = True
             self._send_json(403, {"error": {"code": "SESSION_EXPIRED", "message": "This workbench session expired. Restart it to continue."}}, extra={"Connection": "close"})
@@ -323,7 +359,7 @@ class _WorkbenchHandler(BaseHTTPRequestHandler):
             return False
         return True
 
-    def _session_ok(self, *, require_csrf: bool) -> bool:
+    def _cookie_token_ok(self) -> bool:
         cookies = self.headers.get_all("Cookie", [])
         tokens = []
         for header in cookies:
@@ -332,7 +368,22 @@ class _WorkbenchHandler(BaseHTTPRequestHandler):
                 if name == "jev_workbench":
                     tokens.append(value if separator else "")
         token = tokens[0] if len(tokens) == 1 else None
-        if not isinstance(token, str) or not hmac.compare_digest(token, self.server.session.token):
+        return (isinstance(token, str) and token.isascii() and bool(self.server.session.token)
+                and hmac.compare_digest(token.encode("ascii"), self.server.session.token.encode("ascii")))
+
+    def _redeem_launch_link(self, separator: str, query: str) -> bool:
+        """Accept only `/?t=<token>`, once."""
+        if not separator:
+            return False
+        try:
+            fields = parse_qs(query, keep_blank_values=True, strict_parsing=True, max_num_fields=1)
+        except ValueError:
+            return False
+        tokens = fields.get("t", [])
+        return set(fields) == {"t"} and len(tokens) == 1 and self.server.redeem_launch_token(tokens[0])
+
+    def _session_ok(self, *, require_csrf: bool) -> bool:
+        if not self._cookie_token_ok():
             if require_csrf:
                 self.close_connection = True
             self._send_json(
@@ -349,14 +400,15 @@ class _WorkbenchHandler(BaseHTTPRequestHandler):
             if (
                 len(origins) != 1 or origins[0] != expected_origin
                 or len(csrf_values) != 1
-                or not hmac.compare_digest(csrf_values[0], self.server.session.csrf)
+                or not csrf_values[0].isascii()
+                or not hmac.compare_digest(csrf_values[0].encode("ascii"), self.server.session.csrf.encode("ascii"))
                 or len(fetch_sites) > 1
                 or (fetch_sites and fetch_sites[0] != "same-origin")
             ):
                 self.close_connection = True
                 self._send_json(403, {"error": {"code": "ORIGIN_REJECTED", "message": "The request did not come from this workbench page."}}, extra={"Connection": "close"})
                 return False
-        return True
+        return self._count_request()
 
     def _read_json(self) -> dict[str, Any] | None:
         transfer = self.headers.get_all("Transfer-Encoding", [])

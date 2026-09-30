@@ -36,6 +36,13 @@ jobs:
         run: python3 tools/build_codex_package.py --check
       - name: Verify public package
         run: python3 -m unittest discover -s tests -q
+      - name: Hold per-module coverage floors
+        # coverage-floor.json was recorded on macOS; one leg is enough, and the
+        # gate reruns the whole suite under coverage.
+        if: runner.os == 'macOS' && matrix.python-version == '3.14'
+        run: |
+          python3 -m pip install --disable-pip-version-check 'coverage==7.13.5' 'pytest==9.0.2'
+          python3 tools/coverage_gate.py --check
       - name: Verify existing-tab browser bridge
         run: node --test tests/jev_browser.test.mjs
       - name: Verify native Linux Secret Service session with a disposable fixture

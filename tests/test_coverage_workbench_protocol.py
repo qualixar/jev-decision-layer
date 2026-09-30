@@ -216,7 +216,7 @@ class RequestLimitAndSessionExpiryTests(unittest.TestCase):
             server.request_count = 1  # already at the limit before this request arrives
             thread = self._one_shot(server)
             with self.assertRaises(HTTPError) as caught:
-                urlopen(f"http://127.0.0.1:{server.server_port}/", timeout=2)
+                urlopen(server.launch_url, timeout=2)
             self.assertEqual(caught.exception.code, 429)
             self.assertEqual(json.loads(caught.exception.read())["error"]["code"], "REQUEST_LIMIT")
             thread.join(timeout=2)

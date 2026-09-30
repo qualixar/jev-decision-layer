@@ -218,7 +218,7 @@ class SetupWizardGuardTests(_TempState):
                 connection.close()
                 return value
 
-            _status, cookie, page = request("GET", "/setup")
+            _status, cookie, page = request("GET", server.launch_path)
             csrf = re.search(r"name='csrf' value=\"([^\"]+)\"", page).group(1)
             status, _, review = request("POST", "/preview", {
                 "csrf": csrf, "provider": "typesafe", "mode": "laya-only", "days": "2",
@@ -236,10 +236,12 @@ class SetupWizardGuardTests(_TempState):
 
 class _FakeServer:
     instances: list = []
+    launch_url = "http://127.0.0.1:43210/setup?t=" + "L" * 43
 
     def __init__(self, address, controller):
         self.server_port = 43210
         self.controller = controller
+        self.served = False
         _FakeServer.instances.append(self)
 
     def __enter__(self):
@@ -249,32 +251,49 @@ class _FakeServer:
         return False
 
     def serve_forever(self, poll_interval=0.5):
-        return None
+        self.served = True
 
 
 class SetupMainTests(_TempState):
-    def _main(self, environment):
+    def _main(self, environment, *, tty=False):
         opened = []
         _FakeServer.instances = []
         out = io.StringIO()
+        out.isatty = lambda: tty
         with patch.object(setup_server, "SetupServer", _FakeServer), \
-             patch.object(setup_server.webbrowser, "open", lambda url: opened.append(url)), \
+             patch.object(setup_server.webbrowser, "open", lambda url: opened.append(url) or True), \
              patch.object(sys, "argv", ["setup_server", "--workspace", str(self.root)]), \
              patch.dict(os.environ, environment), redirect_stdout(out):
-            setup_server.main()
-        return opened, out.getvalue()
+            try:
+                setup_server.main()
+                code = 0
+            except SystemExit as error:
+                code = error.code
+        return opened, out.getvalue(), code
 
     def test_main_opens_the_loopback_wizard_and_prints_the_parseable_banner(self):
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("ADL_SETUP_NO_BROWSER", None)
-            opened, printed = self._main({})
-        self.assertEqual(opened, ["http://127.0.0.1:43210/setup"])
-        self.assertEqual(mcp._extract_setup_url(printed.encode()), "http://127.0.0.1:43210/setup")
+            opened, printed, code = self._main({})
+        self.assertEqual(opened, [_FakeServer.launch_url])
+        self.assertEqual(mcp._setup_outcome(printed.encode()), "opened")
+        self.assertNotIn("http://", printed)
+        self.assertEqual(code, 0)
+        self.assertTrue(_FakeServer.instances[0].served)
 
     def test_main_never_opens_a_browser_when_told_not_to(self):
-        opened, printed = self._main({"ADL_SETUP_NO_BROWSER": "1"})
+        opened, printed, code = self._main({"ADL_SETUP_NO_BROWSER": "1"})
         self.assertEqual(opened, [])
-        self.assertIn("http://127.0.0.1:43210/setup", printed)
+        self.assertEqual(mcp._setup_outcome(printed.encode()), "no_browser")
+        self.assertNotIn("http://", printed)
+        self.assertEqual(code, 4)
+        self.assertFalse(_FakeServer.instances[0].served)
+        # A person at a terminal still gets the link to paste by hand.
+        opened, printed, code = self._main({"ADL_SETUP_NO_BROWSER": "1"}, tty=True)
+        self.assertEqual(opened, [])
+        self.assertIn(_FakeServer.launch_url, printed)
+        self.assertEqual(code, 0)
+        self.assertTrue(_FakeServer.instances[0].served)
 
     def test_main_refuses_windows_before_doing_anything(self):
         fake_os = types.SimpleNamespace(name="nt", environ={})

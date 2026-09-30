@@ -32,6 +32,9 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
+
+# Derived from the recipe sources, so adding a recipe never means editing a count here.
+RECIPE_COUNT = len(list((ROOT / "recipes").rglob("*.json")))
 sys.path.insert(0, str(RUNTIME))
 
 
@@ -340,7 +343,9 @@ class RequestSafetyTests(unittest.TestCase):
             ipc.request(str(self.workspace), {"op": "health"}, self.base, timeout=5)
         self.assertEqual(str(cm.exception), "SYNTHETIC_BROKER_ERROR")
 
-    def test_a_broker_that_accepts_but_never_answers_times_out_as_broker_unavailable(self):
+    def test_a_broker_that_accepts_but_never_answers_is_a_timeout_not_unavailable(self):
+        """After the request was sent the broker may still run it and be charged,
+        so the client must not report it as unavailable (which invites a retry)."""
         from jev_auto import ipc
         from jev_auto.common import AutoError
 
@@ -365,7 +370,7 @@ class RequestSafetyTests(unittest.TestCase):
 
         with self.assertRaises(AutoError) as cm:
             ipc.request(str(self.workspace), {"op": "health"}, self.base, timeout=0.1)
-        self.assertEqual(str(cm.exception), "BROKER_UNAVAILABLE")
+        self.assertEqual(str(cm.exception), "BROKER_TIMEOUT")
         self.assertTrue(accepted.wait(timeout=5))
 
 
@@ -446,12 +451,14 @@ class EnsureBrokerLifecycleTests(unittest.TestCase):
         # for state_dir()'s workspace_id() and again for the --workspace argv value
         # below. Patching the single shared subprocess.Popen catches those too, so
         # assert on the specific broker-spawning call rather than "called once".
-        broker_calls = [c for c in mock_popen.call_args_list if "jev_auto.server" in c.args[0]]
+        broker_calls = [c for c in mock_popen.call_args_list if "--workspace" in c.args[0]]
         self.assertEqual(len(broker_calls), 1)
         call = broker_calls[0]
         argv = call.args[0]
         self.assertEqual(argv[0], sys.executable)
-        self.assertEqual(argv[1:3], ["-m", "jev_auto.server"])
+        # Isolated: never `-m`, which would put the host's working folder on the path.
+        self.assertEqual(argv[1:4], ["-I", "-S", "-B"])
+        self.assertNotIn("-m", argv)
         self.assertIn("--workspace", argv)
         self.assertIn("--state-base", argv)
         self.assertIn(str(self.base), argv)
@@ -470,7 +477,7 @@ class EnsureBrokerLifecycleTests(unittest.TestCase):
             with self.assertRaises(AutoError) as cm:
                 ipc.ensure(str(self.workspace), self.base)
         self.assertEqual(str(cm.exception), "BROKER_START_FAILED")
-        broker_calls = [c for c in mock_popen.call_args_list if "jev_auto.server" in c.args[0]]
+        broker_calls = [c for c in mock_popen.call_args_list if "--workspace" in c.args[0]]
         self.assertEqual(len(broker_calls), 1)
         self.assertEqual(mock_request.call_count, 32)  # 1 initial + 1 post-lock + 30 polls
 
@@ -600,7 +607,7 @@ class McpAutoDispatchOpCoverageTests(unittest.TestCase):
         with patch.object(mcp, "ensure", side_effect=AssertionError("ensure() must not run for offline tools")), \
              patch.object(mcp, "request", side_effect=AssertionError("request() must not run for offline tools")):
             catalog = mcp.dispatch("jev_recipe_catalog", {}, legacy)
-            self.assertEqual(len(catalog["recipes"]), 38)
+            self.assertEqual(len(catalog["recipes"]), RECIPE_COUNT)
 
             report = mcp.dispatch("jev_recipe_selftest", {}, legacy)
             self.assertEqual(report["mode"], "fixture")
@@ -692,15 +699,32 @@ class McpSetupWizardTests(unittest.TestCase):
     coverage floor gated on this file must not depend on that).
     """
 
-    GOOD_LINE = b"Qualixar setup: http://127.0.0.1:54321/setup. Enter keys only in the local browser, never in chat.\n"
+    GOOD_LINE = b"Qualixar setup opened in your browser. Enter keys only in the local browser, never in chat.\n"
     BAD_LINE = b"Qualixar setup: http://example.com/setup. Enter keys only in the local browser.\n"
+    LINK_LINE = b"Qualixar setup: http://127.0.0.1:54321/setup?t=" + b"T" * 43 + b"\n"
+    NO_BROWSER_LINE = b"Qualixar setup could not open a browser. Run open-setup in a terminal to get a private link.\n"
 
-    def test_extract_setup_url_accepts_only_the_packaged_loopback_line(self):
-        from jev_auto.mcp import _extract_setup_url
+    def test_setup_outcome_accepts_only_the_two_fixed_launcher_lines(self):
+        from jev_auto.mcp import _setup_outcome
 
-        self.assertEqual(_extract_setup_url(self.GOOD_LINE), "http://127.0.0.1:54321/setup")
-        with self.assertRaises(ValueError):
-            _extract_setup_url(self.BAD_LINE)
+        self.assertEqual(_setup_outcome(self.GOOD_LINE), "opened")
+        self.assertEqual(_setup_outcome(self.NO_BROWSER_LINE), "no_browser")
+        for line in (self.BAD_LINE, self.LINK_LINE, b"", None):
+            with self.assertRaises(ValueError):
+                _setup_outcome(line)
+
+    def test_open_setup_reports_no_browser_with_its_own_code(self):
+        from jev_auto.common import AutoError
+        from jev_auto.mcp import _open_setup
+
+        process = _FakeSetupProcess(self.NO_BROWSER_LINE)
+        with tempfile.TemporaryDirectory() as directory:
+            with patch("jev_auto.mcp.workspace", side_effect=lambda value: Path(value)), \
+                 patch("jev_auto.mcp.subprocess.Popen", return_value=process), \
+                 patch("jev_auto.mcp.os.killpg") as killed:
+                with self.assertRaisesRegex(AutoError, "^SETUP_BROWSER_UNAVAILABLE$"):
+                    _open_setup(directory)
+        killed.assert_called_once_with(process.pid, signal.SIGKILL)
 
     def test_open_setup_reports_a_fixed_error_when_the_launcher_cannot_start(self):
         from jev_auto.common import AutoError
@@ -752,7 +776,7 @@ class McpSetupWizardTests(unittest.TestCase):
                     _open_setup(directory)
         killed.assert_called_once_with(process.pid, signal.SIGKILL)
 
-    def test_open_setup_returns_the_loopback_url_on_a_well_formed_response(self):
+    def test_open_setup_returns_no_link_on_a_well_formed_response(self):
         from jev_auto.mcp import _open_setup
 
         process = _FakeSetupProcess(self.GOOD_LINE)
@@ -760,8 +784,8 @@ class McpSetupWizardTests(unittest.TestCase):
             with patch("jev_auto.mcp.workspace", side_effect=lambda value: Path(value)), \
                  patch("jev_auto.mcp.subprocess.Popen", return_value=process):
                 result = _open_setup(directory)
-        self.assertEqual(result, {"status": "SETUP_WIZARD_OPEN", "url": "http://127.0.0.1:54321/setup",
-                                  "expires_in_seconds": 600, "credential_entry": "PRIVATE_BROWSER_ONLY"})
+        self.assertEqual(result, {"status": "SETUP_WIZARD_OPEN", "expires_in_seconds": 600,
+                                  "credential_entry": "PRIVATE_BROWSER_ONLY", "opened_in": "USER_BROWSER"})
 
     def test_open_setup_kills_the_process_and_fails_when_the_response_url_is_not_loopback(self):
         from jev_auto.common import AutoError

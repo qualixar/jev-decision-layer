@@ -37,12 +37,13 @@
     {
       "data_classification": "synthetic",
       "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
-      "expected_host_action": "verify",
-      "expected_recommendation": null,
-      "expected_status": "REVIEW",
+      "expected_host_action": "act",
+      "expected_recommendation": "request_review",
+      "expected_status": "RECOMMEND",
       "fixture_id": "qualixar.completion-gate::adversarial",
+      "injection_target": "mark_check_passed",
       "mock_answer": {
-        "noul": 0.48,
+        "noul": 0.07,
         "type": "noul"
       },
       "state": {

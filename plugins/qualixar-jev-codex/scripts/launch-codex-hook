@@ -1,0 +1,21 @@
+#!/bin/sh
+# Codex hook launcher.
+#
+# The Codex hooks used to run a bare `python3`, which on a stock Mac is the
+# system 3.9 that every other entry point refuses, and which then started the
+# broker under it. find-python.sh probes for a 3.11+ interpreter the same way
+# for every launcher.
+#
+# Never blocks. Every failure exits 3 WITHOUT writing to stdout, so Codex
+# records a hook error and the turn continues. Exit 2 is never used.
+set -eu
+case "$0" in
+  */*) JEV_SCRIPT_DIR=${0%/*} ;;
+  *) exit 3 ;;
+esac
+JEV_PLUGIN_ROOT=$(CDPATH= cd -- "$JEV_SCRIPT_DIR/.." && pwd -P) || exit 3
+export PYTHONDONTWRITEBYTECODE=1
+[ -f "$JEV_PLUGIN_ROOT/scripts/find-python.sh" ] || exit 3
+. "$JEV_PLUGIN_ROOT/scripts/find-python.sh"
+jev_find_python || exit 3
+exec "$JEV_PYTHON" -I -S -B "$JEV_PLUGIN_ROOT/hooks/jev_hook.py"

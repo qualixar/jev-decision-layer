@@ -4,11 +4,11 @@ from __future__ import annotations
 import json
 import re
 import sys
-from . import __version__
 from .common import AutoError, decode, workspace
-from .settings import load_policy
+from .settings import enrollment_binding, load_policy
 from .ipc import ensure, request
 from .sieve import PROTECTED
+from .claude_hook import guidance
 
 POST_TOOL_READ_ONLY_TOOLS = frozenset(("Bash", "mcp__filesystem__read_file"))
 MAX_TOOL_TEXT_BYTES = 48_000
@@ -110,12 +110,8 @@ def handle(event, base=None, caller=None, starter=None):
     try:
         if name == "SessionStart":
             call(path, {"op": "prepare_runtime"})
-            return {
-                "hookSpecificOutput": {
-                    "hookEventName": name,
-                    "additionalContext": f"Qualixar Jev Decision Layer {__version__} is enrolled here. Eligible decisions use the standing budget; do not request per-turn grants. Preserve SLM and the existing Computer Use skill.",
-                }
-            }
+            text = guidance(name, enrollment_binding(path, base), path)
+            return {"hookSpecificOutput": {"hookEventName": name, "additionalContext": text}} if text else None
         if name == "UserPromptSubmit" and isinstance(session, str):
             goal = event.get("prompt", "")
             call(path, {"op": "set_goal", "session": session, "goal": goal})
@@ -128,12 +124,8 @@ def handle(event, base=None, caller=None, starter=None):
                     }
                 }
         if name == "SubagentStart":
-            return {
-                "hookSpecificOutput": {
-                    "hookEventName": name,
-                    "additionalContext": "Use this workspace's Jev Decision Layer service and shared budget. Pass your narrow goal explicitly to jev_prepare or jev_reduce. Do not create grants, copy full receipts, or alter SLM.",
-                }
-            }
+            text = guidance(name, enrollment_binding(path, base), path)
+            return {"hookSpecificOutput": {"hookEventName": name, "additionalContext": text}} if text else None
         if name == "PreToolUse":
             return None  # no extra model call before every command
         if name == "PostToolUse" and p["native_output_rewrite"]:

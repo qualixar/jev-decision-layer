@@ -2,6 +2,26 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.13] — 2026-10-01
+
+### Added
+
+- `jev laya-install` sets up and verifies local Laya on an Apple-Silicon Mac.
+- Seventeen new recipes for content creators, managers and developers: 55 recipes and 165 synthetic offline examples in all.
+- A guide to working with Jev, and a security page for IT reviewers.
+
+### Changed
+
+- Security and reliability hardening across consent, data screening and the local service. Upgrading is recommended.
+- Hooks respond much faster, and parallel decisions no longer wait on one another.
+- Codex, Antigravity and Hermes give the same exact tool arguments as Claude Code, and every tool states its inputs.
+- Recipes were rewritten so every label is checkable, and every recipe fits local Laya.
+- Launchers find Python 3.11 or later on `PATH`. Upgrade with `claude plugin update`.
+
+### Unchanged
+
+- Existing grants, tool names and required fields. Nothing needs to be re-approved.
+
 ## [1.0.12] — 2026-09-30
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "qualixar",
-  "description": "Qualixar Jev Decision Layer: typed, calibrated decisions for coding agents, with an optional local Laya route.",
+  "description": "Qualixar Jev Decision Layer: typed, confidence-scored advisory decisions for AI agents, with an optional local Laya route.",
   "owner": {
     "name": "Qualixar",
     "url": "https://github.com/qualixar"

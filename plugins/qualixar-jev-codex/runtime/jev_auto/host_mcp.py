@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import stat
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -170,6 +171,42 @@ def _target(host: str) -> Target:
     return target
 
 
+# VS Code expands its predefined variables, `${userHome}` among them, across the
+# whole stdio launch configuration, `command` included. Checked 2026-10-01
+# against the MCP configuration reference ("You can use predefined variables in
+# the server configuration") and the VS Code source that resolves the launch.
+USER_HOME = "${userHome}"
+
+
+def _homes() -> tuple[Path, ...]:
+    try:
+        home = Path.home()
+    except (KeyError, RuntimeError):
+        return ()
+    # "/" as a home would turn every path into a home path.
+    if not home.is_absolute() or len(home.parts) < 2:
+        return ()
+    return tuple(dict.fromkeys((home, home.resolve())))
+
+
+def _portable_home(command: str) -> str:
+    """Name the home folder by VS Code's variable, so a repository file carries
+    no user name and works for a teammate with the same plugin release."""
+    for home in _homes():
+        try:
+            relative = Path(command).relative_to(home)
+        except ValueError:
+            continue
+        return f"{USER_HOME}/{relative.as_posix()}"
+    return command
+
+
+def _expand_home(command: Any) -> Any:
+    if isinstance(command, str) and command.startswith(USER_HOME + "/") and _homes():
+        return str(_homes()[0]) + command[len(USER_HOME):]
+    return command
+
+
 def server_entry(host: str, launcher: Path | None = None) -> dict[str, Any]:
     target = _target(host)
     if _is_windows():
@@ -179,8 +216,11 @@ def server_entry(host: str, launcher: Path | None = None) -> dict[str, Any]:
         if target.include_type:
             entry = {"type": "stdio", **entry}
         return entry
-    command = launcher or launcher_path()
-    entry: dict[str, Any] = {"command": str(command), "args": [], "env": {}}
+    command = str(launcher or launcher_path())
+    if target.workspace_relative is not None:
+        # A workspace file may be committed; a user-level file is not.
+        command = _portable_home(command)
+    entry: dict[str, Any] = {"command": command, "args": [], "env": {}}
     if target.include_type:
         entry = {"type": "stdio", **entry}
     return entry
@@ -191,16 +231,81 @@ def render(host: str, launcher: Path | None = None) -> dict[str, Any]:
     return {_target(host).key: {SERVER_NAME: server_entry(host, launcher)}}
 
 
+def _without_comments(text: str) -> tuple[str, bool]:
+    """Drop // and /* */ comments and trailing commas outside strings.
+
+    Used only to recognise a commented (JSONC) file. Such a file is refused,
+    never rewritten: writing it back as JSON would delete the user's comments.
+    """
+    output: list[str] = []
+    found = False
+    index, length = 0, len(text)
+    while index < length:
+        char = text[index]
+        if char == '"':
+            end = index + 1
+            while end < length and text[end] != '"':
+                end += 2 if text[end] == "\\" else 1
+            output.append(text[index:end + 1])
+            index = end + 1
+        elif text.startswith("//", index):
+            found = True
+            newline = text.find("\n", index)
+            index = length if newline < 0 else newline
+        elif text.startswith("/*", index):
+            found = True
+            close = text.find("*/", index + 2)
+            index = length if close < 0 else close + 2
+        else:
+            output.append(char)
+            index += 1
+    stripped = "".join(output)
+    # JSONC also allows a trailing comma; recognise that only alongside comments.
+    return (_drop_trailing_commas(stripped) if found else stripped), found
+
+
+def _drop_trailing_commas(text: str) -> str:
+    output: list[str] = []
+    index, length = 0, len(text)
+    while index < length:
+        char = text[index]
+        if char == '"':
+            end = index + 1
+            while end < length and text[end] != '"':
+                end += 2 if text[end] == "\\" else 1
+            output.append(text[index:end + 1])
+            index = end + 1
+            continue
+        if char == "," and text[index + 1:].lstrip().startswith(("}", "]")):
+            index += 1
+            continue
+        output.append(char)
+        index += 1
+    return "".join(output)
+
+
 def _read(config: Path) -> dict[str, Any] | None:
     if not config.exists():
         return None
     if config.is_symlink() or not config.is_file() or config.stat().st_size > MAX_CONFIG_BYTES:
         raise AutoError("HOST_MCP_CONFIG_UNREADABLE")
     try:
-        document = json.loads(config.read_text())
+        text = config.read_text()
     except (OSError, ValueError):
+        raise AutoError("HOST_MCP_CONFIG_UNPARSEABLE") from None
+    try:
+        document = json.loads(text)
+    except ValueError:
         # Refusing here keeps a hand-edited file intact. Overwriting it would
-        # silently drop servers the user configured.
+        # silently drop servers the user configured, or their comments.
+        stripped, commented = _without_comments(text)
+        if commented:
+            try:
+                json.loads(stripped)
+            except ValueError:
+                pass
+            else:
+                raise AutoError("HOST_MCP_CONFIG_HAS_COMMENTS") from None
         raise AutoError("HOST_MCP_CONFIG_UNPARSEABLE") from None
     if not isinstance(document, dict):
         raise AutoError("HOST_MCP_CONFIG_UNPARSEABLE")
@@ -227,7 +332,7 @@ def _is_older_release_of(current: Any, proposed: dict[str, Any]) -> bool:
         return False
     if any(current[key] != proposed[key] for key in proposed if key != "command"):
         return False
-    old, new = current.get("command"), proposed.get("command")
+    old, new = _expand_home(current.get("command")), _expand_home(proposed.get("command"))
     if not isinstance(old, str) or not isinstance(new, str):
         return False
     # Resolve both spellings so a symlinked cache prefix is recognised, and so
@@ -244,6 +349,10 @@ def _is_older_release_of(current: Any, proposed: dict[str, Any]) -> bool:
         return False
     if old_path.parents[2] != new_path.parents[2]:
         return False
+    if old_path == new_path:
+        # The same launcher file under another spelling, such as the absolute
+        # home path written before 1.0.13: rewriting it changes nothing it runs.
+        return True
     old_release, new_release = _release(old_path.parents[1].name), _release(new_path.parents[1].name)
     return old_release is not None and new_release is not None and old_release < new_release
 
@@ -268,6 +377,22 @@ def merge(host: str, existing: dict[str, Any] | None, launcher: Path | None = No
     servers[SERVER_NAME] = proposed
     document[target.key] = servers
     return document
+
+
+PROTECTED_FOLDERS = ("Documents", "Desktop", "Downloads")
+
+
+def in_protected_folder(path: object, home: Path | None = None) -> bool:
+    """Whether macOS privacy protection covers this path for apps without folder access.
+
+    The Claude desktop app may be refused permission to run a program inside
+    these folders, so a launcher registered there can fail to start.
+    """
+    if not isinstance(path, (str, Path)) or not str(path):
+        return False
+    home = Path.home() if home is None else home
+    candidate = Path(os.path.normpath(str(path)))
+    return any(candidate == home / name or (home / name) in candidate.parents for name in PROTECTED_FOLDERS)
 
 
 def plan(host: str, workspace: Path | None = None, launcher: Path | None = None) -> dict[str, Any]:
@@ -348,11 +473,19 @@ def install(host: str, workspace: Path | None = None, launcher: Path | None = No
     if config.is_symlink():
         raise AutoError("HOST_MCP_CONFIG_UNREADABLE")
     document = merge(host, _read(config), launcher)
-    _write_atomically(config, json.dumps(document, indent=2, sort_keys=True) + "\n")
+    try:
+        # The user's own permissions stay; a file we create is private.
+        mode = stat.S_IMODE(os.lstat(config).st_mode)
+    except FileNotFoundError:
+        mode = 0o600
+    except OSError:
+        raise AutoError("HOST_MCP_CONFIG_UNREADABLE") from None
+    # Key order is the user's: no sort_keys, so only our one entry moves.
+    _write_atomically(config, json.dumps(document, indent=2) + "\n", mode)
     return {**outcome, "written": True}
 
 
-def _write_atomically(config: Path, payload: str) -> None:
+def _write_atomically(config: Path, payload: str, mode: int = 0o600) -> None:
     # mkstemp sat outside the try, so an unwritable or missing config
     # directory raised a bare PermissionError straight past every caller that
     # catches AutoError -- `jev vscode --write` reported it as a traceback
@@ -362,6 +495,7 @@ def _write_atomically(config: Path, payload: str) -> None:
     except OSError:
         raise AutoError("HOST_MCP_CONFIG_UNWRITABLE") from None
     try:
+        os.fchmod(handle, mode)
         with os.fdopen(handle, "w") as stream:
             stream.write(payload)
             stream.flush()

@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-from .common import AutoError, safe_path, state_dir
+from .common import AutoError, safe_path, state_dir, trusted_path
 from .host_policy import notice as claude_policy_notice
 from .recipe_fixtures import selftest
 from .settings import enrollment_binding, governing_workspace, load_policy
@@ -93,7 +93,7 @@ def _offline_gate() -> dict[str, Any]:
 def _receipt_index(path: Path) -> dict[str, Any]:
     """Count local evidence rows without constructing Store or reading receipt bodies."""
     try:
-        database = safe_path(state_dir(path) / "auto.sqlite3")
+        database = trusted_path(state_dir(path) / "auto.sqlite3")
         if not database.exists():
             return _check("receipt_index", "NONE", count=0)
         metadata = database.stat()

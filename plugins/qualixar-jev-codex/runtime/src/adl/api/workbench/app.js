@@ -167,8 +167,11 @@ async function runFixture(variant) {
     box.append(node("span", "result-status", "SYNTHETIC · OFFLINE"));
     box.append(node("h3", "", `${humanize(variant)} example ${outcome.passed ? "held" : "needs review"}`));
     box.append(node("p", "", response.disclaimer));
-    box.append(node("p", "", `Expected: ${outcome.expected.host_action} · observed: ${outcome.observed?.host_action || "unavailable"}`));
+    box.append(node("p", "", `Expected: ${outcome.expected_live?.host_action || "unavailable"} · observed: ${outcome.observed?.host_action || "unavailable"}`));
     box.append(node("p", "", `Gate recommendation: ${outcome.observed?.recommendation || "not available"}`));
+    if (outcome.observed?.selected_label) {
+      box.append(node("p", "", `Chosen label: ${outcome.observed.selected_label}`));
+    }
     panel.append(box);
     box.scrollIntoView({ block: "nearest", behavior: "smooth" });
   } catch (error) { showNotice(error.message); }
@@ -257,6 +260,9 @@ function showResult(result) {
   box.append(node("h3", "", `Gate result: ${humanize(result.host_action || "review")}`));
   box.append(node("p", "", `Provider: ${result.provider} · model: ${result.model} · calibration: ${result.calibration_status}`));
   box.append(node("p", "", `The model answer and the local gate are separate. ${result.reason || "Review the answer yourself before taking action."}`));
+  if (result.selected_label) {
+    box.append(node("p", "", `Chosen label: ${result.selected_label}`));
+  }
   box.append(node("p", "", "execution_authorized: false · You decide the next step."));
   box.append(node("div", "section-label", "Typed answer"));
   box.append(node("pre", "", JSON.stringify(result.answer, null, 2)));

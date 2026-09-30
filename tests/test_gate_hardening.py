@@ -19,6 +19,10 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
+
+# Derived from the recipe sources, so adding a recipe never means editing a count here.
+RECIPE_COUNT = len(list((ROOT / "recipes").rglob("*.json")))
+FIXTURE_CASES = 3 * len(list((ROOT / "fixtures").glob("*.json")))
 sys.path.insert(0, str(RUNTIME))
 
 from jev_auto import recipe_fixtures  # noqa: E402
@@ -151,7 +155,7 @@ class GatesRejectedAtLoad(unittest.TestCase):
 
     def test_the_shipped_catalog_still_loads(self):
         catalog = json.loads((RUNTIME / "recipe_catalog.json").read_text())
-        self.assertEqual(len(validate_gates(catalog["gates"])), 38)
+        self.assertEqual(len(validate_gates(catalog["gates"])), RECIPE_COUNT)
 
 
 class TheProofIsNotTautological(unittest.TestCase):
@@ -161,7 +165,13 @@ class TheProofIsNotTautological(unittest.TestCase):
         catalog = copy.deepcopy(json.loads((RUNTIME / "recipe_catalog.json").read_text()))
         entry = next(e for e in catalog["fixtures"] if e["id"] == "qualixar.task-routing")
         case = next(c for c in entry["cases"] if c["variant"] == "uncertain")
-        case["mock_answer"]["confidence"] = 0.99
+        # A decisive answer a provider could really return. An incoherent one
+        # (0.99 beside a spread distribution) is now refused at load, which
+        # would hide the INTENT check this test exists to exercise.
+        answer = case["mock_answer"]
+        answer["probabilities"] = {label: 0.0225 for label in answer["probabilities"]}
+        answer["probabilities"][answer["choice"]] = 0.91
+        answer["confidence"] = 0.89
         case["expected_status"] = "RECOMMEND"
         case["expected_host_action"] = "act"
         case["expected_recommendation"] = "route_to_queue"
@@ -186,7 +196,7 @@ class TheProofIsNotTautological(unittest.TestCase):
         entry["cases"][0]["state"] = {"wrong_field": "no longer type-checks"}
         with patch.object(recipe_fixtures, "catalog_document", lambda: catalog):
             result = recipe_fixtures.selftest()
-        self.assertEqual(result["cases"], 114, "every other case still ran")
+        self.assertEqual(result["cases"], FIXTURE_CASES, "every other case still ran")
         self.assertEqual(len(result["failures"]), 1)
 
 

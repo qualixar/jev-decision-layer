@@ -28,13 +28,11 @@ claude plugin uninstall qualixar-jev-decision-layer@qualixar
 claude plugin marketplace remove qualixar
 ```
 
-If you also registered the launcher directly for the desktop app's Code tab, remove that entry too — it is separate from the plugin and survives uninstalling it:
+If you registered Jev for the Claude desktop app, remove that entry too — it is separate from the plugin and survives uninstalling it. Quit the app first, then delete the `qualixar-jev` block from `~/Library/Application Support/Claude/claude_desktop_config.json` and reopen the app. If you ever added it with `claude mcp add`, also run:
 
 ```sh
 claude mcp remove qualixar-jev
 ```
-
-and delete the matching `qualixar-jev` block from `~/Library/Application Support/Claude/claude_desktop_config.json` if you added one there.
 
 ### VS Code
 
@@ -42,10 +40,10 @@ The adapter added exactly one server to `.vscode/mcp.json`. Delete the `qualixar
 
 ### Antigravity and Hermes
 
-Remove the plugin through the host's own plugin install path.
+Remove the plugin through the host's own plugin install path. If you registered the tools for Antigravity with `host-register`, quit Antigravity and delete the `qualixar-jev` entry from `mcpServers` in `~/.gemini/config/mcp_config.json`.
 
 ## What removal does not do
 
-Uninstalling removes the installed plugin and its marketplace registration. It does **not** delete your project, an older plugin's source, workspace policies, local receipts, or macOS Keychain items. Start a new task in the host afterwards so the removed skill and command text stops loading.
+Uninstalling removes the installed plugin and its marketplace registration. It does **not** delete your project, an older plugin's source, workspace policies, local receipts, a local Laya install (`mlx-env/` and `laya-models/` under `~/.local/state/qualixar-jev-decision-layer/`), or macOS Keychain items (`ai.qualixar.adl.typesafe`, `ai.qualixar.adl.openrouter`). Delete those yourself, one named item at a time, if you no longer need them. Start a new task in the host afterwards so the removed skill and command text stops loading.
 
-If you are replacing an older Jev installation, keep it available until the new plugin passes a fresh task in your harness. Version 1.0.1 uses its own state and socket namespace and never silently reads an older key file. A failed upgrade should leave the older plugin and its data recoverable — do not remove both at once.
+If you are replacing an older, separately installed Jev integration, keep it available until this plugin passes a fresh task in your harness. This plugin uses its own state and socket namespace and never silently reads an older key file. A failed upgrade should leave the older plugin and its data recoverable — do not remove both at once.

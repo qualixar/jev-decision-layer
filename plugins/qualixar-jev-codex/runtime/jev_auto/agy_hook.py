@@ -12,18 +12,14 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
+from .claude_hook import guidance
 from .common import canonical, decode, workspace
-from .settings import load_policy
+from .settings import enrollment_binding
+
+_ADVISORY = " Its answers are advisory and never replace native permissions or completion checks."
 
 
-_HINT = (
-    "Qualixar Jev is available for bounded typed decisions such as skill, task, and evidence routing. "
-    "Use the Jev MCP tool only when the decision may avoid substantial work; keep exact rules in code. "
-    "Its answer is advisory and never replaces native permissions or completion checks."
-)
-
-
-def handle(event: Any, *, policy_loader: Callable[[Path], dict[str, Any]] = load_policy) -> dict[str, Any]:
+def handle(event: Any, *, binding_loader: Callable[[Path], dict[str, Any]] = enrollment_binding) -> dict[str, Any]:
     if not isinstance(event, dict) or type(event.get("invocationNum")) is not int or event["invocationNum"] != 0:
         return {}
     paths = event.get("workspacePaths")
@@ -31,12 +27,15 @@ def handle(event: Any, *, policy_loader: Callable[[Path], dict[str, Any]] = load
         return {}
     try:
         path = workspace(paths[0])
-        policy = policy_loader(path)
-        if policy.get("enabled") is not True:
+        binding = binding_loader(path)
+        if binding["policy"].get("enabled") is not True:
             return {}
+        # The short form carries the exact arguments; the full form is too
+        # long for a one-step ephemeral message.
+        hint = guidance("UserPromptSubmit", binding, path)
     except Exception:
         return {}
-    return {"injectSteps": [{"ephemeralMessage": _HINT}]}
+    return {"injectSteps": [{"ephemeralMessage": hint + _ADVISORY}]} if hint else {}
 
 
 def main() -> None:

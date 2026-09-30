@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import os
 import shutil
 from pathlib import Path
 
@@ -34,6 +35,12 @@ LEGACY_CODEX_HOOK_NAME = Path("hooks/hooks.json")
 # becoming invisible to it.
 OTHER_HOST_FILES = (Path("hooks/claude-hooks.json"),)
 
+# Codex loads a plugin folder that has a root plugin.json (the Agent Plugins
+# manifest) through a loader with no hook support, so every hook would go
+# silent (openai/codex#39895). The generated package must never have one, not
+# even as a dangling link.
+FORBIDDEN_ROOT_FILES = (Path("plugin.json"),)
+
 
 def _included(path: Path) -> bool:
     return not any(part == "__pycache__" or part.startswith(".pytest_cache") for part in path.parts) and path.suffix != ".pyc"
@@ -50,8 +57,12 @@ def build(*, check: bool) -> None:
     expected.difference_update(OTHER_HOST_FILES)
     expected.update(Path(name) for name in FILES)
     expected.add(CODEX_MCP_NAME)
+    if expected & set(FORBIDDEN_ROOT_FILES):
+        raise ValueError("CODEX_PACKAGE_ROOT_MANIFEST")
     if check:
-        if (TARGET / "plugin.json").exists() or _files(TARGET) != expected:
+        if any(os.path.lexists(TARGET / name) for name in FORBIDDEN_ROOT_FILES):
+            raise ValueError("CODEX_PACKAGE_ROOT_MANIFEST")
+        if _files(TARGET) != expected:
             raise ValueError("CODEX_PACKAGE_FILE_SET_MISMATCH")
         for name in expected:
             origin = CODEX_MCP if name == CODEX_MCP_NAME else SOURCE / name
@@ -64,6 +75,8 @@ def build(*, check: bool) -> None:
     # old default-discovery name from an existing generated package so Claude
     # cannot load the Codex hook descriptor when both packages share a root.
     (TARGET / LEGACY_CODEX_HOOK_NAME).unlink(missing_ok=True)
+    for name in FORBIDDEN_ROOT_FILES:
+        (TARGET / name).unlink(missing_ok=True)
     for directory in DIRECTORIES:
         shutil.copytree(SOURCE / directory, TARGET / directory, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache",

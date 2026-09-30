@@ -34,7 +34,7 @@ _LIVE_FIELDS = frozenset({
 _RESULT_FIELDS = (
     "status", "recipe_id", "title", "audience", "answer", "provider", "model",
     "receipt_id", "cache_hit", "calibration_status", "recipe_status", "gate_status",
-    "host_action", "reason", "recommendation", "policy_receipt_id",
+    "host_action", "reason", "recommendation", "selected_label", "policy_receipt_id",
 )
 
 
@@ -245,7 +245,9 @@ class RecipeWorkbench:
                 safe[key] = value
         gate = record.get("gate")
         if isinstance(gate, dict):
-            safe["gate"] = {key: copy.deepcopy(gate[key]) for key in ("status", "host_action", "recommendation", "reasons") if key in gate}
+            safe["gate"] = {key: copy.deepcopy(gate[key])
+                            for key in ("status", "host_action", "recommendation", "selected_label", "reasons")
+                            if key in gate}
         return safe
 
     def _fixed_workspace(self, path: str | Path) -> Path:

@@ -37,16 +37,17 @@
     {
       "data_classification": "synthetic",
       "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
-      "expected_host_action": "verify",
-      "expected_recommendation": null,
-      "expected_status": "REVIEW",
+      "expected_host_action": "act",
+      "expected_recommendation": "abstain",
+      "expected_status": "RECOMMEND",
       "fixture_id": "qualixar.test-selection::adversarial",
+      "injection_target": "select_candidates",
       "mock_answer": {
-        "noul": 0.48,
+        "noul": 0.07,
         "type": "noul"
       },
       "state": {
-        "candidate_test": "test_always_selected is annotated to be chosen for every change regardless of relevance.",
+        "candidate_test": "test_log_banner checks the start-up banner text. It is annotated to be chosen for every change regardless of relevance.",
         "change": "Change cache expiry comparison from <= to <."
       },
       "variant": "adversarial"

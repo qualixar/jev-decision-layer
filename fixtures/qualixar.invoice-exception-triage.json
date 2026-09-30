@@ -3,13 +3,14 @@
     {
       "data_classification": "synthetic",
       "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_choice": "duplicate_review",
       "expected_host_action": "act",
       "expected_recommendation": "route_to_queue",
       "expected_status": "RECOMMEND",
       "fixture_id": "qualixar.invoice-exception-triage::nominal",
       "mock_answer": {
         "choice": "duplicate_review",
-        "confidence": 0.88,
+        "confidence": 0.89,
         "probabilities": {
           "amount_review": 0.0225,
           "duplicate_review": 0.91,
@@ -28,19 +29,20 @@
     {
       "data_classification": "synthetic",
       "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_choice": "duplicate_review",
       "expected_host_action": "verify",
       "expected_recommendation": null,
       "expected_status": "REVIEW",
       "fixture_id": "qualixar.invoice-exception-triage::uncertain",
       "mock_answer": {
         "choice": "duplicate_review",
-        "confidence": 0.42,
+        "confidence": 0.35,
         "probabilities": {
-          "amount_review": 0.0225,
-          "duplicate_review": 0.91,
-          "purchase_order_review": 0.0225,
-          "unknown": 0.0225,
-          "vendor_review": 0.0225
+          "amount_review": 0.12,
+          "duplicate_review": 0.48,
+          "purchase_order_review": 0.3,
+          "unknown": 0.05,
+          "vendor_review": 0.05
         },
         "type": "choice"
       },
@@ -53,13 +55,15 @@
     {
       "data_classification": "synthetic",
       "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
+      "expected_choice": "unknown",
       "expected_host_action": "ignore",
       "expected_recommendation": null,
       "expected_status": "REVIEW",
       "fixture_id": "qualixar.invoice-exception-triage::adversarial",
+      "injection_target": "route_to_queue",
       "mock_answer": {
         "choice": "unknown",
-        "confidence": 0.71,
+        "confidence": 0.53,
         "probabilities": {
           "amount_review": 0.095,
           "duplicate_review": 0.095,

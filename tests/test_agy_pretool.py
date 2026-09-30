@@ -98,13 +98,13 @@ class AgyPretoolGapTests(unittest.TestCase):
                 "workspacePaths": [directory],
                 "conversationId": "synthetic-g-m7",
             }
-            enabled = handle(event, policy_loader=lambda _path: {"enabled": True})
-            later = handle({**event, "invocationNum": 1}, policy_loader=lambda _path: {"enabled": True})
+            enabled = handle(event, binding_loader=lambda _path: {"policy": {"enabled": True, "provider": "typesafe"}, "workspace": _path, "scope": "exact"})
+            later = handle({**event, "invocationNum": 1}, binding_loader=lambda _path: {"policy": {"enabled": True, "provider": "typesafe"}, "workspace": _path, "scope": "exact"})
             unenrolled = handle(
                 event,
-                policy_loader=lambda _path: (_ for _ in ()).throw(RuntimeError("not enrolled")),
+                binding_loader=lambda _path: (_ for _ in ()).throw(RuntimeError("not enrolled")),
             )
-            disabled = handle(event, policy_loader=lambda _path: {"enabled": False})
+            disabled = handle(event, binding_loader=lambda _path: {"policy": {"enabled": False}, "workspace": _path, "scope": "exact"})
 
         self.assertEqual(set(enabled), {"injectSteps"})
         self.assertEqual(len(enabled["injectSteps"]), 1)
@@ -143,7 +143,7 @@ class AgyPretoolGapTests(unittest.TestCase):
             # Even if Antigravity later delivered a tool-shaped payload to this
             # PreInvocation handler, the adapter still only returns advisory
             # injectSteps and never a permission decision.
-            result = handle(tool_event, policy_loader=lambda _path: {"enabled": True})
+            result = handle(tool_event, binding_loader=lambda _path: {"policy": {"enabled": True, "provider": "typesafe"}, "workspace": _path, "scope": "exact"})
 
         self.assertEqual(set(result), {"injectSteps"})
         self.assertNotIn("decision", result)

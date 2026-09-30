@@ -12,7 +12,7 @@ This is the verified live repository description as of 2026-09-28; it reflects t
 
 ## Suggested 1.0.9 description
 
-> Open-source AI agent decision layer for Codex, Claude Code, Hermes, Antigravity and VS Code. TypeSafe Jev MCP routing, 38 recipes, local gates and receipts; optional Laya-MLX on Apple Silicon.
+> Open-source AI agent decision layer for Codex, Claude Code, Hermes, Antigravity and VS Code. TypeSafe Jev MCP routing, 55 recipes, local gates and receipts; optional Laya-MLX on Apple Silicon.
 
 Use this as a metadata update after the 1.0.9 candidate is verified. GitHub description text is a discovery aid, not a ranking or star guarantee.
 
@@ -30,7 +30,7 @@ Upload [`docs/assets/social-preview.png`](assets/social-preview.png), the checke
 
 - Headline: **ONE DECISION LAYER. FIVE AGENT HARNESSES.**
 - Supporting line: **TypeSafe Jev · optional local Laya · typed answers · local gates · receipts**
-- Count line: **20 tools · 38 recipes · 114 offline fixtures**
+- Count line: **20 tools · 55 recipes · 165 offline fixtures**
 - Use a developer-focused violet, warm amber, and neutral palette. Do not use Qualixar green or cyan.
 - Do not imply that all five hosts have verified live turns. Host evidence differs and is listed in the README.
 - Keep execution authority with the host; do not depict Jev or Laya executing shell, browser, deployment, or publishing actions.
@@ -65,7 +65,7 @@ Keep [`llms.txt`](../llms.txt) as a reading index for agents. It is not a rankin
 
 - Say **one shared runtime with adapters for five hosts**; do not say all five are equally verified.
 - Describe shipped thresholds as unvalidated defaults; do not imply provider calibration or an independently measured confidence signal.
-- Treat 114 offline fixtures as tests of the shipped local gate contract, not provider-accuracy evidence.
+- Treat 165 offline fixtures as tests of the shipped local gate contract, not provider-accuracy evidence.
 - Do not claim token, subscription-cost, API-cost, or task-time savings without matched accepted-task trials.
 - Say the model returns advice and local policy metadata; the host retains execution authority.
 - Keep upstream model ownership and license notices separate; this is an independent integration, not an official TypeSafe, Laya, OpenAI, Anthropic, Google, or Microsoft product.

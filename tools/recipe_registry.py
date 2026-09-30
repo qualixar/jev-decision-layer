@@ -25,7 +25,6 @@ ALLOWED_KEYS = {
     "benefit_hypothesis",
     "legacy_id",
     "status",
-    "trigger",
     "input_description",
     "input_schema",
     "questions",
@@ -33,9 +32,6 @@ ALLOWED_KEYS = {
     "policy",
     "allowed_actions",
     "effects",
-    "risk",
-    "provider_support",
-    "budget",
     "evidence_requirements",
     "limitations",
     "sources",
@@ -50,6 +46,11 @@ ALLOWED_ACTIONS = {
     "select_candidates",
     "quarantine_candidate",
 }
+# `budget`, `risk`, `trigger` and `provider_support` were accepted here and read
+# nowhere: every recipe declared a four-call budget no code enforced, and a
+# declaration nobody enforces reads like a safeguard that is not there. They are
+# now unknown fields. Recipes never run automatically (`auto_allowed` below) and
+# each carries its evaluation state in `status`.
 FORBIDDEN_TEXT = ("eval(", "exec(", "import ", "subprocess", "http://", "https://", "include(")
 
 
@@ -63,7 +64,6 @@ class RegistryError(ValueError):
 class RegisteredRecipe:
     id: str
     auto_allowed: bool
-    provider_ready: bool
 
 
 def load_registry(source: Path | list[dict[str, Any]]) -> list[RegisteredRecipe]:
@@ -75,14 +75,7 @@ def load_registry(source: Path | list[dict[str, Any]]) -> list[RegisteredRecipe]
         if recipe["id"] in seen:
             raise RegistryError("DUPLICATE_ID")
         seen.add(recipe["id"])
-        support = recipe["provider_support"]
-        loaded.append(
-            RegisteredRecipe(
-                id=recipe["id"],
-                auto_allowed=False,
-                provider_ready=support.get("jev") == "EVALUATED" and support.get("laya") == "EVALUATED",
-            )
-        )
+        loaded.append(RegisteredRecipe(id=recipe["id"], auto_allowed=False))
     return loaded
 
 

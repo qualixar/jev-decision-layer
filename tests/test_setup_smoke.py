@@ -87,7 +87,7 @@ class SetupSmokeTests(unittest.TestCase):
                 thread.start()
                 try:
                     connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
-                    connection.request("GET", "/setup")
+                    connection.request("GET", server.launch_path)
                     response = connection.getresponse()
                     response.read()
                     cookie = response.getheader("Set-Cookie").split(";", 1)[0]
@@ -208,7 +208,7 @@ class SetupSmokeTests(unittest.TestCase):
                         connection.close()
                         return value
 
-                    _, headers, page = request("GET", "/setup")
+                    _, headers, page = request("GET", server.launch_path)
                     cookie = headers["Set-Cookie"].split(";", 1)[0]
                     csrf = re.search(rb'name=[\'\"]csrf[\'\"] value=[\'\"]([^\'\"]+)', page).group(1).decode()
                     fields = {"csrf": csrf, "provider": "typesafe", "mode": "jev-maximum",
@@ -259,7 +259,7 @@ class SetupSmokeTests(unittest.TestCase):
                         connection.close()
                         return value
 
-                    _, headers, page = request("GET", "/setup")
+                    _, headers, page = request("GET", server.launch_path)
                     cookie = headers["Set-Cookie"].split(";", 1)[0]
                     csrf = re.search(rb'name=[\'\"]csrf[\'\"] value=[\'\"]([^\'\"]+)', page).group(1).decode()
                     fields = {"csrf": csrf, "provider": "typesafe", "mode": "jev-public",
@@ -315,7 +315,7 @@ class SetupSmokeTests(unittest.TestCase):
                         connection.close()
                         return value
 
-                    _, headers, page = request("GET", "/setup")
+                    _, headers, page = request("GET", server.launch_path)
                     cookie = headers["Set-Cookie"].split(";", 1)[0]
                     csrf = re.search(rb'name=[\'\"]csrf[\'\"] value=[\'\"]([^\'\"]+)', page).group(1).decode()
                     # This is the pre-five-mode payload shape used by older clients.
@@ -350,7 +350,7 @@ class SetupSmokeTests(unittest.TestCase):
             thread.start()
             try:
                 connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
-                connection.request("GET", "/setup")
+                connection.request("GET", server.launch_path)
                 response = connection.getresponse()
                 body = response.read().decode("utf-8")
                 connection.close()
@@ -381,7 +381,7 @@ class SetupSmokeTests(unittest.TestCase):
             thread.start()
             try:
                 connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
-                connection.request("GET", "/setup")
+                connection.request("GET", server.launch_path)
                 response = connection.getresponse()
                 body = response.read().decode()
                 connection.close()
@@ -415,7 +415,7 @@ class SetupSmokeTests(unittest.TestCase):
                 thread.start()
                 try:
                     connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=3)
-                    connection.request("GET", "/setup")
+                    connection.request("GET", server.launch_path)
                     response = connection.getresponse()
                     page = response.read()
                     cookie = response.getheader("Set-Cookie").split(";", 1)[0]
@@ -577,7 +577,7 @@ class SetupSmokeTests(unittest.TestCase):
                         connection.close()
                         return result
 
-                    status, headers, page = request("GET", "/setup")
+                    status, headers, page = request("GET", server.launch_path)
                     self.assertEqual(status, 200)
                     self.assertNotIn(b"synthetic-key-123456", page)
                     cookie = headers["Set-Cookie"].split(";", 1)[0]

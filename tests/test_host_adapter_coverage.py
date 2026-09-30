@@ -197,31 +197,37 @@ class CodexHookHandleGatingTests(unittest.TestCase):
             )
         self.assertIsNone(result)
 
-    def test_subagent_start_returns_the_fixed_advisory_hint(self):
+    def _binding(self, *_args):
+        return {"policy": self._policy(), "workspace": Path("/private/tmp"), "scope": "exact"}
+
+    def test_subagent_start_returns_the_argument_guidance(self):
         from jev_auto import hooks
 
         with patch.object(hooks, "workspace", side_effect=lambda path: Path(path)), \
-             patch.object(hooks, "load_policy", side_effect=lambda *_args: self._policy()):
+             patch.object(hooks, "load_policy", side_effect=lambda *_args: self._policy()), \
+             patch.object(hooks, "enrollment_binding", side_effect=self._binding):
             result = hooks.handle(
                 {"hook_event_name": "SubagentStart", "cwd": "/private/tmp"},
                 starter=lambda *_a: None,
             )
         self.assertEqual(result["hookSpecificOutput"]["hookEventName"], "SubagentStart")
-        self.assertIn("Do not create grants", result["hookSpecificOutput"]["additionalContext"])
+        self.assertIn("Never create or widen a Jev grant", result["hookSpecificOutput"]["additionalContext"])
+        self.assertIn('workspace_path="/private/tmp"', result["hookSpecificOutput"]["additionalContext"])
 
-    def test_session_start_reports_the_running_version_and_calls_prepare_runtime(self):
-        from jev_auto import hooks, __version__
+    def test_session_start_gives_the_argument_guidance_and_calls_prepare_runtime(self):
+        from jev_auto import hooks
 
         seen = []
         with patch.object(hooks, "workspace", side_effect=lambda path: Path(path)), \
-             patch.object(hooks, "load_policy", side_effect=lambda *_args: self._policy()):
+             patch.object(hooks, "load_policy", side_effect=lambda *_args: self._policy()), \
+             patch.object(hooks, "enrollment_binding", side_effect=self._binding):
             result = hooks.handle(
                 {"hook_event_name": "SessionStart", "cwd": "/private/tmp"},
                 starter=lambda *_a: None,
                 caller=lambda _path, request: seen.append(request) or {},
             )
         self.assertEqual(seen, [{"op": "prepare_runtime"}])
-        self.assertIn(__version__, result["hookSpecificOutput"]["additionalContext"])
+        self.assertIn('workspace_path="/private/tmp"', result["hookSpecificOutput"]["additionalContext"])
         self.assertEqual(result["hookSpecificOutput"]["hookEventName"], "SessionStart")
 
     def test_user_prompt_submit_with_a_packet_surfaces_it_as_additional_context(self):

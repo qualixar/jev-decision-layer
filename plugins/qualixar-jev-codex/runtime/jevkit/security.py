@@ -13,27 +13,13 @@ class SafeError(Exception):
     """Messages must contain safe codes and descriptions, never raw input."""
 
 
+# Contact, workspace-path, phone and private-network patterns. Credential
+# formats come from jev_auto.secret_rules, shared by every outgoing screen.
 RULES = [
-    (
-        "PRIVATE_KEY",
-        re.compile(
-            r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?"
-            r"-----END [^-]*PRIVATE KEY-----"
-        ),
-    ),
-    ("BEARER_TOKEN", re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}")),
-    (
-        "API_KEY",
-        re.compile(
-            r"\b(?:sk-(?:proj-|ant-)?[A-Za-z0-9_-]{16,}|"
-            r"gh[pousr]_[A-Za-z0-9_]{20,}|AKIA[A-Z0-9]{16})\b"
-        ),
-    ),
-    ("JWT", re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b")),
-    ("EMAIL", re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")),
+    ("EMAIL", re.compile(r"\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}\b")),
     (
         "PRIVATE_URL",
-        re.compile(r'https?://[^\s"<>]*(?:\.internal|\.local|localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[::1\])[^\s"<>]*', re.I),
+        re.compile(r'https?://[^\s"<>]{0,2048}?(?:\.internal|\.local|localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[::1\])[^\s"<>]{0,2048}', re.I),
     ),
     (
         "PRIVATE_IP",
@@ -47,21 +33,7 @@ RULES = [
         re.compile(r'(?i)(?:(?:/Users/|/home/)|(?:[A-Z]:[\\/]|\\\\[^\\\s]+\\[^\\\s]+[\\/])Users[\\/])[^\s"<>]+'),
     ),
     ("PHONE", re.compile(r"(?<!\w)\+\d[\d ()-]{8,}\d(?!\w)")),
-    (
-        "CREDENTIAL_ASSIGNMENT",
-        re.compile(
-            r"(?i)\b(?:[a-z0-9]+[_-])*(?:api[_-]?key|password|secret|"
-            r"access[_-]?token)\s*[:=]\s*[\"']?[^\s,;\"']{6,}"
-        ),
-    ),
-    ("CREDENTIAL_URL", re.compile(r"\b\w+://[^/\s:@]+:[^/\s@]+@[^\s]+")),
 ]
-
-SENSITIVE_KEYS = re.compile(
-    r"^(?:[a-z0-9]+[_-])*(?:api[_-]?key|password|secret|access[_-]?token|"
-    r"authorization|credential|private[_-]?key)$",
-    re.I,
-)
 
 
 _CONTEXT_FIELDS = frozenset({"EMAIL", "HOME_PATH"})
@@ -72,33 +44,43 @@ def screen(value: Any, secrets: tuple[str, ...] = (), *, allow_context: bool = F
 
     Callers may set ``allow_context`` only after checking an enrolled
     non-public data scope. This does not relax credentials or private network
-    endpoint checks and is not comprehensive DLP.
+    endpoint checks and is not comprehensive DLP. A string holding a
+    credential is replaced whole, so no part of it survives redaction.
     """
+    from jev_auto.common import _child_place
+    from jev_auto.secret_rules import credential_field, find, variants
+
     found: set[str] = set()
 
-    def visit(item):
+    def visit(item, where="root"):
         if isinstance(item, dict):
             result = {}
             for key, nested in item.items():
-                clean_key = visit(str(key))
-                if SENSITIVE_KEYS.match(str(key)) and nested:
+                clean_key = visit(str(key), "other")
+                # The option labels of a choice question (questions.<name>.criteria)
+                # are categories, not credentials.
+                if where != "labels" and credential_field(str(key), nested):
                     found.add("CREDENTIAL")
                     result[clean_key] = "[REDACTED:CREDENTIAL]"
                 else:
-                    result[clean_key] = visit(nested)
+                    result[clean_key] = visit(nested, _child_place(where, key))
             return result
         if isinstance(item, list):
             return [visit(nested) for nested in item]
         if not isinstance(item, str):
             return item
-        for secret in secrets:
-            if secret and len(secret) >= 4 and secret in item:
-                found.add("API_KEY")
-                item = item.replace(secret, "[REDACTED:API_KEY]")
+        forms = variants(item)
+        if any(secret and len(secret) >= 4 and secret in form for secret in secrets for form in forms):
+            found.add("API_KEY")
+            return "[REDACTED:API_KEY]"
+        labels = find(item)
+        if labels:
+            found.update(labels)
+            return "[REDACTED:" + ",".join(sorted(labels)) + "]"
         for label, regex in RULES:
             if allow_context and label in _CONTEXT_FIELDS:
                 continue
-            if regex.search(item):
+            if any(regex.search(form) for form in forms):
                 found.add(label)
                 item = regex.sub("[REDACTED:" + label + "]", item)
         return item

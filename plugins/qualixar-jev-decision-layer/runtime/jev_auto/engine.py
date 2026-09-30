@@ -1,17 +1,39 @@
 """Automatic orchestration; authority remains outside the decision response."""
 from __future__ import annotations
+import contextvars
 import time
-from .common import AutoError, canonical, digest, require_clean, state_dir
+from .common import AutoError, canonical, digest, home_root, require_clean, state_dir
 from .protocol import validate_questions, validate_response, compact_receipt
-from .settings import _policy_lock, governing_workspace, load_policy, validate_policy
-from .store import Store,SingleFlight
+from .settings import _policy_lock, enrollment_binding, governing_workspace, load_policy, validate_policy
+from .store import Store,SingleFlight,sweep_inactive
 from .providers import Providers
+
+_MALFORMED_ANSWER=frozenset({'PROBABILITIES','PROBABILITY_SUM','CHOICE_ARGMAX','SCORE_EXPECTATION',
+                             'NOUL_RANGE','CONFIDENCE_RANGE','ANSWER_TYPE','ANSWER_IDS'})
+
+# The folder a request was made for, set per request by dispatch. The broker
+# serves a grant root; this is re-checked before transport so a folder refused
+# after its request was sent gets no provider call.
+_REQUESTED=contextvars.ContextVar('jev_requested_path',default=None)
 
 class Engine:
     def __init__(self,path,base=None,provider=None):
         self.workspace=governing_workspace(path,base);self.base=base;self.root=state_dir(self.workspace,base)
         self.store=Store(self.root);self.providers=provider or Providers();self.flight=SingleFlight()
+        self.prune()
+    def _requested_still_covered(self):
+        requested=_REQUESTED.get()
+        if requested is None:return
+        if enrollment_binding(requested,self.base)['workspace']!=self.workspace:raise AutoError('POLICY_CHANGED')
+    def prune(self):
+        """Drop evidence, events and goals past the grant's retention.
+
+        Then age out folders whose grant is no longer active, since no
+        service of their own will run to do it.
+        """
         self.store.prune(self.policy()['retention_days'])
+        try:sweep_inactive(self.base or home_root(),exclude=self.root)
+        except Exception:pass  # retention of other folders never blocks this one
     def policy(self):return load_policy(self.workspace,self.base)
     def effective_policy(self,p,recipe):
         selected=p.get('routes',{}).get(recipe,p['provider'])
@@ -24,6 +46,7 @@ class Engine:
         if expected_policy_digest is not None and policy_digest!=expected_policy_digest:
             raise AutoError('POLICY_CHANGED')
         if policy_digest!=digest(self.policy()):raise AutoError('POLICY_CHANGED')
+        self._requested_still_covered()
         if recipe not in p.get('case_ids',[]) and recipe not in p['local_recipe_ids'] and not (recipe=='generic' and p.get('generic_query_enabled') is True):raise AutoError('RECIPE_NOT_ENROLLED')
         request_scope=data_classification if data_classification is not None else p.get('data_classification','public')
         if request_scope not in ('public','internal-minimized','restricted'):
@@ -60,25 +83,37 @@ class Engine:
                 return {**cached,'cache_hit':True,'provider_usage_this_call':None}
             n=len(canonical({'state':state,'questions':questions,'model':identity}))
             if hasattr(self.providers,'ready_for_request'):self.providers.ready_for_request(effective)
-            # Readiness can wait. All approved policy writers use this lock;
-            # check the current authority before charging an attempt, then
-            # retain it through provider transport so revoke cannot win the
-            # race between the check and the request. A started transport
-            # remains charged even if it fails: the provider may have billed.
-            with _policy_lock(self.workspace,self.base):
-                current_digest=digest(self.policy())
-                if current_digest!=policy_digest or (expected_policy_digest is not None and current_digest!=expected_policy_digest):
-                    raise AutoError('POLICY_CHANGED')
-                self.store.reserve(p,n)
-                start=time.monotonic()
-                try:result=self.providers.evaluate(effective,state,questions)
-                except Exception as e:
-                    self.store.event('provider_failure',{'recipe':recipe,'provider':effective['provider'],'elapsed_ms':round((time.monotonic()-start)*1000,2)})
-                    if isinstance(e,AutoError):raise
-                    raise AutoError('DECISION_FAILED_OR_UNAVAILABLE') from None
-                if digest(self.policy())!=policy_digest:raise AutoError('POLICY_CHANGED_DURING_REQUEST')
-            provider_metadata=result.get('provenance')
-            result=validate_response(result,questions,identity if isinstance(identity,str) else None)
+            # Readiness can wait. All approved policy writers take this lock
+            # exclusively; decisions share it. Check the current authority
+            # before charging an attempt, then retain the lock through provider
+            # transport so revoke cannot win the race between the check and the
+            # request. A started transport remains charged even if it fails:
+            # the provider may have billed.
+            # A malformed answer (probabilities that do not add up, a choice that is
+            # not the most likely one) is a transient provider fault: ask once more.
+            # Each attempt is charged; any other refusal is final.
+            for attempt in (1,2):
+                with _policy_lock(self.workspace,self.base,shared=True):
+                    current_digest=digest(self.policy())
+                    if current_digest!=policy_digest or (expected_policy_digest is not None and current_digest!=expected_policy_digest):
+                        raise AutoError('POLICY_CHANGED')
+                    self._requested_still_covered()
+                    self.store.reserve(p,n)
+                    start=time.monotonic()
+                    try:result=self.providers.evaluate(effective,state,questions)
+                    except Exception as e:
+                        self.store.event('provider_failure',{'recipe':recipe,'provider':effective['provider'],'elapsed_ms':round((time.monotonic()-start)*1000,2)})
+                        if isinstance(e,AutoError):raise
+                        raise AutoError('DECISION_FAILED_OR_UNAVAILABLE') from None
+                    if digest(self.policy())!=policy_digest:raise AutoError('POLICY_CHANGED_DURING_REQUEST')
+                provider_metadata=result.get('provenance')
+                try:
+                    result=validate_response(result,questions,identity if isinstance(identity,str) else None)
+                    break
+                except AutoError as error:
+                    if str(error) not in _MALFORMED_ANSWER:raise
+                    self.store.event('provider_invalid_answer',{'recipe':recipe,'provider':effective['provider'],'code':str(error)})
+                    if attempt==2:raise
             if provider_metadata is not None:result['provider_metadata']=provider_metadata
             require_clean(result,allow_context=allow_context)
             receipt={'kind':'decision','recipe':recipe,'request_digest':key,'evidence_digest':digest(state),'rubric_digest':digest(questions),
@@ -133,6 +168,13 @@ class Engine:
         if len(canonical(output))>8000:
             output['answers']={};output['detail_available']=True
         return output
+    def _generic_provider(self,req,enrolled):
+        """Jev + Laya: a restricted decision stays on this Mac when the grant enables
+        local Laya; anything else uses the grant's generic route."""
+        if (req.get('data_classification')=='restricted' and enrolled.get('local_laya_enabled') is True
+                and isinstance(enrolled.get('mlx'),dict)):
+            return 'laya-mlx'
+        return self.effective_policy(enrolled,'generic')['provider']
     def verify_extraction(self,req):
         """Check an extraction against its source. One call, one Noul per field."""
         from .verify import ESCALATE_THRESHOLD, compile_verify, summarise
@@ -143,7 +185,7 @@ class Engine:
         if isinstance(threshold,bool) or not isinstance(threshold,(int,float)) or not 0.0<threshold<=1.0:
             raise AutoError('VERIFY_THRESHOLD_INVALID')
         enrolled=self.policy()
-        provider=self.effective_policy(enrolled,'generic')['provider']
+        provider=self._generic_provider(req,enrolled)
         result=self.evaluate_typed(state,questions,provider,req.get('data_classification'))
         output=summarise(extraction,result.get('answers'),float(threshold))
         output.update({'provider':result['provider'],'model':result['model'],
@@ -156,7 +198,7 @@ class Engine:
         memories=req.get('memories')
         state,questions=compile_rerank(req.get('query'),memories)
         enrolled=self.policy()
-        provider=self.effective_policy(enrolled,'generic')['provider']
+        provider=self._generic_provider(req,enrolled)
         result=self.evaluate_typed(state,questions,provider,req.get('data_classification'))
         output=summarise(memories,result.get('answers'))
         output.update({'provider':result['provider'],'model':result['model'],
@@ -167,9 +209,7 @@ class Engine:
 
         state,questions=compile_route(req.get('kind'),req.get('task'),req.get('candidates'))
         enrolled=self.policy()
-        provider=('laya-mlx' if req.get('data_classification')=='restricted'
-                  and enrolled.get('local_laya_enabled') is True and isinstance(enrolled.get('mlx'),dict)
-                  else self.effective_policy(enrolled,'generic')['provider'])
+        provider=self._generic_provider(req,enrolled)
         result=self.evaluate_typed(state,questions,provider,req.get('data_classification'))
         answer=result.get('answers',{}).get('selected')
         if not isinstance(answer,dict) or answer.get('type')!='choice':raise AutoError('ROUTE_RESULT_INVALID')
@@ -195,9 +235,7 @@ class Engine:
         expected_policy_digest=req.get('expected_policy_digest')
         if expected_policy_digest is not None and digest(enrolled)!=expected_policy_digest:
             raise AutoError('POLICY_CHANGED')
-        provider=('laya-mlx' if req.get('data_classification')=='restricted'
-                  and enrolled.get('local_laya_enabled') is True and isinstance(enrolled.get('mlx'),dict)
-                  else self.effective_policy(enrolled,'generic')['provider'])
+        provider=self._generic_provider(req,enrolled)
         result=self.evaluate_typed(prepared['state'],prepared['questions'],provider,
                                    req.get('data_classification'),expected_policy_digest=expected_policy_digest)
         answer=result.get('answers',{}).get('decision')
@@ -221,15 +259,14 @@ class Engine:
                 'host_action':gate['host_action'],'raw_gate_action':raw_gate['host_action'],
                 'reason':reason,
                 'provider_profile':gate['provider_profile'],'recommendation':gate['recommendation'],
+                'selected_label':gate['selected_label'],
                 'policy_receipt_id':policy_receipt_id,'execution_authorized':False}
     def review_diff(self,req):
         from .review import compile_review
 
         state,questions=compile_review(req.get('goal'),req.get('diff'))
         enrolled=self.policy()
-        provider=('laya-mlx' if req.get('data_classification')=='restricted'
-                  and enrolled.get('local_laya_enabled') is True and isinstance(enrolled.get('mlx'),dict)
-                  else self.effective_policy(enrolled,'generic')['provider'])
+        provider=self._generic_provider(req,enrolled)
         result=self.evaluate_typed(state,questions,provider,req.get('data_classification'))
         answers=result.get('answers',{})
         risk=answers.get('risk');focus=answers.get('focus')
@@ -271,6 +308,12 @@ class Engine:
                 'receipt_id':result['receipt_id'],'state_digest':digest(req.get('state')),'execution_authorized':False}
     def dispatch(self,req):
         if not isinstance(req,dict):raise AutoError('REQUEST_OBJECT')
+        requested=req.get('requested_path')
+        if requested is not None and (not isinstance(requested,str) or not 1<=len(requested)<=4096):raise AutoError('REQUEST_OBJECT')
+        token=_REQUESTED.set(requested)
+        try:return self._dispatch(req)
+        finally:_REQUESTED.reset(token)
+    def _dispatch(self,req):
         op=req.get('op')
         if op=='health':
             try:p=self.policy();active=True;provider=p['provider']

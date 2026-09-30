@@ -11,6 +11,9 @@ from unittest.mock import Mock
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
+
+# Derived from the recipe sources, so adding a recipe never means editing a count here.
+RECIPE_COUNT = len(list((ROOT / "recipes").rglob("*.json")))
 sys.path.insert(0, str(RUNTIME))
 
 from jev_auto.recipe_fixtures import run_fixture  # noqa: E402
@@ -26,7 +29,7 @@ class WorkbenchCatalogTests(unittest.TestCase):
     def test_catalog_contains_only_public_recipe_contracts(self):
         cards = self.workbench.list_cards()
         source = json.loads((RUNTIME / "recipe_catalog.json").read_text())
-        self.assertEqual(len(cards), 38)
+        self.assertEqual(len(cards), RECIPE_COUNT)
         self.assertEqual({card["id"] for card in cards}, {item["id"] for item in source["recipes"]})
         for card in cards:
             self.assertEqual(set(card), {"id", "title", "audience", "input_schema", "questions", "status", "limitations", "featured_for"})
@@ -175,6 +178,7 @@ class WorkbenchLiveRunTests(unittest.TestCase):
                   "cache_hit": False, "calibration_status": "NOT_EVALUATED",
                   "recipe_status": "SPECIFICATION_NOT_MODEL_EVALUATED", "gate_status": "REVIEW",
                   "host_action": "verify", "reason": "Review the result.", "recommendation": "verify",
+                  "selected_label": None,
                   "policy_receipt_id": "d" * 64, "execution_authorized": False,
                   "provider_profile": {"untrusted": "do not expose"}}
         engine = Mock()
@@ -199,6 +203,7 @@ class WorkbenchLiveRunTests(unittest.TestCase):
                                                    "expected_policy_digest": policy_digest})
         engine.providers.close.assert_called_once()
         self.assertEqual(output["answer"], result["answer"])
+        self.assertIn("selected_label", output, "the chosen label must reach the browser")
         self.assertEqual(output["host_action"], "verify")
         self.assertFalse(output["execution_authorized"])
         self.assertNotIn("provider_profile", output)

@@ -9,11 +9,11 @@ from typing import Any, Callable
 
 from .common import canonical, decode, require_clean, workspace
 from .ipc import ensure, request
+from .prepare import safe_id
 from .settings import governing_workspace, load_policy
 
 
 _ELIGIBLE = re.compile(r"(?i)\b(fix|implement|refactor|debug|research|browser|review|test|build)\b")
-_ID = re.compile(r"(?:file|skill|guidance):[A-Za-z0-9_./-]{1,200}\Z")
 _PREFIX = "Qualixar Jev local shortlist (advisory):"
 _JEV_PREFIX = "Qualixar Jev decision (advisory):"
 _RECEIPT = re.compile(r"[a-f0-9]{64}\Z")
@@ -25,10 +25,7 @@ def _safe_ids(value: Any) -> list[str]:
         return []
     selected = []
     for item in value[:5]:
-        if not isinstance(item, str) or _ID.fullmatch(item) is None:
-            return []
-        relative = item.split(":", 1)[1]
-        if relative.startswith("/") or any(part in ("", ".", "..") for part in relative.split("/")):
+        if not safe_id(item):
             return []
         selected.append(item)
     return selected

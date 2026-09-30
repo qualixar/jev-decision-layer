@@ -138,7 +138,9 @@ class _LiveServerTestCase(unittest.TestCase):
         self.thread.join(timeout=2)
 
     def get_page(self):
-        with urlopen(self.origin + "/", timeout=2) as response:
+        request = Request(self.origin + self.server.launch_path,
+                          headers={"Cookie": self.cookie} if self.cookie else {})
+        with urlopen(request, timeout=2) as response:
             body = response.read()
             headers = response.headers
             self.cookie = headers.get("Set-Cookie").split(";", 1)[0]

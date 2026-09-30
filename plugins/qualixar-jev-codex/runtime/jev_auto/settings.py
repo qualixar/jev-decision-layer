@@ -8,9 +8,10 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
+import contextlib
 from contextlib import contextmanager
 from urllib.parse import urlsplit
-from .common import AutoError, canonical, number, private_dir, read_private, safe_path, state_dir, workspace, workspace_id, write_private
+from .common import AutoError, canonical, number, on_disk, private_dir, read_private, safe_path, state_dir, trusted_path, workspace, workspace_id, write_private
 from .platform_fs import atomic_write_private, file_lock
 
 PROVIDERS=('typesafe','openrouter','laya-mlx')
@@ -37,6 +38,26 @@ _BLOCKED_DESCENDANT_ROOTS = frozenset({
 })
 
 
+# Home parents that are not directly under the filesystem top. On macOS
+# /home resolves to /System/Volumes/Data/home.
+_DEEP_HOME_PARENTS = frozenset({'/System/Volumes/Data/home', '/System/Volumes/Data/Users', '/var/home',
+                                '/export/home'})
+
+
+def _is_home_folder(resolved: Path) -> bool:
+    """/Users/<name>, /home/<name>, <volume>/Users/<name> and the deep variants.
+
+    A folder merely named "home" or "Users" elsewhere (~/work/home/website) is
+    not a home.
+    """
+    parent = resolved.parent
+    if parent.name.lower() not in ('users', 'home'):
+        return False
+    above = parent.parent
+    return (above == Path(above.anchor) or above.parent == Path('/Volumes')
+            or str(parent) in _DEEP_HOME_PARENTS)
+
+
 def descendant_root_allowed(root: Path) -> bool:
     """A descendant grant may not attach to a home directory or a filesystem top."""
     try:
@@ -45,17 +66,10 @@ def descendant_root_allowed(root: Path) -> bool:
         return False
     if resolved == Path.home().resolve() or resolved == Path(resolved.anchor):
         return False
-    # Any user's home is a home: /Users/<name> and /home/<name> are homes too,
-    # not just the current user's. The "home" segment can sit deeper after
-    # symlink resolution (macOS: /home -> /System/Volumes/Data/home), so match
-    # a home segment with exactly one child anywhere in the resolved path.
-    # Children of temp tops (/tmp/<child>) stay allowed by design: they are
-    # scoped scratch dirs, not filesystem tops.
-    parts = resolved.parts
-    if any(
-        segment in ("Users", "home") and len(parts) == index + 2
-        for index, segment in enumerate(parts)
-    ):
+    # Any user's home is a home, not just the current user's. Children of temp
+    # tops (/tmp/<child>) stay allowed by design: they are scoped scratch
+    # dirs, not filesystem tops.
+    if _is_home_folder(resolved):
         return False
     if str(resolved) in _BLOCKED_DESCENDANT_ROOTS or len(resolved.parts) < 3:
         return False
@@ -94,6 +108,7 @@ def validate_policy(p,path,now=None):
             raise AutoError('POLICY_CONFIG')
         try:
             approved = workspace(path)
+            # A stored root is always written resolved: a link there is tampering.
             if safe_path(Path(raw_root)).resolve() != approved:
                 raise AutoError('POLICY_WORKSPACE_MISMATCH')
         except AutoError:
@@ -137,12 +152,17 @@ def validate_policy(p,path,now=None):
     if len(canonical(p))>16_000: raise AutoError('POLICY_SIZE')
     return p
 
-def _existing_file(path) -> bool:
-    """True when `path` resolves to an existing file (symlinks already rejected)."""
+def _containing_folder(path):
+    """The folder holding `path` when it is an existing file, else None.
+
+    A file is governed exactly like its folder, so a file directly inside a
+    granted folder is covered and a file inside a refused one is not.
+    """
     try:
-        return safe_path(Path(path)).resolve().is_file()
+        resolved = trusted_path(Path(path)).resolve()
+        return resolved.parent if resolved.is_file() else None
     except (AutoError, OSError, ValueError):
-        return False
+        return None
 
 
 def _read_exact_file(path, base=None):
@@ -176,9 +196,13 @@ def _strictly_inside(child: Path, parent: Path) -> bool:
 
 
 def _inherited_root(path, base=None):
-    """Nearest explicit descendant grant. Exact child consent is handled earlier."""
+    """Nearest explicit descendant grant. Exact child consent is handled earlier.
+
+    Raises AUTO_DISABLED_OR_EXPIRED when a folder between `path` and that
+    grant was revoked or refused: a withdrawal covers everything inside it.
+    """
     try:
-        requested = safe_path(Path(path)).resolve()
+        requested = on_disk(trusted_path(Path(path), allow_link_leaf=True).resolve())
     except (AutoError, OSError, ValueError):
         return None
     # Files (and not-yet-created child paths) resolve through the nearest
@@ -212,10 +236,19 @@ def _inherited_root(path, base=None):
         seen.add(key)
         try:
             policy = _load_exact(identity, base)
-        except AutoError:
-            continue
+        except AutoError as error:
+            if str(error) == 'WORKSPACE_NOT_ENROLLED' or _expired_not_withdrawn(identity, base):
+                continue
+            # A nearer folder that was revoked, refused or cannot be read is
+            # the person's latest word for everything inside it.
+            raise AutoError('AUTO_DISABLED_OR_EXPIRED') from None
+        except OSError:
+            raise AutoError('AUTO_DISABLED_OR_EXPIRED') from None
         if policy.get('covers_descendants') is not True:
-            continue
+            # A nearer folder with its own grant is the latest word for its
+            # interior. It does not cover its subfolders, so neither does a
+            # broader grant further up.
+            return None
         raw_root = policy.get('workspace_path')
         if not isinstance(raw_root, str):
             continue
@@ -253,15 +286,14 @@ def enrollment_binding(path, base=None):
     the person approved that ancestor's coverage, and letting a stale child
     grant switch the folder off contradicts it.
     """
+    folder = _containing_folder(path)
+    if folder is not None:
+        return enrollment_binding(folder, base)
     try:
         policy = _load_exact(path, base)
     except AutoError as error:
         code = str(error)
         if code == 'WORKSPACE_NOT_ENROLLED':
-            pass
-        elif code == 'WORKSPACE_REQUIRED' and _existing_file(path):
-            # A file inside a workspace is not an exact grant; resolve it as
-            # a descendant candidate instead of rejecting it outright.
             pass
         elif code == 'AUTO_DISABLED_OR_EXPIRED' and _expired_not_withdrawn(path, base):
             root = _inherited_root(path, base)
@@ -284,6 +316,7 @@ def enrollment_state(path, base=None):
     Returns `enrolled` (with the binding), `not_enrolled`, `expired`, or
     `withdrawn`. Any other failure is raised unchanged.
     """
+    path = _containing_folder(path) or path
     try:
         binding = enrollment_binding(path, base)
     except AutoError as error:
@@ -320,11 +353,25 @@ def replace_reviewed_policy(path,expected,replacement,base=None):
         write_private(destination,replacement)
 
 @contextmanager
-def _policy_lock(path,base=None):
-    root=private_dir(state_dir(path,base));lock_path=root/'.policy.lock'
+def _policy_lock(path,base=None,*,shared=False):
+    """Exclusive for anything that writes the policy; shared for decisions.
+
+    Decisions hold it through provider transport, so a revoke waits for calls
+    in flight, while decisions do not wait for each other. A file lock gives
+    a waiting writer no priority, so every holder first passes a gate: a
+    writer keeps the gate until it is done, which stops new decisions from
+    starting while it waits. Only the calls already in flight finish.
+    """
+    root=private_dir(state_dir(path,base));lock_path=root/'.policy.lock';gate=root/'.policy.gate'
     try:
-        with file_lock(lock_path):
-            yield
+        if shared:
+            with file_lock(gate):
+                pass
+            with file_lock(lock_path,shared=True):
+                yield
+        else:
+            with file_lock(gate),file_lock(lock_path):
+                yield
     except AutoError as error:
         if str(error)=='UNSAFE_PRIVATE_FILE':raise AutoError('POLICY_LOCK_UNSAFE') from None
         raise
@@ -381,18 +428,24 @@ def transition_setup_policy_ready(path,expected_pending,base=None):
         validate_policy(ready,path)
         write_private(destination,ready)
 
-def _write_descendant_refusal(path, base=None):
-    """Record local non-consent without changing the ancestor grant."""
+def _write_descendant_refusal(path, base=None, root=None):
+    """Record local non-consent without changing the ancestor grant.
+
+    The covering grant's lock is taken too, so the refusal waits for that
+    grant's calls in flight and no new call starts until it is recorded.
+    """
     policy = make_policy(path, 'typesafe', days=1)
     policy['enabled'] = False
     policy['consent'] = 'refused'
-    with _policy_lock(path, base):
+    with (_policy_lock(root, base) if root is not None else contextlib.nullcontext()), _policy_lock(path, base):
         destination = state_dir(path, base) / 'policy.json'
         try:
-            _read_exact_file(path, base)
+            existing = _read_exact_file(path, base)
         except FileNotFoundError:
             write_private(destination, policy)
             return
+        if isinstance(existing, dict) and existing.get('consent') == 'refused' and existing.get('enabled') is False:
+            return  # a parallel refusal already landed
         raise AutoError('WORKSPACE_ALREADY_ENROLLED')
 
 
@@ -400,10 +453,22 @@ def revoke(path,base=None):
     try:
         _read_exact_file(path, base)
     except FileNotFoundError:
-        if _inherited_root(path, base) is None:
+        try:
+            root = _inherited_root(path, base)
+            covered = root is not None
+        except AutoError as error:
+            if str(error) != 'AUTO_DISABLED_OR_EXPIRED':
+                raise
+            root, covered = None, True  # already off through a nearer refusal; record this one as well
+        if not covered:
             raise AutoError('WORKSPACE_NOT_ENROLLED')
-        _write_descendant_refusal(path, base)
+        _write_descendant_refusal(path, base, root)
         return
     with _policy_lock(path,base):
         f=state_dir(path,base)/'policy.json'
         p=read_private(f,16_000);p['enabled']=False;write_private(f,p)
+    # Revoking also deletes the text stored for the folder: no service will
+    # run for it again to age that text out.
+    if (state_dir(path,base)/'auto.sqlite3').is_file():
+        from .store import Store
+        Store(state_dir(path,base)).purge_content()

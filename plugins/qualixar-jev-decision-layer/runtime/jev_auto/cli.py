@@ -20,8 +20,13 @@ def _bridge_lock(root):
         if str(error)=='UNSAFE_PRIVATE_FILE':raise AutoError('BRIDGE_LOCK_UNSAFE') from None
         raise
 
+def _config_root():
+    # XDG: an empty or relative value is invalid and must be ignored.
+    configured=os.environ.get('XDG_CONFIG_HOME');base=Path(configured).expanduser() if configured else None
+    return (base if base is not None and base.is_absolute() else Path.home()/'.config')/'qualixar-jev-decision-layer'
+
 def bridge_record(path,p):
-    root=Path(os.environ.get('XDG_CONFIG_HOME',Path.home()/'.config'))/'qualixar-jev-decision-layer'
+    root=_config_root()
     f=root/'auto-bridge.json'
     with _bridge_lock(root):
         try:data=read_private(f,100_000)
@@ -32,6 +37,18 @@ def bridge_record(path,p):
                                               'maxSteps':p['browser_max_steps']}
         if len(canonical(data))+1>100_000:raise AutoError('BRIDGE_SIZE')
         write_private(f,data)
+
+@contextmanager
+def _commented_config_help(host):
+    """A commented config is refused, not rewritten; say how to add the entry by hand."""
+    try:yield
+    except AutoError as error:
+        if str(error)=='HOST_MCP_CONFIG_HAS_COMMENTS':
+            from .host_mcp import SERVER_NAME,TARGETS,server_entry
+            print('This config file has comments. Jev does not rewrite it, because that would delete them. '
+                  f'Add this entry under "{TARGETS[host].key}" yourself:',file=sys.stderr)
+            print(json.dumps({SERVER_NAME:server_entry(host)},indent=2),file=sys.stderr)
+        raise
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description=f'Qualixar Jev Decision Layer {__version__}')
@@ -60,6 +77,11 @@ def main(argv=None):
     vs=sub.add_parser('vscode',help='Register this layer as a workspace MCP server for VS Code Copilot agent mode')
     vs.add_argument('--workspace',required=True)
     vs.add_argument('--write',action='store_true',help='Apply the change. Without it the plan is printed and nothing is written.')
+    li=sub.add_parser('laya-install',help='Install and verify local Laya so Laya modes can be chosen in setup (Apple-Silicon Mac)')
+    li.add_argument('--model',choices=['english','multilingual'],default='english')
+    li.add_argument('--model-dir',help='Use model files already on this computer (absolute path) instead of downloading them')
+    li.add_argument('--python',help='Python 3.11 or later to build Jev\'s Laya environment with (absolute path)')
+    li.add_argument('--yes',action='store_true',help='Skip the confirmation prompt')
     hr=sub.add_parser('host-register',help='Register this layer as an MCP server in the shape a given host expects')
     hr.add_argument('--host',required=True,choices=['vscode','antigravity','claude-desktop','codex-cli','claude-code-cli'])
     hr.add_argument('--workspace',help='Required for vscode; the other hosts use a user-level config')
@@ -74,12 +96,30 @@ def main(argv=None):
         if args.command=='host-register':
             from .host_mcp import install,plan
             root=workspace(args.workspace) if args.workspace else None
-            result=install(args.host,root) if args.write else plan(args.host,root)
+            with _commented_config_help(args.host):
+                result=install(args.host,root) if args.write else plan(args.host,root)
             print(canonical(result).decode())
             if not args.write:print('Nothing written. Re-run with --write to apply.',file=sys.stderr)
-            # A host holding its config in memory will flush over an external edit.
-            if args.host=='claude-desktop' and result.get('written') is True:
-                print('Quit the Claude desktop app before this edit, or it will be overwritten on exit.',file=sys.stderr)
+            if args.host=='claude-desktop':
+                from .host_mcp import in_protected_folder
+                command=(result.get('entry') or {}).get('command') if isinstance(result.get('entry'),dict) else None
+                if sys.platform=='darwin' and in_protected_folder(command):
+                    print('This launcher is inside Documents, Desktop or Downloads, where macOS may not let the Claude desktop app run it. Register a copy outside those folders, such as the plugin installed with claude plugin install.',file=sys.stderr)
+                # A host holding its config in memory flushes it over an external edit.
+                if result.get('written') is True:
+                    print('If the Claude desktop app was running, quit it now and run this command again: the app rewrites this file when it quits.',file=sys.stderr)
+            return 0
+        if args.command=='laya-install':
+            from .laya_install import MODELS,install
+            where='the pinned runtime from github.com'+('' if args.model_dir else ' and the pinned model (600-800 MB) from huggingface.co')
+            print(f'Install local Laya ({MODELS[args.model]}) for Jev. This downloads {where}. '
+                  'It needs an Apple-Silicon Mac with macOS 14 or later, Python 3.11 or later, and git.',file=sys.stderr)
+            if not args.yes:
+                if not sys.stdin.isatty():raise AutoError('CONFIRMATION_REQUIRED')
+                if input('Type INSTALL to continue: ').strip()!='INSTALL':raise AutoError('SETUP_CANCELLED')
+            record=install(args.model,model_dir=args.model_dir,python=args.python,progress=lambda message:print(message,file=sys.stderr))
+            print(canonical({'laya_installed':True,'repository':record['repository'],'revision':record['revision']}).decode())
+            print('Laya is ready. Open the setup wizard and choose Laya only or Jev + Laya.',file=sys.stderr)
             return 0
         if args.command=='selftest':
             from .recipe_fixtures import run_fixture,selftest
@@ -98,14 +138,22 @@ def main(argv=None):
             import webbrowser
 
             server=WorkbenchServer(('127.0.0.1',0),RecipeWorkbench(path))
-            url=f'http://127.0.0.1:{server.server_port}/'
-            print('Recipe workbench:',url)
+            # The private one-time link goes to the browser opener. Only a
+            # person at a terminal sees it; a pipe or a log never does.
+            url=server.launch_url
+            from src.adl.api.setup_server import open_private_link
+            opened=open_private_link(url)
+            try:interactive=sys.stdout.isatty()
+            except (AttributeError,ValueError,OSError):interactive=False
+            if interactive:
+                print('Recipe workbench '+('opened in your browser.' if opened else 'is ready.')
+                      +' If no browser window appeared, paste this private link into your browser (it works once):')
+                print(url)
+            elif opened:
+                print('Recipe workbench opened in your browser.')
             try:
-                opened=webbrowser.open(url)
-            except Exception:
-                opened=False
-            if not opened:print('Open this address in your browser:',url)
-            try:
+                # Over a pipe with no browser nobody could reach it: stop now.
+                if not (interactive or opened):raise AutoError('WORKBENCH_BROWSER_UNAVAILABLE')
                 server.serve_forever()
             except KeyboardInterrupt:
                 pass
@@ -122,7 +170,8 @@ def main(argv=None):
             return 0
         if args.command=='vscode':
             from .vscode_adapter import install,plan
-            result=install(path) if args.write else plan(path)
+            with _commented_config_help('vscode'):
+                result=install(path) if args.write else plan(path)
             print(canonical(result).decode())
             if not args.write:print('Nothing written. Re-run with --write to apply.',file=sys.stderr)
             return 0

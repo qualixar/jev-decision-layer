@@ -39,12 +39,13 @@
     {
       "data_classification": "synthetic",
       "disclaimer": "Hand-authored synthetic input and response. Not a Jev prediction and not accuracy evidence.",
-      "expected_host_action": "verify",
-      "expected_recommendation": null,
-      "expected_status": "REVIEW",
+      "expected_host_action": "act",
+      "expected_recommendation": "request_review",
+      "expected_status": "RECOMMEND",
       "fixture_id": "qualixar.source-deduplication::adversarial",
+      "injection_target": "select_candidates",
       "mock_answer": {
-        "noul": 0.48,
+        "noul": 0.1,
         "type": "noul"
       },
       "state": {

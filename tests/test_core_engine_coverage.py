@@ -870,6 +870,21 @@ class LiveRecipeGateTests(_EngineTestCase):
         self.assertEqual(result["host_action"], "verify")
         self.assertIn("below", result["reason"].lower())
 
+    def test_live_choice_result_names_the_chosen_label(self):
+        self.enroll(generic_query_enabled=True)
+        answer = {"type": "choice", "choice": "retry_with_change", "confidence": 0.94,
+                  "probabilities": {"retry_unchanged": 0.01, "retry_with_change": 0.95,
+                                    "stop": 0.01, "escalate": 0.01, "unknown": 0.02}}
+        engine = self.build_engine(FakeProviders(answers={"decision": answer}))
+        result = engine.dispatch({"op": "recipe_try", "recipe_id": "qualixar.retry-decision",
+                                  "input": {"failure": "timeout", "attempts_so_far": "one",
+                                            "available_actions": "retry or escalate"},
+                                  "data_classification": "public"})
+        self.assertEqual(result["selected_label"], "retry_with_change")
+        self.assertEqual(result["recommendation"], "route_to_queue")
+        receipt = engine.recall(result["policy_receipt_id"])["detail"]
+        self.assertEqual(receipt["gate"]["selected_label"], "retry_with_change")
+
     def test_unknown_choice_keeps_ignore_for_a_failing_gate(self):
         self.enroll(generic_query_enabled=True)
         answer = {"type": "choice", "choice": "unknown", "confidence": 0.99,
@@ -1708,8 +1723,8 @@ class AgyHookHandleTests(unittest.TestCase):
     def test_only_the_zeroth_invocation_of_an_enrolled_workspace_gets_a_hint(self):
         with tempfile.TemporaryDirectory() as directory:
             event = {"invocationNum": 0, "workspacePaths": [directory]}
-            first = agy_handle(event, policy_loader=lambda _path: {"enabled": True})
-            second = agy_handle({**event, "invocationNum": 1}, policy_loader=lambda _path: {"enabled": True})
+            first = agy_handle(event, binding_loader=lambda _path: {"policy": {"enabled": True, "provider": "typesafe"}, "workspace": _path, "scope": "exact"})
+            second = agy_handle({**event, "invocationNum": 1}, binding_loader=lambda _path: {"policy": {"enabled": True, "provider": "typesafe"}, "workspace": _path, "scope": "exact"})
         self.assertEqual(set(first), {"injectSteps"})
         self.assertIn("Qualixar Jev", first["injectSteps"][0]["ephemeralMessage"])
         self.assertEqual(second, {})
@@ -1726,13 +1741,13 @@ class AgyHookHandleTests(unittest.TestCase):
             }
             for name, event in cases.items():
                 with self.subTest(name=name):
-                    self.assertEqual(agy_handle(event, policy_loader=lambda _path: {"enabled": True}), {})
+                    self.assertEqual(agy_handle(event, binding_loader=lambda _path: {"policy": {"enabled": True, "provider": "typesafe"}, "workspace": _path, "scope": "exact"}), {})
 
             not_enrolled = agy_handle({"invocationNum": 0, "workspacePaths": [directory]},
-                                       policy_loader=lambda _path: (_ for _ in ()).throw(RuntimeError("no policy")))
+                                       binding_loader=lambda _path: (_ for _ in ()).throw(RuntimeError("no policy")))
             self.assertEqual(not_enrolled, {})
             disabled = agy_handle({"invocationNum": 0, "workspacePaths": [directory]},
-                                   policy_loader=lambda _path: {"enabled": False})
+                                   binding_loader=lambda _path: {"policy": {"enabled": False}, "workspace": _path, "scope": "exact"})
             self.assertEqual(disabled, {})
 
 

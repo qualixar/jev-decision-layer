@@ -25,10 +25,11 @@ BLOCKED_CLASSIFICATIONS = frozenset({"restricted", "prohibited"})
 
 def _default_state_root() -> Path:
     """Use only standard-library paths; never persist below the package."""
-    base = os.environ.get("XDG_STATE_HOME")
-    if base:
-        return Path(base).expanduser() / "qualixar-jev-decision-layer"
-    return Path.home() / ".local" / "state" / "qualixar-jev-decision-layer"
+    # XDG: an empty or relative value is invalid and must be ignored.
+    configured = os.environ.get("XDG_STATE_HOME")
+    base = Path(configured).expanduser() if configured else None
+    fallback = Path.home() / ".local" / "state"
+    return (base if base is not None and base.is_absolute() else fallback) / "qualixar-jev-decision-layer"
 
 
 def _inside(candidate: Path, parent: Path) -> bool:

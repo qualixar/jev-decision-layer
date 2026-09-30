@@ -17,6 +17,9 @@ from unittest.mock import Mock
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "plugins" / "qualixar-jev-decision-layer" / "runtime"
+
+# Derived from the recipe sources, so adding a recipe never means editing a count here.
+RECIPE_COUNT = len(list((ROOT / "recipes").rglob("*.json")))
 sys.path.insert(0, str(RUNTIME))
 
 from jev_auto.recipe_workbench import RecipeWorkbench  # noqa: E402
@@ -41,7 +44,9 @@ class WorkbenchServerTests(unittest.TestCase):
         self.thread.join(timeout=2)
 
     def get_page(self):
-        with urlopen(self.origin + "/", timeout=2) as response:
+        request = Request(self.origin + self.server.launch_path,
+                          headers={"Cookie": self.cookie} if self.cookie else {})
+        with urlopen(request, timeout=2) as response:
             body = response.read()
             headers = response.headers
             self.cookie = headers.get("Set-Cookie").split(";", 1)[0]
@@ -83,7 +88,7 @@ class WorkbenchServerTests(unittest.TestCase):
         request = Request(self.origin + "/api/catalog", headers={"Cookie": self.cookie})
         with urlopen(request, timeout=2) as response:
             catalog = json.loads(response.read())
-        self.assertEqual(len(catalog["recipes"]), 38)
+        self.assertEqual(len(catalog["recipes"]), RECIPE_COUNT)
         status, _, outcome = self.post("/api/offline-example", {"recipe_id": "qualixar.brief-fit", "variant": "nominal"})
         self.assertEqual(status, 200)
         self.assertEqual(outcome["mode"], "fixture")

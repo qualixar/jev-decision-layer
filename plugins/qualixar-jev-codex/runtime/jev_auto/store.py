@@ -1,18 +1,41 @@
 """Transactional budgets and content-addressed cache. Same-user local state only."""
 from __future__ import annotations
-import contextlib, datetime, os, sqlite3, threading, time
+import contextlib, datetime, os, re, sqlite3, threading, time
 from pathlib import Path
-from .common import AutoError, canonical, decode, digest, private_dir, safe_path
+from .common import AutoError, canonical, decode, digest, private_dir, trusted_path
 from .platform_fs import open_private_file, verify_private_dir
+
+def _damaged(error):
+    """SQLite's own verdict that a file is not a readable database."""
+    code=getattr(error,'sqlite_errorcode',None)
+    if code is not None:return code in (11,26)  # SQLITE_CORRUPT, SQLITE_NOTADB
+    return not isinstance(error,sqlite3.OperationalError) and any(
+        text in str(error) for text in ('file is not a database','malformed'))
 
 class Store:
     def __init__(self,root):
-        self.root=private_dir(Path(root));self.path=self.root/'auto.sqlite3';safe_path(self.path)
+        self.root=private_dir(Path(root));self.path=self.root/'auto.sqlite3';trusted_path(self.path)
         if os.name == 'nt':
             self._prepare_windows_database()
         elif self.path.exists():
             s=self.path.stat()
             if s.st_mode & 0o077 or s.st_nlink!=1 or (hasattr(os,'getuid') and s.st_uid!=os.getuid()): raise AutoError('UNSAFE_DATABASE')
+        try:
+            self._create_schema()
+        except sqlite3.DatabaseError as error:
+            if os.name=='nt' or not _damaged(error):raise
+            # A crash or a full disk mid-write can leave a file SQLite cannot
+            # read. Keep it aside, still private, and start a fresh one.
+            self._set_aside()
+            self._create_schema()
+            self.event('store_reset',{'reason':'damaged_database'})
+
+    def _set_aside(self):
+        suffix='.corrupt-'+str(int(time.time()))
+        for path in (self.path,Path(str(self.path)+'-journal')):
+            if path.exists() and not path.is_symlink():os.replace(path,str(path)+suffix)
+
+    def _create_schema(self):
         with self.connection() as c:
             c.executescript('''
             CREATE TABLE IF NOT EXISTS budgets(day TEXT,policy TEXT,calls INTEGER,bytes INTEGER,PRIMARY KEY(day,policy));
@@ -61,7 +84,7 @@ class Store:
 
     @contextlib.contextmanager
     def connection(self):
-        safe_path(self.path)
+        trusted_path(self.path)
         if os.name == 'nt':
             self._verify_windows_database()
         old=os.umask(0o077)
@@ -127,11 +150,49 @@ class Store:
         return {'budget_rows':[{'utc_day':d,'reserved_attempts':n,'reserved_payload_bytes':b} for d,n,b in budgets],
                 'evidence_records':count,'proposed_tool_characters_withheld':sum(x.get('withheld_chars',0) for x in events),
                 'host_tokens_saved':None,'host_cost_saved':None,'measurement_note':'Characters are not tokens; import matched host runs to measure savings.'}
+    def purge_content(self):
+        """Delete the text stored for this folder: receipts, cached answers, goals.
+
+        Budget counters and event codes carry no content and stay.
+        """
+        with self.connection() as c:
+            for table in ('evidence','cache','goals'):c.execute(f'DELETE FROM {table}')
     def prune(self,days):
         now=time.time()
         with self.connection() as c:
             c.execute('DELETE FROM cache WHERE expires<=?',(now,))
             for table in ('evidence','events','goals'):c.execute(f'DELETE FROM {table} WHERE created<?',(now-days*86400,))
+
+_FOLDER_ID=re.compile(r'[0-9a-f]{24}\Z')
+
+def sweep_inactive(state_root,exclude=None,now=None,limit=256):
+    """Age out the text of folders whose grant is no longer active.
+
+    No local service starts for a revoked or expired folder, so its own
+    retention never runs. A running service does it for them: a withdrawn
+    folder's text is deleted, an expired folder's is pruned by its own
+    retention setting. Active folders are left to their own service.
+    """
+    from .common import read_private
+    now=time.time() if now is None else now
+    try:entries=sorted(Path(state_root).iterdir())[:limit]
+    except OSError:return
+    for folder in entries:
+        if folder==exclude or folder.is_symlink() or not _FOLDER_ID.match(folder.name):continue
+        if not (folder/'auto.sqlite3').is_file():continue
+        try:policy=read_private(folder/'policy.json',16_000)
+        except (AutoError,OSError):continue
+        if not isinstance(policy,dict):continue
+        enabled=policy.get('enabled') is True and policy.get('consent')!='refused'
+        expires=policy.get('expires_at')
+        if enabled and isinstance(expires,(int,float)) and not isinstance(expires,bool) and expires>now:continue
+        days=policy.get('retention_days')
+        days=days if isinstance(days,int) and not isinstance(days,bool) and 1<=days<=30 else 30
+        try:
+            store=Store(folder)
+            if enabled:store.prune(days)
+            else:store.purge_content()
+        except (AutoError,OSError,sqlite3.Error):continue
 
 class SingleFlight:
     """One in-process concurrent computation per key; failures are never cached."""

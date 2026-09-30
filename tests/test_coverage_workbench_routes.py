@@ -80,13 +80,13 @@ class CatalogAndAssetRouteTests(_LiveServerTestCase):
     def test_an_oversized_index_page_is_refused(self):
         with _patched_workbench_asset({"index.html": {"stat_size": 999_999}}):
             with self.assertRaises(HTTPError) as caught:
-                urlopen(self.origin + "/", timeout=2)
+                urlopen(self.origin + self.server.launch_path, timeout=2)
         self.assertEqual(caught.exception.code, 500)
 
     def test_an_index_page_missing_its_csrf_marker_is_refused(self):
         with _patched_workbench_asset({"index.html": {"read_bytes": b"<html><body>no csrf marker</body></html>"}}):
             with self.assertRaises(HTTPError) as caught:
-                urlopen(self.origin + "/", timeout=2)
+                urlopen(self.origin + self.server.launch_path, timeout=2)
         self.assertEqual(caught.exception.code, 500)
         self.assertEqual(json.loads(caught.exception.read())["error"]["code"], "WORKBENCH_UI_UNAVAILABLE")
 
