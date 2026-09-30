@@ -1966,6 +1966,11 @@ class SetupServerPreviewAndApplyFlowTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.workspace = Path(self.tmp.name) / "project"
         self.workspace.mkdir()
+        # A successful /apply writes a real policy. Without this, every run of
+        # the suite left a wizard grant in the developer's own state directory.
+        state = patch.dict(os.environ, {"XDG_STATE_HOME": str(Path(self.tmp.name) / "state")})
+        state.start()
+        self.addCleanup(state.stop)
 
     def _controller(self, **kwargs):
         from src.adl.api.setup_controller import SetupController
@@ -2139,6 +2144,11 @@ class SetupControllerAttestedLocalModelTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.workspace = Path(self.tmp.name) / "project"
         self.workspace.mkdir()
+        # A successful /apply writes a real policy. Without this, every run of
+        # the suite left a wizard grant in the developer's own state directory.
+        state = patch.dict(os.environ, {"XDG_STATE_HOME": str(Path(self.tmp.name) / "state")})
+        state.start()
+        self.addCleanup(state.stop)
 
     def _controller(self, **kwargs):
         from src.adl.api.setup_controller import SetupController
@@ -2182,6 +2192,11 @@ class SetupControllerPreviewTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.workspace = Path(self.tmp.name) / "project"
         self.workspace.mkdir()
+        # A successful /apply writes a real policy. Without this, every run of
+        # the suite left a wizard grant in the developer's own state directory.
+        state = patch.dict(os.environ, {"XDG_STATE_HOME": str(Path(self.tmp.name) / "state")})
+        state.start()
+        self.addCleanup(state.stop)
 
     def _controller(self, **kwargs):
         from src.adl.api.setup_controller import SetupController

@@ -23,6 +23,7 @@ import argparse
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -51,16 +52,32 @@ TARGET = 90
 EXEMPT: dict[str, str] = {}
 
 
+def _leaked_state(root: Path) -> list[str]:
+    """Files the suite left in the state directory it was told to use."""
+    return sorted(str(path.relative_to(root)) for path in root.rglob("*") if path.is_file())
+
+
 def _measure() -> dict[str, int]:
-    """Run the suite under coverage and return percent covered per module."""
-    environment = {"COVERAGE_FILE": str(COVERAGE_DATA)}
-    run = subprocess.run(
-        [sys.executable, "-m", "coverage", "run", f"--source={SOURCE}", "-m",
-         "pytest", "tests/", "-q"],
-        cwd=ROOT, capture_output=True, text=True, env={**_environ(), **environment})
+    """Run the suite under coverage and return percent covered per module.
+
+    The suite runs against a private XDG_STATE_HOME. Every test is meant to
+    isolate its own state, so anything written there is a test that did not,
+    and the gate fails naming it rather than letting the suite write grants
+    into the developer's real state directory.
+    """
+    with tempfile.TemporaryDirectory(prefix="jev-gate-state-") as state:
+        environment = {"COVERAGE_FILE": str(COVERAGE_DATA), "XDG_STATE_HOME": state}
+        run = subprocess.run(
+            [sys.executable, "-m", "coverage", "run", f"--source={SOURCE}", "-m",
+             "pytest", "tests/", "-q"],
+            cwd=ROOT, capture_output=True, text=True, env={**_environ(), **environment})
+        leaked = _leaked_state(Path(state))
     if run.returncode != 0:
         raise SystemExit("the test suite failed; fix it before gating coverage\n"
                          + run.stdout[-4000:] + run.stderr[-2000:])
+    if leaked:
+        raise SystemExit("the test suite wrote to the state directory instead of isolating it:\n"
+                         + "\n".join(f"  {name}" for name in leaked[:20]))
     report = subprocess.run(
         [sys.executable, "-m", "coverage", "json", "-o", "-"],
         cwd=ROOT, capture_output=True, text=True, env={**_environ(), **environment})
