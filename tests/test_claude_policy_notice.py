@@ -111,17 +111,61 @@ class FindingTests(unittest.TestCase):
             with self.subTest(servers=servers):
                 self.assertEqual(findings({"allowedMcpServers": servers}), ["MCP_SERVER_NOT_ALLOWED"])
 
+    def test_a_malformed_allowlist_is_enforced_as_empty(self):
+        # Claude Code enforces an invalid strictKnownMarketplaces or allowedMcpServers
+        # value as an empty allowlist; null means the key is unset.
+        for value in (True, "qualixar/*", 1, {"source": "github"}):
+            with self.subTest(value=value):
+                self.assertEqual(findings({"strictKnownMarketplaces": value}), ["MARKETPLACE_NOT_ALLOWED"])
+                self.assertEqual(findings({"allowedMarketplaces": value}), ["MARKETPLACE_NOT_ALLOWED"])
+                self.assertEqual(findings({"allowedMcpServers": value}), ["MCP_SERVER_NOT_ALLOWED"])
+        self.assertEqual(findings({"strictKnownMarketplaces": None}), [])
+        self.assertEqual(findings({"strictKnownMarketplaces": None, "allowedMarketplaces": []}),
+                         ["MARKETPLACE_NOT_ALLOWED"])
+        self.assertEqual(findings({"allowedMcpServers": None}), [])
+
+    def test_only_well_formed_command_entries_count(self):
+        name = {"serverName": "qualixar-jev"}
+        # An invalid entry is stripped, so it cannot hide a valid name entry.
+        for invalid in ({"serverCommand": "/opt/x"}, {"serverCommand": []}, {"serverCommand": [1]}):
+            with self.subTest(invalid=invalid):
+                self.assertEqual(findings({"allowedMcpServers": [invalid, name]}), [])
+                self.assertEqual(findings({"allowedMcpServers": [invalid]}), ["MCP_SERVER_NOT_ALLOWED"])
+        # Commands match exactly; the plugin starts its launcher with no arguments.
+        launcher = "/opt/cache/scripts/launch-jev"
+        self.assertEqual(findings({"allowedMcpServers": [{"serverCommand": [launcher, "--flag"]}]}),
+                         ["MCP_SERVER_NOT_ALLOWED"])
+        self.assertEqual(findings({"allowedMcpServers": [{"serverCommand": [launcher]}]}), [])
+
     def test_unexpected_value_types_never_raise(self):
         odd = [None, 1, 1.5, True, "text", b"bytes", [], {}, [[1]], {"k": [1]}, {1: 2}]
+        known = set(host_policy._EFFECTS)
         for value in odd:
             document = {key: value for key in ("allowManagedHooksOnly", "enabledPlugins",
                                                "strictKnownMarketplaces", "blockedMarketplaces",
                                                "allowedMcpServers")}
             with self.subTest(value=value):
-                findings(document)
-                findings({"strictKnownMarketplaces": [{"source": value, "repo": value, "hostPattern": value}],
-                          "blockedMarketplaces": [{"source": value, "repo": value, "url": value}],
-                          "allowedMcpServers": [{"serverName": value, "serverCommand": value}, value]})
+                self.assertLessEqual(set(findings(document)), known)
+                nested = findings({"strictKnownMarketplaces": [{"source": value, "repo": value, "hostPattern": value}],
+                                   "blockedMarketplaces": [{"source": value, "repo": value, "url": value}],
+                                   "allowedMcpServers": [{"serverName": value, "serverCommand": value}, value]})
+                self.assertIn("MARKETPLACE_NOT_ALLOWED", nested)
+                self.assertIn("MCP_SERVER_NOT_ALLOWED", nested)
+
+    def test_one_malformed_source_does_not_hide_another(self):
+        class Hostile(dict):
+            def get(self, *args):
+                raise RuntimeError("hostile mapping")
+
+            def __contains__(self, key):
+                raise RuntimeError("hostile mapping")
+
+        good = ("managed settings file", "/etc/claude-code/managed-settings.json", _HOOKS_ONLY)
+        for bad in (("label", "/where", ["not", "a", "mapping"]), ("label", "/where", Hostile())):
+            with self.subTest(bad=type(bad[2]).__name__):
+                result = notice([bad, good])
+                self.assertEqual([source["location"] for source in result["sources"]],
+                                 ["/etc/claude-code/managed-settings.json"])
         self.assertIsNone(notice([("label", "/where", ["not", "a", "mapping"])]))
 
 
@@ -221,6 +265,19 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual([Path(where).name for _label, where, _doc in found],
                          ["managed-settings.json", "10-a.json", "20-b.json"])
         self.assertEqual({label for label, _where, _doc in found}, {host_policy.MANAGED_FILE})
+
+    def test_the_drop_in_scan_is_bounded(self):
+        drop_in = self.system / "managed-settings.d"
+        drop_in.mkdir()
+        for index in range(5):
+            (drop_in / f"{index:02d}.json").write_text("{}")
+        with patch.object(host_policy, "_MAX_SCANNED", 5):
+            self.assertEqual(len(self._discover()), 5)
+            (drop_in / "notes.txt").write_text("")
+            # Past the scan limit no drop-in is read, rather than an arbitrary subset.
+            self.assertEqual(self._discover(), [])
+        with patch.object(host_policy, "_MAX_DROP_INS", 2):
+            self.assertEqual([Path(where).name for _label, where, _doc in self._discover()], ["00.json", "01.json"])
 
     def test_an_oversized_or_unreadable_file_is_skipped(self):
         (self.system / "managed-settings.json").write_text(" " * (host_policy._MAX_BYTES + 1) + "{}")

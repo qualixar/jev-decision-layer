@@ -33,6 +33,7 @@ _LAUNCHERS = {"launch-jev", "launch-jev.cmd"}
 
 _MAX_BYTES = 1_048_576
 _MAX_DROP_INS = 64
+_MAX_SCANNED = 1024
 _MAX_PATTERN = 256
 _PLIST_NAME = "com.anthropic.claudecode.plist"
 _REGISTRY_KEY = r"SOFTWARE\Policies\ClaudeCode"
@@ -99,11 +100,16 @@ def _managed_files(directory: Path) -> list[Source]:
     found: list[Source] = []
     paths = [directory / "managed-settings.json"]
     try:
-        paths += sorted(
-            (entry for entry in (directory / "managed-settings.d").iterdir()
-             if entry.name.endswith(".json") and not entry.name.startswith(".")),
-            key=lambda entry: entry.name,
-        )[:_MAX_DROP_INS]
+        names: list[str] = []
+        with os.scandir(directory / "managed-settings.d") as entries:
+            for scanned, entry in enumerate(entries, 1):
+                if scanned > _MAX_SCANNED:
+                    # Read no drop-in rather than an arbitrary subset.
+                    names = []
+                    break
+                if entry.name.endswith(".json") and not entry.name.startswith("."):
+                    names.append(entry.name)
+        paths += [directory / "managed-settings.d" / name for name in sorted(names)[:_MAX_DROP_INS]]
     except OSError:
         pass
     for path in paths:
@@ -256,15 +262,36 @@ def _blocks_marketplace(entry: object) -> bool:
     return False
 
 
+def _command(entry: object) -> list[str] | None:
+    """A well-formed serverCommand entry; Claude Code strips any other."""
+    command = entry.get("serverCommand") if isinstance(entry, dict) else None
+    if isinstance(command, list) and command and all(isinstance(part, str) for part in command):
+        return command
+    return None
+
+
 def _admits_server(entries: list[object]) -> bool:
-    commands = [entry["serverCommand"] for entry in entries
-                if isinstance(entry, dict) and "serverCommand" in entry]
+    commands = [command for command in map(_command, entries) if command is not None]
     if commands:
-        # A stdio server must match a command entry once any exists.
-        return any(isinstance(command, list) and command and isinstance(command[0], str)
-                   and re.split(r"[\\/]", command[0])[-1] in _LAUNCHERS for command in commands)
+        # A stdio server must match a command entry exactly once any exists,
+        # and the plugin starts its launcher with no arguments.
+        return any(len(command) == 1 and re.split(r"[\\/]", command[0])[-1] in _LAUNCHERS
+                   for command in commands)
     return any(entry == SERVER_NAME or (isinstance(entry, dict) and entry.get("serverName") == SERVER_NAME)
                for entry in entries)
+
+
+def _allowlist(document: Mapping[str, Any], *keys: str) -> list[object] | None:
+    """The allowlist in force: the first key set to a non-null value wins.
+
+    Claude Code enforces a malformed allowlist value as an empty list, so it
+    is returned as one. None means no allowlist is set.
+    """
+    for key in keys:
+        value = document.get(key)
+        if value is not None:
+            return value if isinstance(value, list) else []
+    return None
 
 
 def findings(document: Mapping[str, Any]) -> list[str]:
@@ -277,15 +304,14 @@ def findings(document: Mapping[str, Any]) -> list[str]:
     elif document.get("allowManagedHooksOnly") is True and state is not True:
         # Hooks of a plugin force-enabled in managed enabledPlugins are exempt.
         codes.append("PLUGIN_HOOKS_BLOCKED")
-    allowed = (document["strictKnownMarketplaces"] if "strictKnownMarketplaces" in document
-               else document.get("allowedMarketplaces"))
-    if isinstance(allowed, list) and not any(_admits_marketplace(entry) for entry in allowed):
+    allowed = _allowlist(document, "strictKnownMarketplaces", "allowedMarketplaces")
+    if allowed is not None and not any(_admits_marketplace(entry) for entry in allowed):
         codes.append("MARKETPLACE_NOT_ALLOWED")
     blocked = document.get("blockedMarketplaces")
     if isinstance(blocked, list) and any(_blocks_marketplace(entry) for entry in blocked):
         codes.append("MARKETPLACE_BLOCKED")
-    servers = document.get("allowedMcpServers")
-    if isinstance(servers, list) and not _admits_server(servers):
+    servers = _allowlist(document, "allowedMcpServers")
+    if servers is not None and not _admits_server(servers):
         codes.append("MCP_SERVER_NOT_ALLOWED")
     return codes
 
@@ -319,13 +345,17 @@ def notice(sources: Iterable[Source] | None = None, *, home: Path | None = None)
     try:
         listed = list(discover() if sources is None else sources)
         home = Path.home() if home is None else home
-        affected: list[dict[str, Any]] = []
-        for label, where, document in listed:
-            codes = findings(document) if isinstance(document, Mapping) else []
-            if codes:
-                affected.append({"source": label, "location": _display(where, home), "codes": codes})
     except Exception:  # advisory only: an unreadable policy must never break a caller
         return None
+    affected: list[dict[str, Any]] = []
+    for label, where, document in listed:
+        try:
+            codes = findings(document) if isinstance(document, Mapping) else []
+            location = _display(where, home)
+        except Exception:  # one malformed source must not hide the others
+            continue
+        if codes:
+            affected.append({"source": label, "location": location, "codes": codes})
     if not affected:
         return None
     seen = {code for source in affected for code in source["codes"]}
