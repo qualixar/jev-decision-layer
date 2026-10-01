@@ -2,27 +2,32 @@
 
 <h1 align="center">Qualixar Jev Decision Layer for AI Agents</h1>
 
-<p align="center"><strong>A fast second opinion for the small, closed choices your AI assistant makes all day.</strong><br>
-Which option fits, does this draft meet the brief, is this extracted field right, do these search results answer the question. Each answer comes back as a choice, a score or a yes/no likelihood, with a confidence and a local receipt. It never gives your assistant permission to do anything.</p>
+<p align="center"><strong>Typed routing for AI agents. Local policy gates. Auditable receipts.</strong><br>
+Give your assistant a bounded task, tool, skill, or review choice. TypeSafe Jev returns a typed answer with confidence; the local layer checks it and records a receipt. Your host keeps execution authority.</p>
 
-<p align="center">
-<a href="https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.13"><img src="https://img.shields.io/badge/version-1.0.13-7655d9?style=flat-square" alt="Version 1.0.13"></a>
-<img src="https://img.shields.io/badge/host%20adapters-5-7655d9?style=flat-square" alt="Five host adapters; verification varies by host">
-<img src="https://img.shields.io/badge/MCP%20tools-20-4f46e5?style=flat-square" alt="Twenty MCP tools">
-<img src="https://img.shields.io/badge/recipes-55-0f766e?style=flat-square" alt="55 recipes">
-<img src="https://img.shields.io/badge/offline%20fixtures-165-d97706?style=flat-square" alt="165 offline fixtures">
-<img src="https://img.shields.io/badge/license-MIT-f97316?style=flat-square" alt="MIT license">
-</p>
+<p align="center"><a href="https://qualixar.com/products/jev-decision-layer">Product page</a> · <a href="docs/DEMO.md">Run the offline demo</a> · <a href="#quick-start-without-a-key">Quick start</a> · <a href="docs/WORKING_WITH_JEV.md">Docs</a> · <a href="docs/HOSTS.md">Host evidence</a> · <a href="docs/SECURITY.md">Security</a></p>
 
-<p align="center"><a href="#what-it-is">What it is</a> · <a href="#choose-where-decisions-run-jev-laya-or-jev--laya">Jev, Laya or both</a> · <a href="#your-first-10-minutes">First 10 minutes</a> · <a href="#install-and-upgrade">Install and upgrade</a> · <a href="docs/WORKING_WITH_JEV.md">Working with Jev</a> · <a href="docs/SECURITY.md">Security</a> · <a href="CHANGELOG.md">Changelog</a></p>
+<p align="center"><img src="docs/assets/jev-acquisition.svg" alt="Bounded choice flows to a typed answer, then local policy gates and a receipt. The host agent retains execution authority." width="1000"></p>
 
-<p align="center"><img src="docs/assets/hero.svg" alt="Qualixar Jev Decision Layer: typed, advisory decisions for Claude Code, Codex, VS Code, Antigravity and Hermes, from hosted Jev, local Laya, or both" width="820"></p>
+## Quick start without a key
+
+On macOS with Python 3.11 or newer and Git, replay the shipped synthetic cases through the real local checking logic:
+
+```sh
+git clone https://github.com/qualixar/jev-decision-layer.git
+cd jev-decision-layer
+plugins/qualixar-jev-decision-layer/scripts/jev selftest
+```
+
+This makes no provider call and needs no key or enrolled workspace. A passing self-test verifies gate contracts; it does not measure provider accuracy, latency, token savings, or host interception. [Run twenty recipe examples](docs/DEMO.md), then [install for your host](#install-and-upgrade) and approve a workspace in the private setup page.
 
 ## What it is
 
 Your AI assistant (Claude, Codex, Copilot and others) makes many small decisions on your behalf: which of three formats suits this post, whether a draft meets the brief, which team a request belongs to, whether a search result really answers the question. Qualixar Jev Decision Layer lets the assistant hand one of those **closed questions** to a small, fast decision model and get back a typed answer: one of the options you gave, a position on a scale you defined, or a yes/no likelihood. Every answer carries a confidence and a local receipt ID, and every answer is advice. Your assistant still decides, and still asks you before it acts.
 
 It is an open-source (MIT) plugin and local MCP server. The decision model is either hosted [TypeSafe Jev](https://docs.typesafe.ai/introduction/coding-agents) (directly or through OpenRouter) or [Laya](https://github.com/mizorewww/laya-mlx), which runs on your own Mac. Nothing is sent anywhere until you approve a folder in a private setup page on your computer.
+
+[![Version 1.0.13](https://img.shields.io/badge/version-1.0.13-3B82F6?style=flat-square)](https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.13)
 
 **Current release: 1.0.13** — 20 MCP tools, 55 recipes for bounded decisions, 165 synthetic offline fixtures, and five host adapters. This release is supported and verified on macOS. Linux is experimental and unverified. Windows is disabled: its runtime entry points refuse to start because the native private-state contract did not pass CI. Local Laya needs an Apple-Silicon Mac. See the [host evidence](docs/HOSTS.md) and the [changelog](CHANGELOG.md).
 
@@ -409,3 +414,9 @@ No. Jev returns a typed recommendation for a bounded question. The host still co
 ## Build on it
 
 The source is MIT-licensed. Add a data-only recipe with explicit input fields, a typed question, synthetic normal/uncertain/adversarial fixtures, and an honest limitation; see [CONTRIBUTING.md](CONTRIBUTING.md). Adding a host means writing one adapter against that host's hook contract and its own hook file — never editing another host's. The [rollback guide](docs/ROLLBACK.md) removes the plugin without deleting your project. Upstream code and model rights remain with their authors; see [third-party notices](plugins/qualixar-jev-decision-layer/THIRD_PARTY_NOTICES.md). No Jev or Laya model weights are included.
+
+## Related Qualixar projects
+
+- [Bounded Loops](https://github.com/qualixar/bounded-loops): independent completion gates for agent loops.
+- [AgentAssert](https://github.com/qualixar/agentassert-abc): behavioral contracts for AI agents.
+- [Qualixar OS](https://github.com/qualixar/qualixar-os): agent orchestration runtime.

@@ -93,8 +93,8 @@ class PluginPackageTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text()
         self.assertIn('src="docs/assets/jev-mark.svg"', readme)
         self.assertIn('width="56" height="56"', readme)
-        self.assertIn('src="docs/assets/hero.svg"', readme)
-        self.assertIn('width="820"', readme)
+        self.assertIn('src="docs/assets/jev-acquisition.svg"', readme)
+        self.assertIn('width="1000"', readme)
         headings = {
             re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
             for heading in re.findall(r"^#{1,6}\s+(.+)$", readme, flags=re.MULTILINE)
