@@ -261,6 +261,7 @@ class SetupMainTests(_TempState):
         out = io.StringIO()
         out.isatty = lambda: tty
         with patch.object(setup_server, "SetupServer", _FakeServer), \
+             patch.object(setup_server, "_private_forwarding_page", lambda url: url), \
              patch.object(setup_server.webbrowser, "open", lambda url: opened.append(url) or True), \
              patch.object(sys, "argv", ["setup_server", "--workspace", str(self.root)]), \
              patch.dict(os.environ, environment), redirect_stdout(out):

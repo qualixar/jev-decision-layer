@@ -39,6 +39,7 @@ class CliWorkbenchTests(unittest.TestCase):
 
             with patch("jev_auto.recipe_workbench.RecipeWorkbench", return_value=service) as service_factory, \
                     patch("src.adl.api.recipe_workbench_server.WorkbenchServer", return_value=server) as server_factory, \
+                    patch("src.adl.api.setup_server._private_forwarding_page", lambda url: url), \
                     patch("webbrowser.open", return_value=True) as browser_open:
                 result, stdout, stderr = self.run_cli(["workbench", "--workspace", str(workspace)])
 

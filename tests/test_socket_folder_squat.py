@@ -33,6 +33,7 @@ class SquatTests(unittest.TestCase):
         env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")})
         env.start()
         self.addCleanup(env.stop)
+        os.environ.pop("XDG_RUNTIME_DIR", None)  # restored by env.stop
         self.workspace = root / "project"
         self.workspace.mkdir()
         self.made = []

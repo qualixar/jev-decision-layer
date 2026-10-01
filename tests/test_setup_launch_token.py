@@ -177,6 +177,7 @@ class SetupLaunchAnnouncementTests(unittest.TestCase):
             output.isatty = lambda: tty
             with patch.object(setup_server, "SetupServer", return_value=server), \
                     patch.object(setup_server, "build_controller", return_value=Mock()), \
+                    patch.object(setup_server, "_private_forwarding_page", lambda url: url), \
                     patch.object(setup_server.webbrowser, "open", return_value=opened) as browser, \
                     patch.dict(os.environ, {}, clear=False), \
                     patch.object(sys, "stdout", output), \
@@ -365,6 +366,7 @@ class WorkbenchLaunchTokenTests(unittest.TestCase):
                 output.isatty = lambda tty=tty: tty
                 with patch("src.adl.api.recipe_workbench_server.WorkbenchServer", return_value=server), \
                         patch("jev_auto.recipe_workbench.RecipeWorkbench"), \
+                        patch("src.adl.api.setup_server._private_forwarding_page", lambda url: url), \
                         patch("webbrowser.open", return_value=True) as browser, \
                         patch.object(sys, "stdout", output):
                     self.assertEqual(cli.main(["workbench", "--workspace", os.path.realpath(directory)]), 0)

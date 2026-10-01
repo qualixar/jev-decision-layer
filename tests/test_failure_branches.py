@@ -136,7 +136,7 @@ class ClientTests(unittest.TestCase):
                 self.assertEqual(ipc.call_timeout(Path("/x")), 16)
 
     def test_a_connection_reset_after_sending_is_unavailable(self):
-        with tempfile.TemporaryDirectory(dir="/private/tmp") as folder:
+        with tempfile.TemporaryDirectory(dir="/private/tmp" if sys.platform == "darwin" else "/tmp") as folder:
             addr = Path(folder) / "b.sock"
             listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             listener.bind(str(addr))

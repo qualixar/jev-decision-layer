@@ -103,7 +103,7 @@ class SharedLockTests(_EngineTestCase):
 
 class _SocketCase(unittest.TestCase):
     def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp")
+        self._tmp = tempfile.TemporaryDirectory(dir="/private/tmp" if sys.platform == "darwin" else "/tmp")
         self.addCleanup(self._tmp.cleanup)
         self.folder = Path(self._tmp.name)
         self.addr = self.folder / "b.sock"
