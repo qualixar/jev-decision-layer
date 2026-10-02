@@ -27,9 +27,9 @@ Your AI assistant (Claude, Codex, Copilot and others) makes many small decisions
 
 It is an open-source (MIT) plugin and local MCP server. The decision model is either hosted [TypeSafe Jev](https://docs.typesafe.ai/introduction/coding-agents) (directly or through OpenRouter) or [Laya](https://github.com/mizorewww/laya-mlx), which runs on your own Mac. Nothing is sent anywhere until you approve a folder in a private setup page on your computer.
 
-[![Version 1.0.13](https://img.shields.io/badge/version-1.0.13-3B82F6?style=flat-square)](https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.13)
+[![Version 1.0.14](https://img.shields.io/badge/version-1.0.14-3B82F6?style=flat-square)](https://github.com/qualixar/jev-decision-layer/releases/tag/v1.0.14)
 
-**Current release: 1.0.13** — 20 MCP tools, 55 recipes for bounded decisions, 165 synthetic offline fixtures, and five host adapters. This release is supported and verified on macOS. Linux is experimental and unverified. Windows is disabled: its runtime entry points refuse to start because the native private-state contract did not pass CI. Local Laya needs an Apple-Silicon Mac. See the [host evidence](docs/HOSTS.md) and the [changelog](CHANGELOG.md).
+**Current release: 1.0.14** — 20 MCP tools, 55 recipes for bounded decisions, 165 synthetic offline fixtures, and five host adapters. This release is supported and verified on macOS. Linux is experimental and unverified. Windows is disabled: its runtime entry points refuse to start because the native private-state contract did not pass CI. Local Laya needs an Apple-Silicon Mac. See the [host evidence](docs/HOSTS.md) and the [changelog](CHANGELOG.md).
 
 Built by **Varun Pratap Bhardwaj** under **Qualixar**. This is an independent open-source integration, not an official TypeSafe, OpenAI, Anthropic, Google, Microsoft, or Laya product.
 

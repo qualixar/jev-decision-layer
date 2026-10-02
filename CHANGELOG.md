@@ -2,6 +2,12 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.14] — 2026-10-02
+
+### Fixed
+
+- On Linux, the setup and workbench commands exit as soon as they finish.
+
 ## [1.0.13] — 2026-10-01
 
 ### Added

@@ -11,6 +11,7 @@ memory is still outside this boundary.
 from __future__ import annotations
 
 import argparse
+import atexit
 import dataclasses
 import hashlib
 import html
@@ -699,7 +700,11 @@ def _private_forwarding_page(url: str) -> str:
         stream.write(f'<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={link}">'
                      f'<a href="{link}">Open Qualixar setup</a>\n')
     # The link works once; the page is not needed after the browser has read it.
-    threading.Timer(120, shutil.rmtree, args=(folder,), kwargs={"ignore_errors": True}).start()
+    # The timer must not keep a finished command alive, so the exit removes it too.
+    cleanup = threading.Timer(120, shutil.rmtree, args=(folder,), kwargs={"ignore_errors": True})
+    cleanup.daemon = True
+    cleanup.start()
+    atexit.register(shutil.rmtree, folder, ignore_errors=True)
     return page.as_uri()
 
 

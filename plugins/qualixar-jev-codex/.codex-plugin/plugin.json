@@ -1,6 +1,6 @@
 {
   "name": "qualixar-jev-decision-layer",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Typed Jev decisions and optional local Laya for bounded agent workflows.",
   "author": {
     "name": "Qualixar / Varun Pratap Bhardwaj"

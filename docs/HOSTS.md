@@ -120,7 +120,7 @@ When the plugin cannot load at all, none of these run inside Claude Code. The sy
   },
   "enabledPlugins": { "qualixar-jev-decision-layer@qualixar": true },
   "allowedMcpServers": [
-    { "serverCommand": ["${HOME}/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.13/scripts/launch-jev"] }
+    { "serverCommand": ["${HOME}/.claude/plugins/cache/qualixar/qualixar-jev-decision-layer/1.0.14/scripts/launch-jev"] }
   ]
 }
 ```
