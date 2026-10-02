@@ -1,5 +1,6 @@
 """Provider-neutral validation without inventing a common confidence meaning."""
 from .common import AutoError, canonical, number
+from jevkit.model_identity import is_requested_model
 from jevkit.score import score_matches_rounded_probabilities
 
 def validate_questions(qs):
@@ -16,7 +17,11 @@ def validate_questions(qs):
 def validate_response(raw, questions, expected_model=None):
     validate_questions(questions)
     if not isinstance(raw,dict) or not isinstance(raw.get('model'),str): raise AutoError('RESPONSE_MODEL')
-    if expected_model and raw['model'] != expected_model: raise AutoError('MODEL_MISMATCH')
+    # A dated snapshot of the requested model is that model: carry the requested
+    # id from here on, so per-model rules keep applying. The transport records
+    # the exact served id in provenance.
+    if expected_model and not is_requested_model(raw['model'], expected_model): raise AutoError('MODEL_MISMATCH')
+    model = expected_model or raw['model']
     answers = raw.get('answers')
     if not isinstance(answers,dict) or set(answers) != set(questions): raise AutoError('ANSWER_IDS')
     out={}
@@ -40,7 +45,7 @@ def validate_response(raw, questions, expected_model=None):
         else:
             v=a.get('score')
             if not number(v,0,len(labels)-1):raise AutoError('SCORE_EXPECTATION')
-            if raw['model'] in ('jev-1.13.0','typesafe/jev-1.13'):
+            if model in ('jev-1.13.0','typesafe/jev-1.13'):
                 consistent=score_matches_rounded_probabilities(v,p)
             else:
                 consistent=abs(v-sum(int(k)*x for k,x in p.items()))<=.01+1e-9
@@ -54,7 +59,7 @@ def validate_response(raw, questions, expected_model=None):
         v=usage.get(name)
         if v is not None and (not isinstance(v,int) or isinstance(v,bool) or v<0): raise AutoError('USAGE_VALUE')
         u[name]=v
-    return {'model':raw['model'],'answers':out,'usage':u}
+    return {'model':model,'answers':out,'usage':u}
 
 def compact_receipt(record):
     """Project only an allowlist. Detailed source/question text remains local."""

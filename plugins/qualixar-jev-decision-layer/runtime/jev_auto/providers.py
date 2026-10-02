@@ -50,7 +50,7 @@ class Providers:
             raw=decode(b''.join(chunks),1_000_000)
             require_clean(raw,(key,),allow_context=allow_context)
             result=validate_response(raw,qs,model)
-            result['provenance']={'provider':name,'model_requested':model,'confidence_kind':'provider-reported'}
+            result['provenance']={'provider':name,'model_requested':model,'model_served':raw['model'],'confidence_kind':'provider-reported'}
             return result
         except AutoError:
             connection.close();setattr(self._threads,name,None)

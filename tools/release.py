@@ -62,6 +62,7 @@ BADGE_PATTERNS = (
     r"(releases/tag/v)(\d+\.\d+\.\d+)",
     r"(badge/version-)(\d+\.\d+\.\d+)(-)",
     r"(alt=\"Version )(\d+\.\d+\.\d+)(\")",
+    r"(\[!\[Version )(\d+\.\d+\.\d+)(\])",
 )
 
 

@@ -56,6 +56,7 @@
     "jevkit/credentials.py": 100,
     "jevkit/engine.py": 100,
     "jevkit/mcp_server.py": 100,
+    "jevkit/model_identity.py": 100,
     "jevkit/policy_mode.py": 92,
     "jevkit/providers.py": 100,
     "jevkit/runtime.py": 99,

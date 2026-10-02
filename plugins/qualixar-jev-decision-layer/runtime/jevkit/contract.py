@@ -2,6 +2,7 @@
 from __future__ import annotations
 import math
 from typing import Any
+from .model_identity import is_requested_model
 from .security import SafeError, canonical
 from .score import score_matches_rounded_probabilities
 
@@ -21,8 +22,13 @@ def validate_questions(qs: dict) -> None:
     if len(canonical(qs))>16_000: raise SafeError('QUESTION_BUDGET_EXCEEDED')
 
 def validate_response_model(raw: Any, requested_model: str) -> dict:
-    """Reject aliases, suffixes, and provider fallbacks before parsing answers."""
-    if not isinstance(raw,dict) or raw.get('model') != requested_model:
+    """Reject aliases, suffixes, and provider fallbacks before parsing answers.
+
+    One exception: the requested id plus `-` and eight digits, the dated
+    snapshot a provider such as OpenRouter names in its answer. The raw id is
+    returned unchanged, so the run record's `model_resolved` names the snapshot.
+    """
+    if not isinstance(raw,dict) or not is_requested_model(raw.get('model'), requested_model):
         raise SafeError('MODEL_ID_MISMATCH')
     return raw
 

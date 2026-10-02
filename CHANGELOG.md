@@ -2,6 +2,12 @@
 
 All notable changes to this project are recorded here. This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.15] — 2026-10-02
+
+### Fixed
+
+- Decisions sent through OpenRouter are no longer refused. OpenRouter names the dated version of the model that answered, and Jev treated that as a different model. A dated version of the requested model is now accepted, nothing else is, and the local receipt records which version answered.
+
 ## [1.0.14] — 2026-10-02
 
 ### Fixed

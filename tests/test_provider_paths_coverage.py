@@ -105,7 +105,8 @@ class JevAutoProvidersRemoteTests(unittest.TestCase):
             result = provider.remote(self.POLICY, {"k": "v"}, self.QUESTIONS)
         self.assertEqual(result["answers"], {"decision": {"type": "noul", "noul": 0.7}})
         self.assertEqual(result["provenance"], {
-            "provider": "typesafe", "model_requested": "jev-1.13.0", "confidence_kind": "provider-reported",
+            "provider": "typesafe", "model_requested": "jev-1.13.0", "model_served": "jev-1.13.0",
+            "confidence_kind": "provider-reported",
         })
         ctor.assert_called_once()
         args, kwargs = connection.request.call_args
